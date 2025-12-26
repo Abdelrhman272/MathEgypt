@@ -10,8 +10,8 @@
     "website": 'https://www.yourcompany.com',
     "depends": ["base", "sale_management", "stock", "mail"],
     "data": [
-        "security/ir.model.access.csv",
         "security/security.xml",
+        "security/ir.model.access.csv",
         "data/sequence.xml",
         "views/export_shipment_views.xml"
         "views/menu.xml",
