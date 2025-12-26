@@ -7,7 +7,6 @@
 
     <record id="group_export_shipment_manager" model="res.groups">
       <field name="name">Export Shipment Manager</field>
-      <field name="category_id" ref="base.module_category_inventory"/>
       <field name="implied_ids" eval="[(4, ref('export_shipment.group_export_shipment_user'))]"/>
     </record>
   </data>
