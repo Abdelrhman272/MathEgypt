@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_export_shipment_tree" model="ir.ui.view">
+    <field name="name">export.shipment.tree</field>
+    <field name="model">export.shipment</field>
+    <field name="arch" type="xml">
+      <tree>
+        <field name="name"/>
+        <field name="partner_id"/>
+        <field name="container_no"/>
+        <field name="seal_no"/>
+        <field name="destination"/>
+        <field name="state"/>
+        <field name="total_qty"/>
+        <field name="sale_order_id"/>
+        <field name="picking_id"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_export_shipment_form" model="ir.ui.view">
+    <field name="name">export.shipment.form</field>
+    <field name="model">export.shipment</field>
+    <field name="arch" type="xml">
+      <form string="Export Shipment">
+        <header>
+          <button name="action_mark_reserved" type="object" string="Mark Reserved"
+                  class="btn-primary" invisible="state != 'draft'"/>
+          <button name="action_create_sale_order" type="object" string="Create Sales Order"
+                  class="btn-primary" invisible="sale_order_id or state in ('cancel','done')"/>
+          <button name="action_create_delivery_placeholder" type="object" string="Create Delivery (Demo)"
+                  class="btn-secondary" invisible="picking_id or state in ('cancel','done')"/>
+
+          <button name="action_cancel" type="object" string="Cancel"
+                  class="btn-danger" invisible="state in ('cancel','done')"/>
+          <button name="action_reset_to_draft" type="object" string="Reset to Draft"
+                  class="btn-secondary" invisible="state != 'cancel'"/>
+
+          <field name="state" widget="statusbar"
+                 statusbar_visible="draft,reserved,so_created,del_created,done,cancel"/>
+        </header>
+
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="name"/></h1>
+          </div>
+
+          <group>
+            <group>
+              <field name="partner_id"/>
+              <field name="destination"/>
+            </group>
+            <group>
+              <field name="container_no"/>
+              <field name="seal_no"/>
+              <field name="company_id" groups="base.group_multi_company"/>
+            </group>
+          </group>
+
+          <notebook>
+            <page string="Lines">
+              <field name="line_ids">
+                <tree editable="bottom">
+                  <field name="product_id"/>
+                  <field name="product_uom_qty"/>
+                  <field name="product_uom_id"/>
+                </tree>
+              </field>
+            </page>
+
+            <page string="Reserved Lots">
+              <field name="lot_line_ids">
+                <tree editable="bottom">
+                  <field name="line_id"/>
+                  <field name="product_id"/>
+                  <field name="lot_id"/>
+                  <field name="qty"/>
+                </tree>
+              </field>
+            </page>
+
+            <page string="Links">
+              <group>
+                <field name="sale_order_id" readonly="1"/>
+                <field name="picking_id" readonly="1"/>
+              </group>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_export_shipment" model="ir.actions.act_window">
+    <field name="name">Export Shipments</field>
+    <field name="res_model">export.shipment</field>
+    <field name="view_mode">tree,form</field>
+  </record>
+
+</odoo>

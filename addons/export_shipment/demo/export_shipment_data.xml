@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="export_shipment_demo_data_1" model="export.shipment">
+        <field name="state">draft</field>
+        <field name="description">Demo Description</field>
+        
+    </record>
+    <record id="export_shipment_demo_data_2" model="export.shipment">
+        <field name="state">confirmed</field>
+        <field name="description">Demo Description</field>
+    </record>
+</odoo>

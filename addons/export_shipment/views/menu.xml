@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <menuitem id="menu_export_root"
+            name="Export"
+            parent="stock.menu_stock_root"
+            sequence="80"
+            groups="export_shipment.group_export_shipment_user"/>
+
+  <menuitem id="menu_export_shipments"
+            name="Shipments / Containers"
+            parent="export_shipment.menu_export_root"
+            action="export_shipment.action_export_shipment"
+            sequence="10"
+            groups="export_shipment.group_export_shipment_user"/>
+</odoo>
