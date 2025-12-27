@@ -21,7 +21,7 @@ class FarmEvaluation(models.Model):
         "product.product",
         string="Raw Material",
         required=True,
-        domain=[('purchase_ok', '=', True), ('product_tmpl_id.detailed_type', '=', 'product')],
+        domain=[('purchase_ok', '=', True), ('type', '=', 'product')],
         tracking=True,
     )
 
