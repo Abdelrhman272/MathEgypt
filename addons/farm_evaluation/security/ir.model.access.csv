@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_farm_evaluation_user,farm.evaluation user,model_farm_evaluation,farm_evaluation.group_farm_evaluation_user,1,1,1,0
+access_farm_evaluation_manager,farm.evaluation manager,model_farm_evaluation,farm_evaluation.group_farm_evaluation_manager,1,1,1,1
+access_farm_evaluation_line_user,farm.evaluation.line user,model_farm_evaluation_line,farm_evaluation.group_farm_evaluation_user,1,1,1,0
+access_farm_evaluation_line_manager,farm.evaluation.line manager,model_farm_evaluation_line,farm_evaluation.group_farm_evaluation_manager,1,1,1,1

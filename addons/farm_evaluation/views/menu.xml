@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_farm_eval_root"
+              name="Farm Evaluations"
+              parent="purchase.menu_purchase_root"
+              sequence="60"
+              groups="farm_evaluation.group_farm_evaluation_user"/>
+
+    <menuitem id="menu_farm_eval"
+              name="Evaluations"
+              parent="farm_evaluation.menu_farm_eval_root"
+              action="farm_evaluation.action_farm_evaluation"
+              sequence="10"
+              groups="farm_evaluation.group_farm_evaluation_user"/>
+</odoo>
