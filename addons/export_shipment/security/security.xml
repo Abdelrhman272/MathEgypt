@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
   <data>
+
     <record id="group_export_shipment_user" model="res.groups">
       <field name="name">Export Shipment User</field>
     </record>
@@ -9,5 +10,6 @@
       <field name="name">Export Shipment Manager</field>
       <field name="implied_ids" eval="[(4, ref('export_shipment.group_export_shipment_user'))]"/>
     </record>
+
   </data>
 </odoo>
