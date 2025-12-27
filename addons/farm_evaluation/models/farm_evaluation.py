@@ -21,7 +21,7 @@ class FarmEvaluation(models.Model):
         "product.product",
         string="Raw Material",
         required=True,
-        domain=[('purchase_ok', '=', True), ('type', '=', 'product')],
+        domain=[('purchase_ok', '=', True), ('detailed_type', '=', 'product')],
         tracking=True,
     )
 
@@ -45,9 +45,10 @@ class FarmEvaluation(models.Model):
 
     @api.model
     def create(self, vals):
-        if vals.get("name", "New") == "New":
-            vals["name"] = self.env["ir.sequence"].next_by_code("farm.evaluation") or "New"
-        return super().create(vals)
+        for vals in vals_list:
+            if vals.get("name", "New") == "New":
+                vals["name"] = self.env["ir.sequence"].next_by_code("farm.evaluation") or _("New")
+        return super().create(vals_list)
 
     def action_approve(self):
         for rec in self:
