@@ -13,7 +13,7 @@
         "security/security.xml",
         "security/ir.model.access.csv",
         "data/sequence.xml",
-        "views/farm_evaluation_views.xml"
+        "views/farm_evaluation_views.xml",
         "views/purchase_order_views.xml",
         "views/menu.xml",
     ],
