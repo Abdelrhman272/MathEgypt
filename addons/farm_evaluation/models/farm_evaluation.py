@@ -21,7 +21,11 @@ class FarmEvaluation(models.Model):
         "product.product",
         string="Raw Material",
         required=True,
-        domain=[('purchase_ok', '=', True), ('type', '=', 'product')],
+        domain=[
+        ("product_tmpl_id.purchase_ok", "=", True),
+        ("product_tmpl_id.type", "in", ["product", "consu"]),  # أو خليها 'product' بس
+        ("company_id", "in", [False, company_id]),             # مهم لو multi-company
+    ],
         tracking=True,
     )
 
@@ -43,8 +47,8 @@ class FarmEvaluation(models.Model):
 
     purchase_order_id = fields.Many2one("purchase.order", readonly=True, copy=False)
 
-    @api.model
-    def create(self, vals):
+    @api.model_create_multi
+    def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("farm.evaluation") or _("New")
