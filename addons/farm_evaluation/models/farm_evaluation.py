@@ -26,7 +26,7 @@ class FarmEvaluation(models.Model):
     )
 
     total_expected_qty = fields.Float(string="Total Expected Qty", required=True, tracking=True)
-    uom_id = fields.Many2one(related="raw_product_id.uom_po_id", readonly=True)
+    uom_id = fields.Many2one(related="raw_product_id.uom_id", readonly=True)
 
     line_ids = fields.One2many("farm.evaluation.line", "evaluation_id", string="Grades")
 
@@ -94,7 +94,7 @@ class FarmEvaluation(models.Model):
                     "product_id": rec.raw_product_id.id,
                     "name": f"{rec.raw_product_id.display_name} - Grade {line.grade}",
                     "product_qty": line.expected_qty,
-                    "product_uom": rec.raw_product_id.uom_po_id.id,
+                    "product_uom": rec.uom_id.id,
                     "farm_grade": line.grade,
                     "farm_evaluation_line_id": line.id,
                 }))
