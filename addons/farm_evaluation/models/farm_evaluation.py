@@ -21,17 +21,27 @@ class FarmEvaluation(models.Model):
         "product.product",
         string="Raw Material",
         required=True,
-        domain=lambda self: [
-        ("purchase_ok", "=", True),
-        ("company_id", "in", [False, self.env.company.id]),
-    ],
         tracking=True,
+        # IMPORTANT: keep domain safe + multi-company friendly
+        domain=lambda self: [
+            ("purchase_ok", "=", True),
+            ("company_id", "in", [False, self.env.company.id]),
+        ],
     )
 
-    total_expected_qty = fields.Float(string="Total Expected Qty", required=True, tracking=True)
     uom_id = fields.Many2one(related="raw_product_id.uom_id", readonly=True)
+    total_expected_qty = fields.Float(string="Total Expected Qty", required=True, tracking=True)
 
-    line_ids = fields.One2many("farm.evaluation.line", "evaluation_id", string="Grades")
+    season_id = fields.Many2one("farm.season", string="Season", tracking=True)
+
+    line_ids = fields.One2many(
+        "farm.evaluation.line",
+        "evaluation_id",
+        string="Expected Grades",
+        copy=True,
+    )
+
+    purchase_order_id = fields.Many2one("purchase.order", readonly=True, copy=False)
 
     state = fields.Selection(
         [
@@ -42,9 +52,8 @@ class FarmEvaluation(models.Model):
         ],
         default="draft",
         tracking=True,
+        required=True,
     )
-
-    purchase_order_id = fields.Many2one("purchase.order", readonly=True, copy=False)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -66,57 +75,51 @@ class FarmEvaluation(models.Model):
         self.write({"state": "draft"})
 
     def action_create_po(self):
+        """Create a single RFQ/PO line for the raw material (total weight).
+
+        Business rule (per client):
+        - Evaluation has ONE raw product + total expected qty (weight)
+        - Grade lines are ONLY for expected distribution comparison, NOT for purchasing lines
         """
-        Create RFQ/PO from evaluation:
-        - One PO line per grade (same raw product), qty = expected_qty
-        - Link PO back to evaluation
-        """
-        for rec in self:
-            if rec.state != "approved":
-                raise UserError(_("Evaluation must be Approved first."))
-            if rec.purchase_order_id:
-                raise UserError(_("A Purchase Order is already created for this evaluation."))
+        self.ensure_one()
 
-            # basic validations
-            if rec.total_expected_qty <= 0:
-                raise UserError(_("Total Expected Qty must be greater than zero."))
+        if self.state != "approved":
+            raise UserError(_("Evaluation must be Approved first."))
+        if self.purchase_order_id:
+            raise UserError(_("A Purchase Order is already created for this evaluation."))
 
-            po_vals = {
-                "partner_id": rec.vendor_id.id,
-                "origin": rec.name,
-                "farm_evaluation_id": rec.id,
-            }
-            po = self.env["purchase.order"].create(po_vals)
+        if not self.vendor_id:
+            raise UserError(_("Please select a Vendor."))
+        if not self.raw_product_id:
+            raise UserError(_("Please select a Raw Material product."))
+        if self.total_expected_qty <= 0:
+            raise UserError(_("Total Expected Qty must be greater than zero."))
 
-            lines_vals = []
-            for line in rec.line_ids:
-                if line.expected_qty <= 0:
-                    continue
-                # create one purchase line per grade
-                lines_vals.append((0, 0, {
-                    "order_id": po.id,
-                    "product_id": rec.raw_product_id.id,
-                    "name": f"{rec.raw_product_id.display_name} - Grade {line.grade}",
-                    "product_qty": line.expected_qty,
-                    "product_uom_id": rec.raw_product_id.uom_id.id,
-                    "farm_grade": line.grade,
-                    "farm_evaluation_line_id": line.id,
-                }))
+        po_vals = {
+            "partner_id": self.vendor_id.id,
+            "origin": self.name,
+            "farm_evaluation_id": self.id,  # requires purchase.order extension field
+        }
+        po = self.env["purchase.order"].create(po_vals)
 
-            if not lines_vals:
-                raise UserError(_("All grade lines have zero expected qty."))
+        # ONE purchase line only (raw material by total weight)
+        line_vals = (0, 0, {
+            "product_id": self.raw_product_id.id,
+            "name": self.raw_product_id.display_name,
+            "product_qty": self.total_expected_qty,
+            "product_uom_id": self.raw_product_id.uom_id.id,
+        })
+        po.write({"order_line": [line_vals]})
 
-            po.write({"order_line": lines_vals})
-
-            rec.purchase_order_id = po.id
-            rec.state = "po_created"
+        self.purchase_order_id = po
+        self.state = "po_created"
 
         return {
             "type": "ir.actions.act_window",
             "name": _("Request for Quotation"),
             "res_model": "purchase.order",
             "view_mode": "form",
-            "res_id": self.purchase_order_id.id,
+            "res_id": po.id,
         }
 
 
@@ -126,7 +129,6 @@ class FarmEvaluationLine(models.Model):
     _order = "id asc"
 
     evaluation_id = fields.Many2one("farm.evaluation", required=True, ondelete="cascade")
-
     grade = fields.Selection(
         [("A", "A"), ("B", "B"), ("C", "C"), ("D", "D")],
         required=True,
