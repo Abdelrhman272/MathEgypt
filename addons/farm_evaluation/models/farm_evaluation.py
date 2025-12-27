@@ -21,10 +21,9 @@ class FarmEvaluation(models.Model):
         "product.product",
         string="Raw Material",
         required=True,
-        domain=[
-        ("product_tmpl_id.purchase_ok", "=", True),
-        ("product_tmpl_id.type", "in", ["product", "consu"]),  # أو خليها 'product' بس
-        ("company_id", "in", [False, company_id]),             # مهم لو multi-company
+        domain=lambda self: [
+        ("purchase_ok", "=", True),
+        ("company_id", "in", [False, self.env.company.id]),
     ],
         tracking=True,
     )
