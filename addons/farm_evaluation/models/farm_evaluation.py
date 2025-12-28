@@ -32,7 +32,7 @@ class FarmEvaluation(models.Model):
     uom_id = fields.Many2one(related="raw_product_id.uom_id", readonly=True)
     total_expected_qty = fields.Float(string="Total Expected Qty", required=True, tracking=True)
 
-    season = fields.Char(string="")(string="Season", tracking=True)
+    season = fields.Char(string="Season")
 
     line_ids = fields.One2many(
         "farm.evaluation.line",
