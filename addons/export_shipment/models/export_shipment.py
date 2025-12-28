@@ -154,6 +154,11 @@ class ExportShipment(models.Model):
                     strict=True,
                 )
 
+            # Ensure picking state/availability fields are recomputed (and quantities are reflected
+            # correctly in inventory "Free to Use" / "Outgoing" metrics).
+            # This won't reserve extra quantities because the demand is already reserved above.
+            picking.action_assign()
+
             rec.reserved_picking_id = picking.id
             rec.state = "reserved"
 
@@ -195,7 +200,8 @@ class ExportShipment(models.Model):
                         "order_id": so.id,
                         "product_id": line.product_id.id,
                         "product_uom_qty": line.product_uom_qty,
-                        "product_uom": line.product_uom_id.id,
+                        # Odoo 19: the UoM field on sale.order.line is product_uom_id
+                        "product_uom_id": line.product_uom_id.id,
                         "name": line.product_id.display_name,
                     }
                 )
@@ -215,10 +221,23 @@ class ExportShipment(models.Model):
             if picking.state == "cancel":
                 raise UserError(_("Reservation picking is cancelled. Create a new reservation."))
 
-            # For demo: set qty_done = reserved for all move lines then validate
+            # For demo: set qty_done = reserved for all move lines then validate.
+            # In Odoo 19, `stock.move.line` no longer exposes `reserved_uom_qty`.
+            # We therefore fall back to commonly available fields.
             for ml in picking.move_line_ids:
-                if ml.qty_done == 0 and ml.reserved_uom_qty:
-                    ml.qty_done = ml.reserved_uom_qty
+                if ml.qty_done:
+                    continue
+
+                reserved = 0.0
+                if "reserved_uom_qty" in ml._fields:
+                    reserved = ml.reserved_uom_qty or 0.0
+                elif "product_uom_qty" in ml._fields:
+                    reserved = ml.product_uom_qty or 0.0
+                elif "quantity" in ml._fields:
+                    reserved = ml.quantity or 0.0
+
+                if reserved:
+                    ml.qty_done = reserved
             picking.button_validate()
             rec.state = "shipped"
 
