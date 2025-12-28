@@ -74,7 +74,9 @@
                   <field name="product_uom_id" readonly="1"/>
                 </list>
               </field>
-              <label string="Tip: Add reserved lots for each line, then click 'Reserve Lots' to lock stock (reduces Free to Use)."/>
+              <div class="alert alert-info" role="alert">
+                Tip: Add reserved lots for each line, then click 'Reserve Lots' to lock stock (reduces Free to Use).
+              </div>
             </page>
           </notebook>
         </sheet>
