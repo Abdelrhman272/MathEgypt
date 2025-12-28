@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-  <record id="view_export_shipment_list" model="ir.ui.view">
+  <record id="view_export_shipment_tree" model="ir.ui.view">
     <field name="name">export.shipment.list</field>
     <field name="model">export.shipment</field>
     <field name="arch" type="xml">
@@ -9,7 +9,6 @@
         <field name="name"/>
         <field name="partner_id"/>
         <field name="container_no"/>
-        <field name="destination"/>
         <field name="state"/>
         <field name="total_qty"/>
       </list>
@@ -22,29 +21,34 @@
     <field name="arch" type="xml">
       <form string="Export Shipment">
         <header>
-          <button name="action_mark_reserved" type="object" string="Mark Reserved"
+          <field name="state" widget="statusbar" statusbar_visible="draft,reserved,shipped,cancel"/>
+          <button name="action_reserve_lots" type="object" string="Reserve Lots"
                   class="btn-primary" invisible="state != 'draft'"/>
+          <button name="action_unreserve" type="object" string="Unreserve"
+                  class="btn-secondary" invisible="state != 'reserved'"/>
+          <button name="action_create_sale_order" type="object" string="Create Sale Order"
+                  class="btn-secondary" invisible="sale_order_id != False"/>
+          <button name="action_validate_shipment" type="object" string="Validate Shipment"
+                  class="btn-primary" invisible="state != 'reserved'"/>
           <button name="action_cancel" type="object" string="Cancel"
-                  class="btn-danger" invisible="state in ('cancel','done')"/>
+                  class="btn-danger" invisible="state == 'cancel'"/>
           <button name="action_reset_to_draft" type="object" string="Reset to Draft"
                   class="btn-secondary" invisible="state != 'cancel'"/>
-          <field name="state" widget="statusbar" statusbar_visible="draft,reserved,done,cancel"/>
         </header>
 
         <sheet>
-          <div class="oe_title">
-            <h1><field name="name"/></h1>
-          </div>
-
           <group>
             <group>
+              <field name="name" readonly="1"/>
+              <field name="company_id"/>
               <field name="partner_id"/>
               <field name="destination"/>
             </group>
             <group>
               <field name="container_no"/>
               <field name="seal_no"/>
-              <field name="company_id" groups="base.group_multi_company"/>
+              <field name="sale_order_id" readonly="1"/>
+              <field name="reserved_picking_id" readonly="1"/>
             </group>
           </group>
 
@@ -53,6 +57,7 @@
               <field name="line_ids">
                 <list editable="bottom">
                   <field name="product_id"/>
+                  <field name="bom_id" readonly="1"/>
                   <field name="product_uom_qty"/>
                   <field name="product_uom_id"/>
                 </list>
@@ -63,11 +68,13 @@
               <field name="lot_line_ids">
                 <list editable="bottom">
                   <field name="line_id"/>
-                  <field name="product_id"/>
+                  <field name="product_id" readonly="1"/>
                   <field name="lot_id"/>
                   <field name="qty"/>
+                  <field name="product_uom_id" readonly="1"/>
                 </list>
               </field>
+              <label string="Tip: Add reserved lots for each line, then click 'Reserve Lots' to lock stock (reduces Free to Use)."/>
             </page>
           </notebook>
         </sheet>
