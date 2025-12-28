@@ -71,6 +71,7 @@ class ExportShipment(models.Model):
         if not self.lot_line_ids:
             raise UserError(_("Add reserved lots first."))
 
+        # Basic consistency: each reserved lot must belong to a line
         for lot_line in self.lot_line_ids:
             if not lot_line.line_id:
                 raise UserError(_("Each reserved lot must be linked to a shipment line."))
@@ -124,7 +125,8 @@ class ExportShipment(models.Model):
             for (product_id, uom_id), demand_qty in moves_by_key.items():
                 move = self.env["stock.move"].create(
                     {
-                        "name": rec.name,
+                        # In Odoo 19 the 'name' field is no longer accepted on stock.move create.
+                        # The move description will be derived from the product / picking.
                         "picking_id": picking.id,
                         "company_id": rec.company_id.id,
                         "product_id": product_id,
@@ -144,6 +146,7 @@ class ExportShipment(models.Model):
                 move = move_records.get((lot_line.product_id.id, lot_line.product_uom_id.id))
                 if not move:
                     continue
+                # Reserve from source location with strict lot reservation
                 move._update_reserved_quantity(
                     lot_line.qty,
                     location_src,
@@ -162,17 +165,22 @@ class ExportShipment(models.Model):
                 raise UserError(_("Unreserve is allowed only in Reserved state."))
 
             picking = rec.reserved_picking_id
+            # Cancel picking to release reservation
             if picking.state not in ("cancel", "done"):
                 picking.action_cancel()
-
             rec.reserved_picking_id = False
             rec.state = "draft"
 
     def action_create_sale_order(self):
-        """Create a Sale Order for booking/invoicing purposes (demo-friendly)."""
+        """Create a Sale Order for booking/invoicing purposes.
+        For the demo: we link the SO to the shipment and keep the reservation picking as the delivery basis.
+        """
         for rec in self:
             if rec.sale_order_id:
                 raise UserError(_("Sale Order already created."))
+
+            if not rec.partner_id:
+                raise UserError(_("Set the customer first."))
 
             so = self.env["sale.order"].create(
                 {
@@ -195,7 +203,8 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship)."""
+        """Validate the reservation picking (ship).
+        """
         for rec in self:
             if not rec.reserved_picking_id:
                 raise UserError(_("Reserve lots first."))
@@ -206,11 +215,10 @@ class ExportShipment(models.Model):
             if picking.state == "cancel":
                 raise UserError(_("Reservation picking is cancelled. Create a new reservation."))
 
-            # Demo: set qty_done = reserved qty then validate
+            # For demo: set qty_done = reserved for all move lines then validate
             for ml in picking.move_line_ids:
                 if ml.qty_done == 0 and ml.reserved_uom_qty:
                     ml.qty_done = ml.reserved_uom_qty
-
             picking.button_validate()
             rec.state = "shipped"
 
@@ -241,10 +249,8 @@ class ExportShipmentLine(models.Model):
         for rec in self:
             if rec.product_id:
                 rec.product_uom_id = rec.product_id.uom_id
-                bom = self.env["mrp.bom"]._bom_find(
-                    rec.product_id,
-                    company_id=rec.shipment_id.company_id.id if rec.shipment_id else False,
-                )
+                # Auto-pick BOM (company-specific first)
+                bom = self.env["mrp.bom"]._bom_find(rec.product_id, company_id=rec.shipment_id.company_id.id if rec.shipment_id else False)
                 rec.bom_id = bom.id if bom else False
 
 
@@ -265,4 +271,5 @@ class ExportShipmentLot(models.Model):
     def _onchange_line_id(self):
         for rec in self:
             if rec.line_id:
+                # Default reserve the line qty (can be adjusted)
                 rec.qty = rec.line_id.product_uom_qty
