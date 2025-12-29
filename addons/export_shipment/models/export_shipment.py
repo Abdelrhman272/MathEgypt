@@ -1,259 +1,254 @@
 # -*- coding: utf-8 -*-
-
 from odoo import api, fields, models, _
-from odoo.exceptions import ValidationError, UserError
+from odoo.exceptions import UserError
 
 
 class ExportShipment(models.Model):
     _name = "export.shipment"
-    _description = "Export Shipment"
+    _description = "Export Shipment / Container"
     _inherit = ["mail.thread", "mail.activity.mixin"]
+    _order = "id desc"
 
-    name = fields.Char(string="Shipment No", required=True, copy=False, readonly=True, default="New", tracking=True)
-    company_id = fields.Many2one("res.company", default=lambda self: self.env.company, required=True)
-    partner_id = fields.Many2one("res.partner", string="Customer", required=True)
-    destination = fields.Char(string="Destination")
-    container_no = fields.Char(string="Container No", required=True)
-    seal_no = fields.Char(string="Seal No")
+    name = fields.Char(string="Shipment No", required=True, copy=False, default="New", tracking=True)
+    company_id = fields.Many2one(
+        "res.company", string="Company", required=True, default=lambda self: self.env.company, tracking=True
+    )
+    partner_id = fields.Many2one("res.partner", string="Customer", required=True, tracking=True)
+    destination = fields.Char(string="Destination", tracking=True)
+
+    container_no = fields.Char(string="Container No", tracking=True)
+    seal_no = fields.Char(string="Seal No", tracking=True)
 
     state = fields.Selection(
         [
             ("draft", "Draft"),
             ("reserved", "Reserved"),
-            ("done", "Shipped"),
+            ("shipped", "Shipped"),
             ("cancel", "Cancelled"),
         ],
         default="draft",
         tracking=True,
+        required=True,
     )
 
-    line_ids = fields.One2many("export.shipment.line", "shipment_id", string="Lines")
-    lot_line_ids = fields.One2many("export.shipment.lot.line", "shipment_id", string="Reserved Lots")
+    line_ids = fields.One2many("export.shipment.line", "shipment_id", string="Lines", copy=True)
+    lot_line_ids = fields.One2many("export.shipment.lot", "shipment_id", string="Reserved Lots", copy=True)
 
+    reserved_picking_id = fields.Many2one(
+        "stock.picking", string="Reservation Picking", readonly=True, copy=False
+    )
     sale_order_id = fields.Many2one("sale.order", string="Sale Order", readonly=True, copy=False)
-    picking_id = fields.Many2one("stock.picking", string="Reservation Picking", readonly=True, copy=False)
 
-    total_qty = fields.Float(compute="_compute_total_qty", store=True)
+    total_qty = fields.Float(string="Total Qty", compute="_compute_total_qty", store=True)
 
     @api.depends("line_ids.product_uom_qty")
     def _compute_total_qty(self):
         for rec in self:
             rec.total_qty = sum(rec.line_ids.mapped("product_uom_qty"))
 
-    def _ensure_sequence_exists(self):
-        seq = self.env["ir.sequence"].sudo().search([("code", "=", "export.shipment")], limit=1)
-        if not seq:
-            self.env["ir.sequence"].sudo().create(
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("name") in (False, "New", _("New")):
+                vals["name"] = self.env["ir.sequence"].next_by_code("export.shipment") or "New"
+        return super().create(vals_list)
+
+    def _get_default_warehouse(self):
+        self.ensure_one()
+        wh = self.env["stock.warehouse"].search([("company_id", "=", self.company_id.id)], limit=1)
+        if not wh:
+            wh = self.env["stock.warehouse"].search([], limit=1)
+        if not wh:
+            raise UserError(_("No warehouse found to create reservation picking."))
+        return wh
+
+    def _validate_ready_to_reserve(self):
+        self.ensure_one()
+        if self.state not in ("draft",):
+            raise UserError(_("Reservation is allowed only in Draft state."))
+        if not self.line_ids:
+            raise UserError(_("Add shipment lines first."))
+        if not self.lot_line_ids:
+            raise UserError(_("Add reserved lots first."))
+
+        # Basic consistency: each reserved lot must belong to a line
+        for lot_line in self.lot_line_ids:
+            if not lot_line.line_id:
+                raise UserError(_("Each reserved lot must be linked to a shipment line."))
+            if lot_line.qty <= 0:
+                raise UserError(_("Reserved quantity must be greater than zero."))
+
+    def action_reserve_lots(self):
+        """Create an outgoing picking and reserve the selected lots.
+
+        Important (Odoo 19):
+        - Do NOT write reserved quantities directly on stock.move.line.
+        - We create stock.moves with demand quantities, confirm the picking,
+          then reserve specific lots via move._update_reserved_quantity().
+        """
+        for rec in self:
+            rec._validate_ready_to_reserve()
+
+            if rec.reserved_picking_id:
+                raise UserError(_("Reservation picking already exists."))
+
+            wh = rec._get_default_warehouse()
+            picking_type = wh.out_type_id
+            if not picking_type:
+                raise UserError(_("Outgoing picking type is not configured on the warehouse."))
+
+            location_src = picking_type.default_location_src_id or wh.lot_stock_id
+            location_dest = picking_type.default_location_dest_id or rec.partner_id.property_stock_customer
+            if not location_src or not location_dest:
+                raise UserError(_("Source/Destination locations are not properly configured."))
+
+            picking = self.env["stock.picking"].create(
                 {
-                    "name": "Export Shipment Sequence",
-                    "code": "export.shipment",
-                    "prefix": "EXP/",
-                    "padding": 5,
-                    "company_id": False,
+                    "picking_type_id": picking_type.id,
+                    "company_id": rec.company_id.id,
+                    "partner_id": rec.partner_id.id,
+                    "origin": rec.name,
+                    "location_id": location_src.id,
+                    "location_dest_id": location_dest.id,
+                    "move_type": "direct",
                 }
             )
 
-    def _next_shipment_name(self):
-        self._ensure_sequence_exists()
-        return self.env["ir.sequence"].next_by_code("export.shipment") or "EXP/00000"
+            # One move per product/uom (demand = sum of reserved lots)
+            moves_by_key = {}
+            for lot_line in rec.lot_line_ids:
+                key = (lot_line.product_id.id, lot_line.product_uom_id.id)
+                moves_by_key.setdefault(key, 0.0)
+                moves_by_key[key] += lot_line.qty
 
-    @api.model
-    def default_get(self, fields_list):
-        res = super().default_get(fields_list)
-        if "name" in fields_list and (not res.get("name") or res.get("name") == "New"):
-            res["name"] = self._next_shipment_name()
-        return res
-
-    @api.model
-    def create(self, vals):
-        if vals.get("name", "New") == "New":
-            self._ensure_sequence_exists()
-            vals["name"] = self._next_shipment_name()
-        return super().create(vals)
-
-    def _sync_reserved_lots_from_picking(self):
-        """Sync reserved lots from picking moves to shipment lot lines."""
-        self.ensure_one()
-        if not self.picking_id:
-            return
-
-        # Clear old lines
-        self.lot_line_ids.unlink()
-
-        for move in self.picking_id.move_ids_without_package:
-            for ml in move.move_line_ids:
-                self.env["export.shipment.lot.line"].create(
+            move_records = {}
+            for (product_id, uom_id), demand_qty in moves_by_key.items():
+                move = self.env["stock.move"].create(
                     {
-                        "shipment_id": self.id,
-                        "line_id": False,
-                        "product_id": ml.product_id.id,
-                        "lot_id": ml.lot_id.id if ml.lot_id else False,
-                        "qty": ml.reserved_uom_qty or ml.qty_done or 0.0,
+                        # In Odoo 19 the 'name' field is no longer accepted on stock.move create.
+                        # The move description will be derived from the product / picking.
+                        "picking_id": picking.id,
+                        "company_id": rec.company_id.id,
+                        "product_id": product_id,
+                        "product_uom_qty": demand_qty,
+                        "product_uom": uom_id,
+                        "location_id": location_src.id,
+                        "location_dest_id": location_dest.id,
                     }
                 )
+                move_records[(product_id, uom_id)] = move
 
-    def action_mark_reserved(self):
-        """Reserve products by creating picking and assigning."""
+            # Confirm first to allow reservation
+            picking.action_confirm()
+
+            # Reserve exact lots
+            for lot_line in rec.lot_line_ids:
+                move = move_records.get((lot_line.product_id.id, lot_line.product_uom_id.id))
+                if not move:
+                    continue
+                # Reserve from source location with strict lot reservation
+                move._update_reserved_quantity(
+                    lot_line.qty,
+                    location_src,
+                    lot_id=lot_line.lot_id,
+                    strict=True,
+                )
+
+            # Ensure picking state/availability fields are recomputed (and quantities are reflected
+            # correctly in inventory "Free to Use" / "Outgoing" metrics).
+            # This won't reserve extra quantities because the demand is already reserved above.
+            picking.action_assign()
+
+            rec.reserved_picking_id = picking.id
+            rec.state = "reserved"
+
+    def action_unreserve(self):
         for rec in self:
-            if rec.state != "draft":
-                continue
+            if not rec.reserved_picking_id:
+                raise UserError(_("No reservation picking to unreserve."))
+            if rec.state != "reserved":
+                raise UserError(_("Unreserve is allowed only in Reserved state."))
 
-            if not rec.line_ids:
-                raise ValidationError(_("Please add shipment lines before reserving lots."))
+            picking = rec.reserved_picking_id
+            # Cancel picking to release reservation
+            if picking.state not in ("cancel", "done"):
+                picking.action_cancel()
+            rec.reserved_picking_id = False
+            rec.state = "draft"
 
-            Picking = self.env["stock.picking"]
-            Move = self.env["stock.move"]
+    def action_create_sale_order(self):
+        """Create a Sale Order for booking/invoicing purposes.
+        For the demo: we link the SO to the shipment and keep the reservation picking as the delivery basis.
+        """
+        for rec in self:
+            if rec.sale_order_id:
+                raise UserError(_("Sale Order already created."))
 
-            picking_type = self.env["stock.picking.type"].search(
-                [("code", "=", "internal"), ("warehouse_id.company_id", "=", rec.company_id.id)], limit=1
-            )
-            if not picking_type:
-                picking_type = self.env["stock.picking.type"].search([("code", "=", "internal")], limit=1)
+            if not rec.partner_id:
+                raise UserError(_("Set the customer first."))
 
-            if not picking_type:
-                raise ValidationError(_("No internal picking type found. Please configure Warehouse / Picking Types."))
-
-            if not picking_type.default_location_src_id or not picking_type.default_location_dest_id:
-                raise ValidationError(_("Internal picking type must have default source and destination locations."))
-
-            picking = Picking.create(
+            so = self.env["sale.order"].create(
                 {
-                    "picking_type_id": picking_type.id,
-                    "location_id": picking_type.default_location_src_id.id,
-                    "location_dest_id": picking_type.default_location_dest_id.id,
+                    "partner_id": rec.partner_id.id,
                     "company_id": rec.company_id.id,
                     "origin": rec.name,
                 }
             )
-
             for line in rec.line_ids:
-                Move.create(
+                self.env["sale.order.line"].create(
                     {
-                        "name": line.product_id.display_name,
+                        "order_id": so.id,
                         "product_id": line.product_id.id,
                         "product_uom_qty": line.product_uom_qty,
-                        "product_uom": line.product_uom_id.id,
-                        "picking_id": picking.id,
-                        "location_id": picking.location_id.id,
-                        "location_dest_id": picking.location_dest_id.id,
-                        "company_id": rec.company_id.id,
+                        # Odoo 19: the UoM field on sale.order.line is product_uom_id
+                        "product_uom_id": line.product_uom_id.id,
+                        "name": line.product_id.display_name,
                     }
                 )
 
-            picking.action_confirm()
-            picking.action_assign()
-
-            rec.picking_id = picking.id
-            rec.state = "reserved"
-            rec._sync_reserved_lots_from_picking()
-
-    # -------------------------
-    # METHODS REQUIRED BY VIEW BUTTONS
-    # -------------------------
-    def action_reserve_lots(self):
-        """Compatibility method used by the form button."""
-        return self.action_mark_reserved()
-
-    def action_unreserve(self):
-        """Unreserve lots and reset shipment back to Draft."""
-        for rec in self:
-            picking = rec.picking_id
-            if picking and picking.state not in ("done", "cancel"):
-                # In Odoo 19, do_unreserve is commonly available. If not, fallback to cancel.
-                if hasattr(picking, "do_unreserve"):
-                    picking.do_unreserve()
-                else:
-                    picking.action_cancel()
-
-            if rec.lot_line_ids:
-                rec.lot_line_ids.unlink()
-
-            rec.picking_id = False
-            rec.state = "draft"
-
-    def action_create_sale_order(self):
-        """Create a Sale Order **by Container** (not by products).
-
-        Business rule:
-        - SO/Invoice must be by CONTAINER (commercial doc)
-        - Inventory reservation & delivery stays in Export Shipment using real products
-
-        What this does:
-        - Create SO once
-        - Write container details on SO header (custom fields)
-        - Add ONE service line "Export Container" with clear container details
-        """
-        SaleOrder = self.env["sale.order"]
-        SaleOrderLine = self.env["sale.order.line"]
-
-        # Service product representing the container on commercial docs
-        tmpl = self.env.ref("export_shipment.product_template_export_container", raise_if_not_found=False)
-        container_product = tmpl.product_variant_id if tmpl else False
-        if not container_product:
-            raise ValidationError(
-                _("Missing container service product. Please update the module to load the product data.")
-            )
-
-        for rec in self:
-            if rec.sale_order_id:
-                continue
-
-            so_vals = {
-                "partner_id": rec.partner_id.id,
-                "company_id": rec.company_id.id,
-                "origin": rec.name,
-            }
-            if rec.partner_id.property_product_pricelist:
-                so_vals["pricelist_id"] = rec.partner_id.property_product_pricelist.id
-
-            so = SaleOrder.create(so_vals)
-
-            # Save container details on the SO header (easy visibility)
-            so.write({
-                "x_export_shipment_id": rec.id,
-                "x_container_no": rec.container_no,
-                "x_seal_no": rec.seal_no,
-                "x_destination": rec.destination,
-            })
-
-            # ONE line only (container service line)
-            line_desc = (
-                f"Shipment: {rec.name}\n"
-                f"Container No: {rec.container_no or ''}\n"
-                f"Seal No: {rec.seal_no or ''}\n"
-                f"Destination: {rec.destination or ''}\n"
-            )
-
-            SaleOrderLine.create({
-                "order_id": so.id,
-                "product_id": container_product.id,
-                "product_uom_qty": 1.0,
-                "name": line_desc,
-            })
-
-            rec.sale_order_id = so
-
-            return {
-                "type": "ir.actions.act_window",
-                "res_model": "sale.order",
-                "res_id": so.id,
-                "view_mode": "form",
-                "target": "current",
-            }
+            rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
+        """Validate the reservation picking (ship).
+        """
         for rec in self:
-            if rec.state != "reserved":
+            if not rec.reserved_picking_id:
+                raise UserError(_("Reserve lots first."))
+            picking = rec.reserved_picking_id
+            if picking.state == "done":
+                rec.state = "shipped"
                 continue
-            rec.state = "done"
+            if picking.state == "cancel":
+                raise UserError(_("Reservation picking is cancelled. Create a new reservation."))
+
+            # For demo: set qty_done = reserved for all move lines then validate.
+            # In Odoo 19, `stock.move.line` no longer exposes `reserved_uom_qty`.
+            # We therefore fall back to commonly available fields.
+            for ml in picking.move_line_ids:
+                if ml.qty_done:
+                    continue
+
+                reserved = 0.0
+                if "reserved_uom_qty" in ml._fields:
+                    reserved = ml.reserved_uom_qty or 0.0
+                elif "product_uom_qty" in ml._fields:
+                    reserved = ml.product_uom_qty or 0.0
+                elif "quantity" in ml._fields:
+                    reserved = ml.quantity or 0.0
+
+                if reserved:
+                    ml.qty_done = reserved
+            picking.button_validate()
+            rec.state = "shipped"
 
     def action_cancel(self):
         for rec in self:
+            if rec.reserved_picking_id and rec.reserved_picking_id.state not in ("cancel", "done"):
+                rec.reserved_picking_id.action_cancel()
             rec.state = "cancel"
 
     def action_reset_to_draft(self):
-        for rec in self:
-            rec.state = "draft"
+        self.write({"state": "draft"})
 
 
 class ExportShipmentLine(models.Model):
@@ -261,33 +256,39 @@ class ExportShipmentLine(models.Model):
     _description = "Export Shipment Line"
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
-    product_id = fields.Many2one("product.product", required=True)
+    product_id = fields.Many2one("product.product", string="Product/Grade", required=True)
+    bom_id = fields.Many2one("mrp.bom", string="BOM", help="Auto-selected based on the product.")
+    product_uom_id = fields.Many2one(
+        "uom.uom", string="UoM", required=True, default=lambda self: self.env.ref("uom.product_uom_unit").id
+    )
     product_uom_qty = fields.Float(string="Quantity", required=True, default=1.0)
-    product_uom_id = fields.Many2one("uom.uom", string="UoM", required=True)
 
     @api.onchange("product_id")
     def _onchange_product_id(self):
         for rec in self:
             if rec.product_id:
-                rec.product_uom_id = rec.product_id.uom_id.id
+                rec.product_uom_id = rec.product_id.uom_id
+                # Auto-pick BOM (company-specific first)
+                bom = self.env["mrp.bom"]._bom_find(rec.product_id, company_id=rec.shipment_id.company_id.id if rec.shipment_id else False)
+                rec.bom_id = bom.id if bom else False
 
 
-class ExportShipmentLotLine(models.Model):
-    _name = "export.shipment.lot.line"
-    _description = "Export Shipment Lot Line"
+class ExportShipmentLot(models.Model):
+    _name = "export.shipment.lot"
+    _description = "Export Shipment Reserved Lot"
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
-    line_id = fields.Many2one("export.shipment.line", string="Related Line")
-    product_id = fields.Many2one("product.product", required=True)
-    lot_id = fields.Many2one("stock.lot", string="Lot/Serial")
-    qty = fields.Float(required=True, default=1.0)
+    line_id = fields.Many2one("export.shipment.line", string="Related Line", required=True, ondelete="cascade")
 
+    product_id = fields.Many2one(related="line_id.product_id", store=True, readonly=True)
+    product_uom_id = fields.Many2one(related="line_id.product_uom_id", store=True, readonly=True)
 
-class SaleOrder(models.Model):
-    """Extend Sale Order to show container details on the header (Odoo 19)."""
-    _inherit = "sale.order"
+    lot_id = fields.Many2one("stock.lot", string="Lot", required=True, domain="[('product_id', '=', product_id)]")
+    qty = fields.Float(string="Reserved Qty", required=True, default=0.0)
 
-    x_export_shipment_id = fields.Many2one("export.shipment", string="Export Shipment", copy=False, readonly=True)
-    x_container_no = fields.Char(string="Container No", copy=False, readonly=True)
-    x_seal_no = fields.Char(string="Seal No", copy=False, readonly=True)
-    x_destination = fields.Char(string="Destination", copy=False, readonly=True)
+    @api.onchange("line_id")
+    def _onchange_line_id(self):
+        for rec in self:
+            if rec.line_id:
+                # Default reserve the line qty (can be adjusted)
+                rec.qty = rec.line_id.product_uom_qty
