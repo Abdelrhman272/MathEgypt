@@ -108,7 +108,7 @@
       <form string="Export &amp; Logistics Settings">
         <sheet>
           <group>
-            <label string="Export &amp; Logistics" class="fw-bold"/>
+            <div class="o_form_label fw-bold">Export &amp; Logistics</div>
             <group>
               <field name="export_container_product_tmpl_id"/>
               <field name="export_container_line_prefix"/>
