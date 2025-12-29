@@ -46,12 +46,29 @@ class ExportShipment(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Assign Shipment No automatically (Odoo 19)."""
+        """Assign Shipment No automatically (Odoo 19) - FINAL."""
         if isinstance(vals_list, dict):
             vals_list = [vals_list]
+
+        seq_env = self.env["ir.sequence"].sudo()  # CHANGED: sudo to avoid access issues
+
+        # CHANGED: Ensure sequence exists (failsafe)
+        seq_rec = seq_env.search([("code", "=", "export.shipment")], limit=1)
+        if not seq_rec:
+            # Create it if for any reason XML wasn't applied yet / missing
+            seq_rec = seq_env.create({
+                "name": "Export Shipment",
+                "code": "export.shipment",
+                "prefix": "EXP/",
+                "padding": 5,
+                "company_id": False,
+            })
+
         for vals in vals_list:
             if vals.get("name") in (False, "New", _("New")):
-                vals["name"] = self.env["ir.sequence"].next_by_code("export.shipment") or "New"
+                # CHANGED: Use next_by_id for stability, fallback to next_by_code
+                vals["name"] = (seq_rec.next_by_id() or seq_env.next_by_code("export.shipment") or "New")
+
         return super().create(vals_list)
 
     def _get_default_warehouse(self):
@@ -235,7 +252,7 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship)."""
+        """Validate the reservation picking (ship) - Odoo 19 FINAL."""
         for rec in self:
             if not rec.reserved_picking_id:
                 raise UserError(_("Reserve lots first."))
@@ -243,40 +260,36 @@ class ExportShipment(models.Model):
                 raise UserError(_("Shipment must be Reserved before validation."))
 
             picking = rec.reserved_picking_id
-    
-            # ✅ IMPORTANT: ensure reservation is applied before validating
-            if picking.state not in ("done", "cancel"):
-                picking.action_assign()  # CHANGED
 
-                # ✅ 1) Try to set done qty from reserved move lines (if any)
+            if picking.state not in ("done", "cancel"):
+                # Ensure reservation is applied
+                picking.action_assign()
+
+                # 1) Set done qty from reserved move lines (if any)
                 for ml in picking.move_line_ids:
                     if ml.qty_done == 0:
-                        reserved = getattr(ml, "reserved_uom_qty", 0.0) or 0.0  # Odoo 19 field usually exists
+                        reserved = getattr(ml, "reserved_uom_qty", 0.0) or 0.0
                         if reserved:
-                            ml.qty_done = reserved  # CHANGED
+                            ml.qty_done = reserved
 
-                # ✅ 2) If still zero (no move lines or no reserved), set done on moves as fallback
-                for mv in picking.move_ids_without_package:
-                    if getattr(mv, "quantity_done", 0.0) == 0 and mv.product_uom_qty:
-                       mv.quantity_done = mv.product_uom_qty  # CHANGED
+                # 2) Fallback: set done on moves (Odoo 19 uses move_ids)
+                for mv in picking.move_ids:  # CHANGED
+                    if (getattr(mv, "quantity_done", 0.0) or 0.0) == 0.0 and (mv.product_uom_qty or 0.0):
+                        mv.quantity_done = mv.product_uom_qty
+    
+                # 3) Guard: avoid validating zero qty transfer
+                total_done_ml = sum(picking.move_line_ids.mapped("qty_done") or [0.0])
+                total_done_mv = sum(picking.move_ids.mapped("quantity_done") or [0.0])  # CHANGED
 
-                # ✅ 3) Final guard: avoid "Validating a zero quantity transfer"
-                total_done = 0.0
-                for ml in picking.move_line_ids:
-                    total_done += (ml.qty_done or 0.0)
-
-                total_done += sum(picking.move_ids_without_package.mapped("quantity_done") or [0.0])
-
-                if not total_done:
+                if (total_done_ml + total_done_mv) <= 0.0:
                     raise UserError(_(
                         "Transfer has zero reserved/done quantities.\n"
                         "Please make sure lots are reserved successfully before validation."
-                    ))  # CHANGED
+                    ))
 
                 picking.button_validate()
 
             rec.state = "shipped"
-
 
     def action_cancel(self):
         for rec in self:
