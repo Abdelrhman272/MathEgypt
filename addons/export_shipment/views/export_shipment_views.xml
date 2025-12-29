@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+  <!-- =========================================================
+       Export Shipment Views
+       ========================================================= -->
+
   <record id="view_export_shipment_tree" model="ir.ui.view">
     <field name="name">export.shipment.list</field>
     <field name="model">export.shipment</field>
@@ -9,6 +13,7 @@
         <field name="name"/>
         <field name="partner_id"/>
         <field name="container_no"/>
+        <field name="destination"/>
         <field name="state"/>
         <field name="total_qty"/>
       </list>
@@ -22,18 +27,25 @@
       <form string="Export Shipment">
         <header>
           <field name="state" widget="statusbar" statusbar_visible="draft,reserved,shipped,cancel"/>
+
           <button name="action_reserve_lots" type="object" string="Reserve Lots"
                   class="btn-primary" invisible="state != 'draft'"/>
+
           <button name="action_unreserve" type="object" string="Unreserve"
                   class="btn-secondary" invisible="state != 'reserved'"/>
+
           <button name="action_create_sale_order" type="object" string="Create Sale Order"
                   class="btn-secondary" invisible="sale_order_id != False"/>
+
           <button name="action_update_sale_line_description" type="object" string="Update SO Description"
                   class="btn-secondary" invisible="sale_order_id == False"/>
+
           <button name="action_validate_shipment" type="object" string="Validate Shipment"
                   class="btn-primary" invisible="state != 'reserved'"/>
+
           <button name="action_cancel" type="object" string="Cancel"
                   class="btn-danger" invisible="state == 'cancel'"/>
+
           <button name="action_reset_to_draft" type="object" string="Reset to Draft"
                   class="btn-secondary" invisible="state != 'cancel'"/>
         </header>
@@ -44,7 +56,6 @@
               <field name="name" readonly="1"/>
               <field name="company_id"/>
               <field name="partner_id"/>
-              <field name="state" readonly="1"/>
             </group>
             <group>
               <field name="container_no"/>
@@ -76,8 +87,8 @@
                 </list>
               </field>
               <div class="text-muted">
-                Reserve Lots creates an outgoing picking and reserves the selected lots.
-                This will reflect in Inventory as 'Outgoing' to lock stock (reduces Free to Use).
+                Reserve Lots will create an outgoing picking and reserve the selected lots.
+                This will reflect in Inventory as outgoing quantities and reduce free-to-use stock.
               </div>
             </page>
           </notebook>
@@ -100,49 +111,7 @@
     <field name="purchase_ok">False</field>
   </record>
 
-  <!-- Export & Logistics Settings (under Inventory > Export) -->
-  <record id="view_export_logistics_settings_form" model="ir.ui.view">
-    <field name="name">export.logistics.settings.form</field>
-    <field name="model">export.logistics.settings</field>
-    <field name="arch" type="xml">
-      <form string="Export &amp; Logistics">
-        <sheet>
-          <group>
-            <field name="company_id"/>
-          </group>
-
-          <group string="Export &amp; Logistics">
-            <field name="container_product_tmpl_id"/>
-            <field name="container_line_prefix"/>
-            <field name="auto_lot"/>
-          </group>
-
-          <div class="text-muted">
-            These settings are used by Export Shipment workflow (Odoo 19).
-          </div>
-        </sheet>
-      </form>
-    </field>
-  </record>
-
-<record id="action_export_logistics_settings" model="ir.actions.act_window">
-  <field name="name">Export &amp; Logistics</field>
-  <field name="res_model">export.logistics.settings</field>
-  <field name="view_mode">form</field>
-  <field name="target">current</field>
-  <field name="context">{}</field>
-</record>
-
-  <record id="action_export_logistics_settings" model="ir.actions.act_window">
-    <field name="name">Export &amp; Logistics Settings</field>
-    <field name="res_model">res.config.settings</field>
-    <field name="view_mode">form</field>
-    <field name="view_id" ref="export_shipment.view_export_logistics_res_config_settings"/>
-    <field name="target">new</field>
-    <field name="context">{'default_export_container_line_prefix': 'Export Container'}</field>
-  </record>
-
-  <!-- Show export shipment link on Sale Order -->
+  <!-- Show Export Shipment link on Sale Order -->
   <record id="view_sale_order_form_inherit_export_shipment" model="ir.ui.view">
     <field name="name">sale.order.form.inherit.export.shipment</field>
     <field name="model">sale.order</field>
@@ -152,6 +121,43 @@
         <field name="export_shipment_id" readonly="1" invisible="export_shipment_id == False"/>
       </xpath>
     </field>
+  </record>
+
+  <!-- =========================================================
+       Export & Logistics Settings (Dedicated model - stable)
+       Model: export.logistics.settings
+       ========================================================= -->
+
+  <record id="view_export_logistics_settings_form" model="ir.ui.view">
+    <field name="name">export.logistics.settings.form</field>
+    <field name="model">export.logistics.settings</field>
+    <field name="arch" type="xml">
+      <form string="Export &amp; Logistics">
+        <sheet>
+          <group>
+            <field name="company_id" readonly="1"/>
+          </group>
+
+          <group string="Export &amp; Logistics">
+            <field name="container_product_tmpl_id"/>
+            <field name="container_line_prefix"/>
+            <field name="auto_lot"/>
+          </group>
+
+          <div class="text-muted">
+            These settings are used by the Export Shipment workflow.
+          </div>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_export_logistics_settings" model="ir.actions.act_window">
+    <field name="name">Export &amp; Logistics</field>
+    <field name="res_model">export.logistics.settings</field>
+    <field name="view_mode">form</field>
+    <field name="target">current</field>
+    <field name="context">{}</field>
   </record>
 
 </odoo>
