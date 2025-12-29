@@ -235,47 +235,47 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-    """Validate the reservation picking (ship)."""
-    for rec in self:
-        if not rec.reserved_picking_id:
-            raise UserError(_("Reserve lots first."))
-        if rec.state != "reserved":
-            raise UserError(_("Shipment must be Reserved before validation."))
+        """Validate the reservation picking (ship)."""
+        for rec in self:
+            if not rec.reserved_picking_id:
+                raise UserError(_("Reserve lots first."))
+            if rec.state != "reserved":
+                raise UserError(_("Shipment must be Reserved before validation."))
 
-        picking = rec.reserved_picking_id
+            picking = rec.reserved_picking_id
+    
+            # ✅ IMPORTANT: ensure reservation is applied before validating
+            if picking.state not in ("done", "cancel"):
+                picking.action_assign()  # CHANGED
 
-        # ✅ IMPORTANT: ensure reservation is applied before validating
-        if picking.state not in ("done", "cancel"):
-            picking.action_assign()  # CHANGED
+                # ✅ 1) Try to set done qty from reserved move lines (if any)
+                for ml in picking.move_line_ids:
+                    if ml.qty_done == 0:
+                        reserved = getattr(ml, "reserved_uom_qty", 0.0) or 0.0  # Odoo 19 field usually exists
+                        if reserved:
+                            ml.qty_done = reserved  # CHANGED
 
-            # ✅ 1) Try to set done qty from reserved move lines (if any)
-            for ml in picking.move_line_ids:
-                if ml.qty_done == 0:
-                    reserved = getattr(ml, "reserved_uom_qty", 0.0) or 0.0  # Odoo 19 field usually exists
-                    if reserved:
-                        ml.qty_done = reserved  # CHANGED
+                # ✅ 2) If still zero (no move lines or no reserved), set done on moves as fallback
+                for mv in picking.move_ids_without_package:
+                    if getattr(mv, "quantity_done", 0.0) == 0 and mv.product_uom_qty:
+                       mv.quantity_done = mv.product_uom_qty  # CHANGED
 
-            # ✅ 2) If still zero (no move lines or no reserved), set done on moves as fallback
-            for mv in picking.move_ids_without_package:
-                if getattr(mv, "quantity_done", 0.0) == 0 and mv.product_uom_qty:
-                    mv.quantity_done = mv.product_uom_qty  # CHANGED
+                # ✅ 3) Final guard: avoid "Validating a zero quantity transfer"
+                total_done = 0.0
+                for ml in picking.move_line_ids:
+                    total_done += (ml.qty_done or 0.0)
 
-            # ✅ 3) Final guard: avoid "Validating a zero quantity transfer"
-            total_done = 0.0
-            for ml in picking.move_line_ids:
-                total_done += (ml.qty_done or 0.0)
+                total_done += sum(picking.move_ids_without_package.mapped("quantity_done") or [0.0])
 
-            total_done += sum(picking.move_ids_without_package.mapped("quantity_done") or [0.0])
+                if not total_done:
+                    raise UserError(_(
+                        "Transfer has zero reserved/done quantities.\n"
+                        "Please make sure lots are reserved successfully before validation."
+                    ))  # CHANGED
 
-            if not total_done:
-                raise UserError(_(
-                    "Transfer has zero reserved/done quantities.\n"
-                    "Please make sure lots are reserved successfully before validation."
-                ))  # CHANGED
+                picking.button_validate()
 
-            picking.button_validate()
-
-        rec.state = "shipped"
+            rec.state = "shipped"
 
 
     def action_cancel(self):
