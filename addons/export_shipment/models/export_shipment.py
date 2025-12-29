@@ -86,7 +86,6 @@ class ExportShipment(models.Model):
         self.ensure_one()
 
         if not self.id:
-            # لازم Save الأول عشان lines تبقى records وتقدر تختارها في Related Line
             raise UserError(_("Please save the shipment first, then add Products and Reserved Lots."))
 
         if self.state != "draft":
@@ -171,7 +170,6 @@ class ExportShipment(models.Model):
             try:
                 picking.do_unreserve()
             except Exception:
-                # في بعض النسخ قد تختلف
                 picking.move_ids._do_unreserve()
 
             # Reserve exact lots (strict)
@@ -271,7 +269,8 @@ class ExportShipment(models.Model):
         """Validate (ship) from Export Shipment screen:
         - ensure reserved
         - fill qty_done from reserved quantities (move lines only)
-        - validate + auto wizards
+        - validate + auto wizards (even if no res_id)
+        - if still not done -> open the picking instead of raising error
         """
         for rec in self:
             if not rec.reserved_picking_id:
@@ -286,8 +285,7 @@ class ExportShipment(models.Model):
                 rec.state = "shipped"
                 continue
 
-            # Ensure reservation is applied
-            # NOTE: you already reserved manually, but assign keeps UI consistent
+            # Ensure reservation is applied (UI consistency)
             try:
                 picking.action_assign()
             except Exception:
@@ -299,7 +297,7 @@ class ExportShipment(models.Model):
             # -----------------------------------------------------------------
             for mv in picking.move_ids:
                 if mv.move_line_ids:
-                    # Tracked products: move lines exist (with lots)
+                    # tracked or existing lines
                     for ml in mv.move_line_ids:
                         if (ml.qty_done or 0.0) == 0.0:
                             reserved = (
@@ -310,7 +308,7 @@ class ExportShipment(models.Model):
                             if reserved:
                                 ml.qty_done = reserved
                 else:
-                    # Non-tracked: create one move line and set qty_done there
+                    # non-tracked: create one move line
                     if (mv.product_uom_qty or 0.0) > 0.0:
                         self.env["stock.move.line"].create({
                             "move_id": mv.id,
@@ -323,15 +321,28 @@ class ExportShipment(models.Model):
                             "qty_done": mv.product_uom_qty,
                         })
 
-            # Validate and auto-process wizards
+            # 1) try validate
             res = picking.button_validate()
 
-            if isinstance(res, dict) and res.get("res_model") and res.get("res_id"):
-                wizard = self.env[res["res_model"]].browse(res["res_id"]).exists()
+            # 2) handle returned wizard (covers cases with NO res_id)
+            if isinstance(res, dict) and res.get("res_model"):
+                res_model = res["res_model"]
+                res_id = res.get("res_id")
+
+                wizard = False
+                if res_id:
+                    wizard = self.env[res_model].browse(res_id).exists()
+                else:
+                    # Some Odoo flows return only context -> create wizard then process
+                    ctx = res.get("context", {})
+                    # Make sure we keep current env context too
+                    wiz_ctx = dict(self.env.context, **(ctx or {}))
+                    wizard = self.env[res_model].with_context(wiz_ctx).create({})
+
                 if wizard:
-                    if res["res_model"] == "stock.immediate.transfer":
+                    if res_model == "stock.immediate.transfer" and hasattr(wizard, "process"):
                         wizard.process()
-                    elif res["res_model"] == "stock.backorder.confirmation":
+                    elif res_model == "stock.backorder.confirmation":
                         if hasattr(wizard, "process"):
                             wizard.process()
                         elif hasattr(wizard, "process_cancel_backorder"):
@@ -339,13 +350,21 @@ class ExportShipment(models.Model):
                     elif hasattr(wizard, "process"):
                         wizard.process()
 
+            # 3) final decision
+            picking.invalidate_recordset()
             if picking.state == "done":
                 rec.state = "shipped"
-            else:
-                raise UserError(_(
-                    "Picking is not validated yet.\n"
-                    "Please open the Reservation Picking and complete the required step (availability/backorder)."
-                ))
+                continue
+
+            # بدل UserError… افتح الـ Picking مباشرة علشان تكمل خطوة مطلوبة
+            return {
+                "type": "ir.actions.act_window",
+                "name": _("Reservation Picking"),
+                "res_model": "stock.picking",
+                "view_mode": "form",
+                "res_id": picking.id,
+                "target": "current",
+            }
 
     def action_cancel(self):
         for rec in self:
@@ -391,6 +410,7 @@ class ExportShipmentLine(models.Model):
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product", required=True)
 
+    # UoM follows product (no manual edit)
     product_uom_id = fields.Many2one(
         "uom.uom",
         string="UoM",
@@ -410,6 +430,7 @@ class ExportShipmentLine(models.Model):
             qty = rec.product_uom_qty or 0.0
             uom = rec.product_uom_id.name or ""
             rec.name = f"{ship} - {prod} ({qty:g} {uom})"
+
 
 class ExportShipmentLotLine(models.Model):
     _name = "export.shipment.lot.line"
