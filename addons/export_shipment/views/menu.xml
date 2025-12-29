@@ -12,4 +12,18 @@
             action="export_shipment.action_export_shipment"
             sequence="10"
             groups="export_shipment.group_export_shipment_user"/>
+
+  <menuitem id="menu_export_config"
+            name="Configuration"
+            parent="export_shipment.menu_export_root"
+            sequence="90"
+            groups="export_shipment.group_export_shipment_manager"/>
+
+  <menuitem id="menu_export_logistics_settings"
+            name="Export &amp; Logistics"
+            parent="export_shipment.menu_export_config"
+            action="export_shipment.action_export_logistics_settings"
+            sequence="10"
+            groups="export_shipment.group_export_shipment_manager"/>
+
 </odoo>

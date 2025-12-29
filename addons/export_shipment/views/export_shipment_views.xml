@@ -28,6 +28,8 @@
                   class="btn-secondary" invisible="state != 'reserved'"/>
           <button name="action_create_sale_order" type="object" string="Create Sale Order"
                   class="btn-secondary" invisible="sale_order_id != False"/>
+          <button name="action_update_sale_line_description" type="object" string="Update SO Description"
+                  class="btn-secondary" invisible="sale_order_id == False"/>
           <button name="action_validate_shipment" type="object" string="Validate Shipment"
                   class="btn-primary" invisible="state != 'reserved'"/>
           <button name="action_cancel" type="object" string="Cancel"
@@ -42,24 +44,24 @@
               <field name="name" readonly="1"/>
               <field name="company_id"/>
               <field name="partner_id"/>
-              <field name="destination"/>
+              <field name="state" readonly="1"/>
             </group>
             <group>
               <field name="container_no"/>
               <field name="seal_no"/>
+              <field name="destination"/>
               <field name="sale_order_id" readonly="1"/>
               <field name="reserved_picking_id" readonly="1"/>
             </group>
           </group>
 
           <notebook>
-            <page string="Lines">
+            <page string="Products">
               <field name="line_ids">
                 <list editable="bottom">
                   <field name="product_id"/>
-                  <field name="bom_id" readonly="1"/>
-                  <field name="product_uom_qty"/>
                   <field name="product_uom_id"/>
+                  <field name="product_uom_qty"/>
                 </list>
               </field>
             </page>
@@ -71,11 +73,11 @@
                   <field name="product_id" readonly="1"/>
                   <field name="lot_id"/>
                   <field name="qty"/>
-                  <field name="product_uom_id" readonly="1"/>
                 </list>
               </field>
-              <div class="alert alert-info" role="alert">
-                Tip: Add reserved lots for each line, then click 'Reserve Lots' to lock stock (reduces Free to Use).
+              <div class="text-muted">
+                Reserve Lots creates an outgoing picking and reserves the selected lots.
+                This will reflect in Inventory as 'Outgoing' to lock stock (reduces Free to Use).
               </div>
             </page>
           </notebook>
@@ -88,6 +90,62 @@
     <field name="name">Export Shipments</field>
     <field name="res_model">export.shipment</field>
     <field name="view_mode">list,form</field>
+  </record>
+
+  <!-- Default service product for container booking (SO line) -->
+  <record id="product_tmpl_export_container_service" model="product.template">
+    <field name="name">Export Container Service</field>
+    <field name="type">service</field>
+    <field name="sale_ok">True</field>
+    <field name="purchase_ok">False</field>
+  </record>
+
+  <!-- Export & Logistics Settings (under Inventory > Export) -->
+  <record id="view_export_logistics_res_config_settings" model="ir.ui.view">
+    <field name="name">export.shipment.res.config.settings.form</field>
+    <field name="model">res.config.settings</field>
+    <field name="arch" type="xml">
+      <form string="Export &amp; Logistics Settings">
+        <sheet>
+          <group>
+            <label string="Export &amp; Logistics" class="fw-bold"/>
+            <group>
+              <field name="export_container_product_tmpl_id"/>
+              <field name="export_container_line_prefix"/>
+              <field name="export_auto_lot"/>
+            </group>
+            <div class="text-muted">
+              These settings affect the Export Shipment workflow (Odoo 19).
+            </div>
+          </group>
+        </sheet>
+        <footer>
+          <button string="Save" type="object" name="execute" class="btn-primary"/>
+          <button string="Cancel" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_export_logistics_settings" model="ir.actions.act_window">
+    <field name="name">Export &amp; Logistics Settings</field>
+    <field name="res_model">res.config.settings</field>
+    <field name="view_mode">form</field>
+    <field name="view_id" ref="export_shipment.view_export_logistics_res_config_settings"/>
+    <field name="target">new</field>
+    <field name="context">{'default_export_container_line_prefix': 'Export Container'}</field>
+  </record>
+
+  <!-- Show export shipment link on Sale Order -->
+  <record id="view_sale_order_form_inherit_export_shipment" model="ir.ui.view">
+    <field name="name">sale.order.form.inherit.export.shipment</field>
+    <field name="model">sale.order</field>
+    <field name="inherit_id" ref="sale.view_order_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//sheet//group//field[@name='partner_id']" position="after">
+        <field name="export_shipment_id" readonly="1" invisible="export_shipment_id == False"/>
+      </xpath>
+    </field>
   </record>
 
 </odoo>

@@ -8,7 +8,7 @@
     "author": 'NextGen Systems',
     "maintainer": "",
     "website": 'https://www.yourcompany.com',
-    "depends": ["base", "sale_management", "stock", "mail", "mrp", "accountant"],
+    "depends": ["base", "sale_management", "sale_stock", "stock", "mail", "mrp", "account"],
     "data": [
         "security/security.xml",
         "security/ir.model.access.csv",

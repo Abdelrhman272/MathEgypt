@@ -14,10 +14,13 @@ class ExportShipment(models.Model):
         "res.company", string="Company", required=True, default=lambda self: self.env.company, tracking=True
     )
     partner_id = fields.Many2one("res.partner", string="Customer", required=True, tracking=True)
-    destination = fields.Char(string="Destination", tracking=True)
 
     container_no = fields.Char(string="Container No", tracking=True)
+    destination = fields.Char(string="Destination", tracking=True)
     seal_no = fields.Char(string="Seal No", tracking=True)
+
+    reserved_picking_id = fields.Many2one("stock.picking", string="Reservation Picking", copy=False, tracking=True)
+    sale_order_id = fields.Many2one("sale.order", string="Sale Order", copy=False, tracking=True)
 
     state = fields.Selection(
         [
@@ -32,12 +35,7 @@ class ExportShipment(models.Model):
     )
 
     line_ids = fields.One2many("export.shipment.line", "shipment_id", string="Lines", copy=True)
-    lot_line_ids = fields.One2many("export.shipment.lot", "shipment_id", string="Reserved Lots", copy=True)
-
-    reserved_picking_id = fields.Many2one(
-        "stock.picking", string="Reservation Picking", readonly=True, copy=False
-    )
-    sale_order_id = fields.Many2one("sale.order", string="Sale Order", readonly=True, copy=False)
+    lot_line_ids = fields.One2many("export.shipment.lot.line", "shipment_id", string="Reserved Lots", copy=True)
 
     total_qty = fields.Float(string="Total Qty", compute="_compute_total_qty", store=True)
 
@@ -48,6 +46,9 @@ class ExportShipment(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Assign Shipment No automatically (Odoo 19)."""
+        if isinstance(vals_list, dict):
+            vals_list = [vals_list]
         for vals in vals_list:
             if vals.get("name") in (False, "New", _("New")):
                 vals["name"] = self.env["ir.sequence"].next_by_code("export.shipment") or "New"
@@ -75,8 +76,6 @@ class ExportShipment(models.Model):
         for lot_line in self.lot_line_ids:
             if not lot_line.line_id:
                 raise UserError(_("Each reserved lot must be linked to a shipment line."))
-            if lot_line.qty <= 0:
-                raise UserError(_("Reserved quantity must be greater than zero."))
 
     def action_reserve_lots(self):
         """Create an outgoing picking and reserve the selected lots.
@@ -94,11 +93,9 @@ class ExportShipment(models.Model):
 
             wh = rec._get_default_warehouse()
             picking_type = wh.out_type_id
-            if not picking_type:
-                raise UserError(_("Outgoing picking type is not configured on the warehouse."))
 
-            location_src = picking_type.default_location_src_id or wh.lot_stock_id
-            location_dest = picking_type.default_location_dest_id or rec.partner_id.property_stock_customer
+            location_src = picking_type.default_location_src_id
+            location_dest = picking_type.default_location_dest_id
             if not location_src or not location_dest:
                 raise UserError(_("Source/Destination locations are not properly configured."))
 
@@ -125,7 +122,7 @@ class ExportShipment(models.Model):
             for (product_id, uom_id), demand_qty in moves_by_key.items():
                 move = self.env["stock.move"].create(
                     {
-                        # In Odoo 19 the 'name' field is no longer accepted on stock.move create.
+                        # Odoo 19: the 'name' field is no longer accepted on stock.move create.
                         # The move description will be derived from the product / picking.
                         "picking_id": picking.id,
                         "company_id": rec.company_id.id,
@@ -164,21 +161,22 @@ class ExportShipment(models.Model):
 
     def action_unreserve(self):
         for rec in self:
-            if not rec.reserved_picking_id:
-                raise UserError(_("No reservation picking to unreserve."))
             if rec.state != "reserved":
                 raise UserError(_("Unreserve is allowed only in Reserved state."))
-
-            picking = rec.reserved_picking_id
-            # Cancel picking to release reservation
-            if picking.state not in ("cancel", "done"):
-                picking.action_cancel()
+            if rec.reserved_picking_id:
+                # Cancel the picking and delete it (demo behavior)
+                rec.reserved_picking_id.action_cancel()
+                rec.reserved_picking_id.unlink()
             rec.reserved_picking_id = False
             rec.state = "draft"
 
     def action_create_sale_order(self):
-        """Create a Sale Order for booking/invoicing purposes.
-        For the demo: we link the SO to the shipment and keep the reservation picking as the delivery basis.
+        """Create a Sale Order **by container** (service line) and link it to this shipment.
+
+        Business rule (agreed):
+        - The actual stock reservation/delivery is handled by `reserved_picking_id`.
+        - The SO is for commercial booking/invoicing only (1 service line).
+        - The SO line description is dynamic (built from shipment data), and can be regenerated later.
         """
         for rec in self:
             if rec.sale_order_id:
@@ -187,68 +185,107 @@ class ExportShipment(models.Model):
             if not rec.partner_id:
                 raise UserError(_("Set the customer first."))
 
+            # Use contacts addresses (invoice/delivery) if available
+            addr = rec.partner_id.address_get(["invoice", "delivery"])
+            partner_invoice_id = addr.get("invoice") or rec.partner_id.id
+            partner_shipping_id = addr.get("delivery") or rec.partner_id.id
+
+            # Get container service product from settings; fallback to module default product template
+            container_tmpl_id = int(
+                self.env["ir.config_parameter"].sudo().get_param("export_shipment.container_product_tmpl_id", "0") or 0
+            )
+            tmpl = self.env["product.template"].browse(container_tmpl_id).exists() if container_tmpl_id else False
+            if not tmpl:
+                tmpl = self.env.ref("export_shipment.product_tmpl_export_container_service", raise_if_not_found=False)
+            if not tmpl:
+                raise UserError(
+                    _(
+                        "Container service product is not configured. Please set it in Inventory > Export > Export & Logistics Settings."
+                    )
+                )
+            product = tmpl.product_variant_id
+
+            # Build dynamic line description
+            line_name = rec._build_container_so_line_description()
+
             so = self.env["sale.order"].create(
                 {
                     "partner_id": rec.partner_id.id,
+                    "partner_invoice_id": partner_invoice_id,
+                    "partner_shipping_id": partner_shipping_id,
                     "company_id": rec.company_id.id,
                     "origin": rec.name,
+                    "export_shipment_id": rec.id,
                 }
             )
-            for line in rec.line_ids:
-                self.env["sale.order.line"].create(
-                    {
-                        "order_id": so.id,
-                        "product_id": line.product_id.id,
-                        "product_uom_qty": line.product_uom_qty,
-                        # Odoo 19: the UoM field on sale.order.line is product_uom_id
-                        "product_uom_id": line.product_uom_id.id,
-                        "name": line.product_id.display_name,
-                    }
-                )
+
+            self.env["sale.order.line"].create(
+                {
+                    "order_id": so.id,
+                    "product_id": product.id,
+                    "product_uom_qty": 1.0,
+                    "product_uom_id": product.uom_id.id,
+                    "name": line_name,
+                }
+            )
 
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship).
-        """
+        """Validate the reservation picking (ship)."""
         for rec in self:
             if not rec.reserved_picking_id:
                 raise UserError(_("Reserve lots first."))
+            if rec.state != "reserved":
+                raise UserError(_("Shipment must be Reserved before validation."))
+
+            # Validate the picking
             picking = rec.reserved_picking_id
-            if picking.state == "done":
-                rec.state = "shipped"
-                continue
-            if picking.state == "cancel":
-                raise UserError(_("Reservation picking is cancelled. Create a new reservation."))
+            if picking.state not in ("done", "cancel"):
+                # Set done quantities if needed (simple demo behavior)
+                for ml in picking.move_line_ids:
+                    if ml.qty_done == 0 and ml.product_uom_qty:
+                        ml.qty_done = ml.product_uom_qty
+                picking.button_validate()
 
-            # For demo: set qty_done = reserved for all move lines then validate.
-            # In Odoo 19, `stock.move.line` no longer exposes `reserved_uom_qty`.
-            # We therefore fall back to commonly available fields.
-            for ml in picking.move_line_ids:
-                if ml.qty_done:
-                    continue
-
-                reserved = 0.0
-                if "reserved_uom_qty" in ml._fields:
-                    reserved = ml.reserved_uom_qty or 0.0
-                elif "product_uom_qty" in ml._fields:
-                    reserved = ml.product_uom_qty or 0.0
-                elif "quantity" in ml._fields:
-                    reserved = ml.quantity or 0.0
-
-                if reserved:
-                    ml.qty_done = reserved
-            picking.button_validate()
             rec.state = "shipped"
 
     def action_cancel(self):
         for rec in self:
-            if rec.reserved_picking_id and rec.reserved_picking_id.state not in ("cancel", "done"):
-                rec.reserved_picking_id.action_cancel()
             rec.state = "cancel"
 
     def action_reset_to_draft(self):
-        self.write({"state": "draft"})
+        for rec in self:
+            if rec.state != "cancel":
+                raise UserError(_("Only cancelled shipments can be reset."))
+            rec.state = "draft"
+
+    def _build_container_so_line_description(self):
+        """Dynamic SO line description for the container service line."""
+        self.ensure_one()
+        prefix = self.env["ir.config_parameter"].sudo().get_param(
+            "export_shipment.container_line_prefix", "Export Container"
+        ) or "Export Container"
+        parts = [
+            prefix,
+            _("Shipment No: %s") % (self.name or ""),
+        ]
+        if self.container_no:
+            parts.append(_("Container: %s") % self.container_no)
+        if self.seal_no:
+            parts.append(_("Seal: %s") % self.seal_no)
+        if self.destination:
+            parts.append(_("Destination: %s") % self.destination)
+        return "\n".join([p for p in parts if p])
+
+    def action_update_sale_line_description(self):
+        """Regenerate the SO container line description after shipment edits."""
+        for rec in self:
+            if not rec.sale_order_id:
+                continue
+            line = rec.sale_order_id.order_line[:1]
+            if line:
+                line.name = rec._build_container_so_line_description()
 
 
 class ExportShipmentLine(models.Model):
@@ -256,26 +293,14 @@ class ExportShipmentLine(models.Model):
     _description = "Export Shipment Line"
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
-    product_id = fields.Many2one("product.product", string="Product/Grade", required=True)
-    bom_id = fields.Many2one("mrp.bom", string="BOM", help="Auto-selected based on the product.")
-    product_uom_id = fields.Many2one(
-        "uom.uom", string="UoM", required=True, default=lambda self: self.env.ref("uom.product_uom_unit").id
-    )
+    product_id = fields.Many2one("product.product", string="Product", required=True)
+    product_uom_id = fields.Many2one("uom.uom", string="UoM", required=True)
     product_uom_qty = fields.Float(string="Quantity", required=True, default=1.0)
 
-    @api.onchange("product_id")
-    def _onchange_product_id(self):
-        for rec in self:
-            if rec.product_id:
-                rec.product_uom_id = rec.product_id.uom_id
-                # Auto-pick BOM (company-specific first)
-                bom = self.env["mrp.bom"]._bom_find(rec.product_id, company_id=rec.shipment_id.company_id.id if rec.shipment_id else False)
-                rec.bom_id = bom.id if bom else False
 
-
-class ExportShipmentLot(models.Model):
-    _name = "export.shipment.lot"
-    _description = "Export Shipment Reserved Lot"
+class ExportShipmentLotLine(models.Model):
+    _name = "export.shipment.lot.line"
+    _description = "Reserved Lot Line"
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
     line_id = fields.Many2one("export.shipment.line", string="Related Line", required=True, ondelete="cascade")
@@ -292,3 +317,75 @@ class ExportShipmentLot(models.Model):
             if rec.line_id:
                 # Default reserve the line qty (can be adjusted)
                 rec.qty = rec.line_id.product_uom_qty
+
+
+class SaleOrder(models.Model):
+    _inherit = "sale.order"
+
+    export_shipment_id = fields.Many2one("export.shipment", string="Export Shipment", ondelete="set null")
+
+
+class StockLot(models.Model):
+    _inherit = "stock.lot"
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        auto = self.env["ir.config_parameter"].sudo().get_param("export_shipment.auto_lot", "0") == "1"
+        if auto and "name" in fields_list and not res.get("name"):
+            seq_code = self.env["ir.config_parameter"].sudo().get_param(
+                "export_shipment.lot_sequence_code", "stock.lot.export"
+            )
+            res["name"] = self.env["ir.sequence"].next_by_code(seq_code) or res.get("name")
+        return res
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        auto = self.env["ir.config_parameter"].sudo().get_param("export_shipment.auto_lot", "0") == "1"
+        if auto:
+            seq_code = self.env["ir.config_parameter"].sudo().get_param(
+                "export_shipment.lot_sequence_code", "stock.lot.export"
+            )
+            for vals in vals_list:
+                if vals.get("name") in (False, "New", _("New")):
+                    vals["name"] = self.env["ir.sequence"].next_by_code(seq_code) or vals.get("name") or "New"
+        return super().create(vals_list)
+
+
+class ResConfigSettings(models.TransientModel):
+    _inherit = "res.config.settings"
+
+    export_container_product_tmpl_id = fields.Many2one(
+        "product.template",
+        string="Container Service Product",
+        domain="[('type', '=', 'service')]",
+        help="Service product used on Sale Orders (1 line per shipment).",
+    )
+    export_container_line_prefix = fields.Char(
+        string="SO Line Prefix",
+        help="First line text used in the dynamic SO line description.",
+    )
+    export_auto_lot = fields.Boolean(
+        string="Auto-generate Lot Numbers",
+        help="If enabled, lots created from Inventory/MRP will get an automatic number from the configured sequence.",
+    )
+
+    def set_values(self):
+        super().set_values()
+        icp = self.env["ir.config_parameter"].sudo()
+        icp.set_param("export_shipment.container_product_tmpl_id", self.export_container_product_tmpl_id.id or 0)
+        icp.set_param("export_shipment.container_line_prefix", self.export_container_line_prefix or "Export Container")
+        icp.set_param("export_shipment.auto_lot", "1" if self.export_auto_lot else "0")
+        icp.set_param("export_shipment.lot_sequence_code", "stock.lot.export")
+
+    @api.model
+    def get_values(self):
+        res = super().get_values()
+        icp = self.env["ir.config_parameter"].sudo()
+        tmpl_id = int(icp.get_param("export_shipment.container_product_tmpl_id", "0") or 0)
+        res.update(
+            export_container_product_tmpl_id=tmpl_id,
+            export_container_line_prefix=icp.get_param("export_shipment.container_line_prefix", "Export Container"),
+            export_auto_lot=icp.get_param("export_shipment.auto_lot", "0") == "1",
+        )
+        return res
