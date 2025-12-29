@@ -93,9 +93,6 @@
     <field name="purchase_ok">False</field>
   </record>
 
-  <record id="product_export_container" model="product.product">
-    <field name="product_tmpl_id" ref="product_template_export_container"/>
-  </record>
 
   <record id="view_sale_order_form_inherit_export_container" model="ir.ui.view">
     <field name="name">sale.order.form.inherit.export.container</field>

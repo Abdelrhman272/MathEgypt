@@ -187,7 +187,8 @@ class ExportShipment(models.Model):
         SaleOrderLine = self.env["sale.order.line"]
 
         # Service product representing the container on commercial docs
-        container_product = self.env.ref("export_shipment.product_export_container", raise_if_not_found=False)
+        tmpl = self.env.ref("export_shipment.product_template_export_container", raise_if_not_found=False)
+        container_product = tmpl.product_variant_id if tmpl else False
         if not container_product:
             raise ValidationError(
                 _("Missing container service product. Please update the module to load the product data.")
