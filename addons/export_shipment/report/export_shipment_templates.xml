@@ -37,9 +37,11 @@
                 <img t-att-src="'/report/barcode/Code128/%s?humanreadable=1' % (doc.name)"
                      style="max-height: 60px;"/>
               </div>
+
               <div style="font-size: 11px; margin-top: 6px;">
                 <strong>Date:</strong>
-                <span t-esc="format_date(doc.create_date) if doc.create_date else ''"/>
+                <!-- ✔ الطريقة الصح بدون format_date -->
+                <span t-field="doc.create_date" t-options="{'widget': 'date'}"/>
               </div>
             </div>
           </div>
@@ -68,7 +70,7 @@
             </tbody>
           </table>
 
-          <!-- Products Table -->
+          <!-- Products -->
           <h4 style="margin-top: 12px;">Products</h4>
           <table class="table table-sm table-bordered" style="font-size: 12px;">
             <thead>
@@ -90,13 +92,10 @@
                   <td class="text-end"><span t-esc="ln.product_uom_qty or 0.0"/></td>
                 </tr>
               </t>
-              <tr t-if="not doc.line_ids">
-                <td colspan="4" class="text-center">No products</td>
-              </tr>
             </tbody>
           </table>
 
-          <!-- Reserved Lots Table -->
+          <!-- Reserved Lots -->
           <h4 style="margin-top: 14px;">Reserved Lots</h4>
           <table class="table table-sm table-bordered" style="font-size: 12px;">
             <thead>
@@ -120,9 +119,6 @@
                   <td class="text-end"><span t-esc="ll.qty or 0.0"/></td>
                 </tr>
               </t>
-              <tr t-if="not doc.lot_line_ids">
-                <td colspan="5" class="text-center">No reserved lots</td>
-              </tr>
             </tbody>
           </table>
 
