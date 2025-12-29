@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError, ValidationError  # CHANGED
+from odoo.exceptions import UserError, ValidationError
 
 
 class ExportShipment(models.Model):
@@ -9,9 +9,21 @@ class ExportShipment(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "id desc"
 
-    name = fields.Char(string="Shipment No", required=True, copy=False, default=lambda self: _("New"), tracking=True)
+    name = fields.Char(
+        string="Shipment No",
+        required=True,
+        copy=False,
+        default=lambda self: _("New"),
+        tracking=True,
+        readonly=True,  # IMPORTANT: الرقم بيتولد تلقائيًا
+    )
+
     company_id = fields.Many2one(
-        "res.company", string="Company", required=True, default=lambda self: self.env.company, tracking=True
+        "res.company",
+        string="Company",
+        required=True,
+        default=lambda self: self.env.company,
+        tracking=True,
     )
     partner_id = fields.Many2one("res.partner", string="Customer", required=True, tracking=True)
 
@@ -44,31 +56,21 @@ class ExportShipment(models.Model):
         for rec in self:
             rec.total_qty = sum(rec.line_ids.mapped("product_uom_qty"))
 
+    # -------------------------------------------------------------------------
+    # Helpers
+    # -------------------------------------------------------------------------
+    def _ensure_sequence(self):
+        """Guarantee Shipment number exists (even if user didn't save before actions)."""
+        for rec in self:
+            if rec.name in (False, "New", _("New")):
+                rec.name = rec.env["ir.sequence"].next_by_code("export.shipment") or "New"
+
     @api.model_create_multi
     def create(self, vals_list):
-        """Assign Shipment No automatically (Odoo 19) - FINAL."""
-        if isinstance(vals_list, dict):
-            vals_list = [vals_list]
-
-        seq_env = self.env["ir.sequence"].sudo()  # CHANGED: sudo to avoid access issues
-
-        # CHANGED: Ensure sequence exists (failsafe)
-        seq_rec = seq_env.search([("code", "=", "export.shipment")], limit=1)
-        if not seq_rec:
-            # Create it if for any reason XML wasn't applied yet / missing
-            seq_rec = seq_env.create({
-                "name": "Export Shipment",
-                "code": "export.shipment",
-                "prefix": "EXP/",
-                "padding": 5,
-                "company_id": False,
-            })
-
+        """Assign Shipment No automatically."""
         for vals in vals_list:
             if vals.get("name") in (False, "New", _("New")):
-                # CHANGED: Use next_by_id for stability, fallback to next_by_code
-                vals["name"] = (seq_rec.next_by_id() or seq_env.next_by_code("export.shipment") or "New")
-
+                vals["name"] = self.env["ir.sequence"].next_by_code("export.shipment") or "New"
         return super().create(vals_list)
 
     def _get_default_warehouse(self):
@@ -82,35 +84,38 @@ class ExportShipment(models.Model):
 
     def _validate_ready_to_reserve(self):
         self.ensure_one()
-        if self.state not in ("draft",):
+
+        if not self.id:
+            # لازم Save الأول عشان lines تبقى records وتقدر تختارها في Related Line
+            raise UserError(_("Please save the shipment first, then add Products and Reserved Lots."))
+
+        if self.state != "draft":
             raise UserError(_("Reservation is allowed only in Draft state."))
+
         if not self.line_ids:
             raise UserError(_("Add shipment lines first."))
-        # CHANGED: lot_line_ids is expected to be entered by user, but we validate it below
+
         if not self.lot_line_ids:
             raise UserError(_("Add reserved lots first."))
 
-        # CHANGED: Strict consistency — avoid mixing lines from other shipments
+        # strict consistency
         for lot_line in self.lot_line_ids:
             if not lot_line.line_id:
                 raise UserError(_("Each reserved lot must be linked to a shipment line."))
             if lot_line.line_id.shipment_id != self:
-                raise UserError(
-                    _("Reserved lot line must be linked to a line from the same shipment.")
-                )
-            # product consistency (defensive)
+                raise UserError(_("Related Line must belong to the same Shipment."))
             if lot_line.product_id and lot_line.line_id.product_id != lot_line.product_id:
                 raise UserError(_("Reserved lot product must match shipment line product."))
+            if lot_line.qty <= 0:
+                raise UserError(_("Reserved Qty must be greater than zero."))
 
+    # -------------------------------------------------------------------------
+    # Actions
+    # -------------------------------------------------------------------------
     def action_reserve_lots(self):
-        """Create an outgoing picking and reserve the selected lots.
-
-        Important (Odoo 19):
-        - Do NOT write reserved quantities directly on stock.move.line.
-        - We create stock.moves with demand quantities, confirm the picking,
-          then reserve specific lots via move._update_reserved_quantity().
-        """
+        """Create outgoing picking and reserve selected lots."""
         for rec in self:
+            rec._ensure_sequence()
             rec._validate_ready_to_reserve()
 
             if rec.reserved_picking_id:
@@ -147,7 +152,6 @@ class ExportShipment(models.Model):
             for (product_id, uom_id), demand_qty in moves_by_key.items():
                 move = self.env["stock.move"].create(
                     {
-                        # Odoo 19: avoid passing deprecated move fields unless needed
                         "picking_id": picking.id,
                         "company_id": rec.company_id.id,
                         "product_id": product_id,
@@ -162,7 +166,7 @@ class ExportShipment(models.Model):
             # Confirm first to allow reservation
             picking.action_confirm()
 
-            # Reserve exact lots
+            # Reserve exact lots (strict)
             for lot_line in rec.lot_line_ids:
                 move = move_records.get((lot_line.product_id.id, lot_line.product_uom_id.id))
                 if not move:
@@ -174,7 +178,7 @@ class ExportShipment(models.Model):
                     strict=True,
                 )
 
-            # Recompute assignment (should not reserve extra quantities)
+            # Recompute assignment (won't reserve extra)
             picking.action_assign()
 
             rec.reserved_picking_id = picking.id
@@ -191,26 +195,20 @@ class ExportShipment(models.Model):
             rec.state = "draft"
 
     def action_create_sale_order(self):
-        """Create a Sale Order **by container** (service line) and link it to this shipment.
-
-        Business rule (agreed):
-        - The actual stock reservation/delivery is handled by `reserved_picking_id`.
-        - The SO is for commercial booking/invoicing only (1 service line).
-        - The SO line description is dynamic (built from shipment data), and can be regenerated later.
-        """
+        """Create SO with 1 service line (container booking)."""
         for rec in self:
+            rec._ensure_sequence()
+
             if rec.sale_order_id:
                 raise UserError(_("Sale Order already created."))
 
             if not rec.partner_id:
                 raise UserError(_("Set the customer first."))
 
-            # Use contacts addresses (invoice/delivery) if available
             addr = rec.partner_id.address_get(["invoice", "delivery"])
             partner_invoice_id = addr.get("invoice") or rec.partner_id.id
             partner_shipping_id = addr.get("delivery") or rec.partner_id.id
 
-            # Get container service product from settings; fallback to module default product template
             container_tmpl_id = int(
                 self.env["ir.config_parameter"].sudo().get_param("export_shipment.container_product_tmpl_id", "0") or 0
             )
@@ -220,12 +218,11 @@ class ExportShipment(models.Model):
             if not tmpl:
                 raise UserError(
                     _(
-                        "Container service product is not configured. Please set it in Inventory > Export > Export & Logistics Settings."
+                        "Container service product is not configured. Please set it in Inventory > Export > Configuration > Export & Logistics."
                     )
                 )
-            product = tmpl.product_variant_id
 
-            # Build dynamic line description
+            product = tmpl.product_variant_id
             line_name = rec._build_container_so_line_description()
 
             so = self.env["sale.order"].create(
@@ -252,7 +249,7 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship) - Odoo 19 FINAL."""
+        """Validate the reservation picking (ship)."""
         for rec in self:
             if not rec.reserved_picking_id:
                 raise UserError(_("Reserve lots first."))
@@ -261,34 +258,39 @@ class ExportShipment(models.Model):
 
             picking = rec.reserved_picking_id
 
-            if picking.state not in ("done", "cancel"):
-                # Ensure reservation is applied
-                picking.action_assign()
+            if picking.state in ("done", "cancel"):
+                rec.state = "shipped"
+                continue
 
-                # 1) Set done qty from reserved move lines (if any)
-                for ml in picking.move_line_ids:
-                    if ml.qty_done == 0:
-                        reserved = getattr(ml, "reserved_uom_qty", 0.0) or 0.0
-                        if reserved:
-                            ml.qty_done = reserved
+            # Ensure assigned/reserved
+            picking.action_assign()
 
-                # 2) Fallback: set done on moves (Odoo 19 uses move_ids)
-                for mv in picking.move_ids:  # CHANGED
-                    if (getattr(mv, "quantity_done", 0.0) or 0.0) == 0.0 and (mv.product_uom_qty or 0.0):
-                        mv.quantity_done = mv.product_uom_qty
-    
-                # 3) Guard: avoid validating zero qty transfer
-                total_done_ml = sum(picking.move_line_ids.mapped("qty_done") or [0.0])
-                total_done_mv = sum(picking.move_ids.mapped("quantity_done") or [0.0])  # CHANGED
+            # Fill qty_done from reserved quantities (Odoo 19)
+            any_done = False
+            for ml in picking.move_line_ids:
+                if (ml.qty_done or 0.0) <= 0.0:
+                    reserved = (
+                        getattr(ml, "reserved_uom_qty", 0.0)
+                        or getattr(ml, "reserved_qty", 0.0)
+                        or getattr(ml, "reserved_quantity", 0.0)
+                        or 0.0
+                    )
+                    if reserved > 0:
+                        ml.qty_done = reserved
+                        any_done = True
+                else:
+                    any_done = True
 
-                if (total_done_ml + total_done_mv) <= 0.0:
-                    raise UserError(_(
+            if not any_done:
+                # This means reservation didn't produce move lines (no lots reserved actually)
+                raise UserError(
+                    _(
                         "Transfer has zero reserved/done quantities.\n"
-                        "Please make sure lots are reserved successfully before validation."
-                    ))
+                        "Please make sure lots are reserved successfully (check Picking -> Operations) before validation."
+                    )
+                )
 
-                picking.button_validate()
-
+            picking.button_validate()
             rec.state = "shipped"
 
     def action_cancel(self):
@@ -302,7 +304,6 @@ class ExportShipment(models.Model):
             rec.state = "draft"
 
     def _build_container_so_line_description(self):
-        """Dynamic SO line description for the container service line."""
         self.ensure_one()
         prefix = self.env["ir.config_parameter"].sudo().get_param(
             "export_shipment.container_line_prefix", "Export Container"
@@ -320,7 +321,6 @@ class ExportShipment(models.Model):
         return "\n".join([p for p in parts if p])
 
     def action_update_sale_line_description(self):
-        """Regenerate the SO container line description after shipment edits."""
         for rec in self:
             if not rec.sale_order_id:
                 continue
@@ -336,7 +336,7 @@ class ExportShipmentLine(models.Model):
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product", required=True)
 
-    # CHANGED: UoM should follow product automatically (no manual edit)
+    # UoM follows product (no manual edit)
     product_uom_id = fields.Many2one(
         "uom.uom",
         string="UoM",
@@ -352,7 +352,13 @@ class ExportShipmentLotLine(models.Model):
     _description = "Reserved Lot Line"
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
-    line_id = fields.Many2one("export.shipment.line", string="Related Line", required=True, ondelete="cascade")
+    line_id = fields.Many2one(
+        "export.shipment.line",
+        string="Related Line",
+        required=True,
+        ondelete="cascade",
+        domain="[('shipment_id','=',shipment_id)]",
+    )
 
     product_id = fields.Many2one(related="line_id.product_id", store=True, readonly=True)
     product_uom_id = fields.Many2one(related="line_id.product_uom_id", store=True, readonly=True)
@@ -366,7 +372,6 @@ class ExportShipmentLotLine(models.Model):
             if rec.line_id:
                 rec.qty = rec.line_id.product_uom_qty
 
-    # CHANGED: Extra safety - prevent mixing lines from other shipments
     @api.constrains("shipment_id", "line_id")
     def _check_line_same_shipment(self):
         for rec in self:
@@ -436,7 +441,6 @@ class ExportLogisticsSettings(models.Model):
         default=False,
     )
 
-    # CHANGED: Odoo 19 warning fix - replace _sql_constraints with python constraint
     @api.constrains("company_id")
     def _check_unique_company(self):
         for rec in self:
@@ -445,14 +449,6 @@ class ExportLogisticsSettings(models.Model):
             exists = self.search_count([("company_id", "=", rec.company_id.id), ("id", "!=", rec.id)])
             if exists:
                 raise ValidationError(_("Settings already exist for this company."))
-
-    @api.model
-    def get_or_create(self):
-        """Always keep 1 settings record per company."""
-        rec = self.search([("company_id", "=", self.env.company.id)], limit=1)
-        if not rec:
-            rec = self.create({"company_id": self.env.company.id})
-        return rec
 
     def _sync_to_icp(self):
         icp = self.env["ir.config_parameter"].sudo()
