@@ -13,6 +13,8 @@
         "security/security.xml",
         "security/ir.model.access.csv",
         "data/sequence.xml",
+        "report/export_shipment_report.xml",
+        "report/export_shipment_templates.xml",
         "views/export_shipment_views.xml",
         "views/menu.xml",
     ],

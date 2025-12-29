@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Paperformat: A4 Landscape -->
+    <record id="paperformat_export_shipment_a4_landscape" model="report.paperformat">
+        <field name="name">Export Shipment - A4 Landscape</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">8</field>
+        <field name="margin_bottom">8</field>
+        <field name="margin_left">7</field>
+        <field name="margin_right">7</field>
+        <field name="header_line" eval="False"/>
+        <field name="dpi">90</field>
+    </record>
+
+    <!-- Report Action -->
+    <record id="action_report_export_shipment" model="ir.actions.report">
+        <field name="name">Export Shipment</field>
+        <field name="model">export.shipment</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">export_shipment.report_export_shipment_document</field>
+        <field name="report_file">export_shipment.report_export_shipment_document</field>
+        <field name="paperformat_id" ref="export_shipment.paperformat_export_shipment_a4_landscape"/>
+        <field name="print_report_name">'Export Shipment - %s' % (object.name or '')</field>
+        <field name="binding_model_id" ref="model_export_shipment"/>
+        <field name="binding_type">report</field>
+    </record>
+
+</odoo>

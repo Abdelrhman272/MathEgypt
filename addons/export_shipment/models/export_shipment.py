@@ -166,6 +166,14 @@ class ExportShipment(models.Model):
             # Confirm first to allow reservation
             picking.action_confirm()
 
+            # ✅ FIX: لو ال Picking Type بيعمل reserve تلقائي عند التأكيد
+            # امسح أي Reservation اتعملت تلقائيًا قبل الحجز اليدوي
+            try:
+                picking.do_unreserve()
+            except Exception:
+                # في بعض النسخ قد تختلف
+                picking.move_ids._do_unreserve()
+
             # Reserve exact lots (strict)
             for lot_line in rec.lot_line_ids:
                 move = move_records.get((lot_line.product_id.id, lot_line.product_uom_id.id))
@@ -378,6 +386,7 @@ class ExportShipment(models.Model):
 class ExportShipmentLine(models.Model):
     _name = "export.shipment.line"
     _description = "Export Shipment Line"
+    _rec_name = "name"
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product", required=True)
@@ -391,6 +400,16 @@ class ExportShipmentLine(models.Model):
     )
     product_uom_qty = fields.Float(string="Quantity", required=True, default=1.0)
 
+    name = fields.Char(string="Line", compute="_compute_name", store=True)
+
+    @api.depends("shipment_id.name", "product_id.display_name", "product_uom_qty", "product_uom_id.name")
+    def _compute_name(self):
+        for rec in self:
+            ship = rec.shipment_id.name or ""
+            prod = rec.product_id.display_name or ""
+            qty = rec.product_uom_qty or 0.0
+            uom = rec.product_uom_id.name or ""
+            rec.name = f"{ship} - {prod} ({qty:g} {uom})"
 
 class ExportShipmentLotLine(models.Model):
     _name = "export.shipment.lot.line"
