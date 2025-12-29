@@ -71,7 +71,7 @@
               <field name="line_ids">
                 <list editable="bottom">
                   <field name="product_id"/>
-                  <field name="product_uom_id"/>
+                  <field name="product_uom_id" readonly="1"/> <!-- CHANGED -->
                   <field name="product_uom_qty"/>
                 </list>
               </field>
@@ -80,7 +80,8 @@
             <page string="Reserved Lots">
               <field name="lot_line_ids">
                 <list editable="bottom">
-                  <field name="line_id"/>
+                  <!-- CHANGED: restrict line_id to same shipment lines -->
+                  <field name="line_id" domain="[('shipment_id', '=', shipment_id)]"/>
                   <field name="product_id" readonly="1"/>
                   <field name="lot_id"/>
                   <field name="qty"/>

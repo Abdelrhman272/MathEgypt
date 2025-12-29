@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError  # CHANGED
 
 
 class ExportShipment(models.Model):
@@ -69,13 +69,21 @@ class ExportShipment(models.Model):
             raise UserError(_("Reservation is allowed only in Draft state."))
         if not self.line_ids:
             raise UserError(_("Add shipment lines first."))
+        # CHANGED: lot_line_ids is expected to be entered by user, but we validate it below
         if not self.lot_line_ids:
             raise UserError(_("Add reserved lots first."))
 
-        # Basic consistency: each reserved lot must belong to a line
+        # CHANGED: Strict consistency — avoid mixing lines from other shipments
         for lot_line in self.lot_line_ids:
             if not lot_line.line_id:
                 raise UserError(_("Each reserved lot must be linked to a shipment line."))
+            if lot_line.line_id.shipment_id != self:
+                raise UserError(
+                    _("Reserved lot line must be linked to a line from the same shipment.")
+                )
+            # product consistency (defensive)
+            if lot_line.product_id and lot_line.line_id.product_id != lot_line.product_id:
+                raise UserError(_("Reserved lot product must match shipment line product."))
 
     def action_reserve_lots(self):
         """Create an outgoing picking and reserve the selected lots.
@@ -122,8 +130,7 @@ class ExportShipment(models.Model):
             for (product_id, uom_id), demand_qty in moves_by_key.items():
                 move = self.env["stock.move"].create(
                     {
-                        # Odoo 19: the 'name' field is no longer accepted on stock.move create.
-                        # The move description will be derived from the product / picking.
+                        # Odoo 19: avoid passing deprecated move fields unless needed
                         "picking_id": picking.id,
                         "company_id": rec.company_id.id,
                         "product_id": product_id,
@@ -143,7 +150,6 @@ class ExportShipment(models.Model):
                 move = move_records.get((lot_line.product_id.id, lot_line.product_uom_id.id))
                 if not move:
                     continue
-                # Reserve from source location with strict lot reservation
                 move._update_reserved_quantity(
                     lot_line.qty,
                     location_src,
@@ -151,9 +157,7 @@ class ExportShipment(models.Model):
                     strict=True,
                 )
 
-            # Ensure picking state/availability fields are recomputed (and quantities are reflected
-            # correctly in inventory "Free to Use" / "Outgoing" metrics).
-            # This won't reserve extra quantities because the demand is already reserved above.
+            # Recompute assignment (should not reserve extra quantities)
             picking.action_assign()
 
             rec.reserved_picking_id = picking.id
@@ -164,7 +168,6 @@ class ExportShipment(models.Model):
             if rec.state != "reserved":
                 raise UserError(_("Unreserve is allowed only in Reserved state."))
             if rec.reserved_picking_id:
-                # Cancel the picking and delete it (demo behavior)
                 rec.reserved_picking_id.action_cancel()
                 rec.reserved_picking_id.unlink()
             rec.reserved_picking_id = False
@@ -239,13 +242,15 @@ class ExportShipment(models.Model):
             if rec.state != "reserved":
                 raise UserError(_("Shipment must be Reserved before validation."))
 
-            # Validate the picking
             picking = rec.reserved_picking_id
             if picking.state not in ("done", "cancel"):
-                # Set done quantities if needed (simple demo behavior)
+                # CHANGED (Odoo 19): stock.move.line has no product_uom_qty
+                # Use reserved_uom_qty (or quantity) to set qty_done.
                 for ml in picking.move_line_ids:
-                    if ml.qty_done == 0 and ml.product_uom_qty:
-                        ml.qty_done = ml.product_uom_qty
+                    if ml.qty_done == 0:
+                        qty = getattr(ml, "reserved_uom_qty", 0.0) or getattr(ml, "quantity", 0.0)
+                        if qty:
+                            ml.qty_done = qty
                 picking.button_validate()
 
             rec.state = "shipped"
@@ -294,7 +299,15 @@ class ExportShipmentLine(models.Model):
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product", required=True)
-    product_uom_id = fields.Many2one("uom.uom", string="UoM", required=True)
+
+    # CHANGED: UoM should follow product automatically (no manual edit)
+    product_uom_id = fields.Many2one(
+        "uom.uom",
+        string="UoM",
+        related="product_id.uom_id",
+        store=True,
+        readonly=True,
+    )
     product_uom_qty = fields.Float(string="Quantity", required=True, default=1.0)
 
 
@@ -315,8 +328,14 @@ class ExportShipmentLotLine(models.Model):
     def _onchange_line_id(self):
         for rec in self:
             if rec.line_id:
-                # Default reserve the line qty (can be adjusted)
                 rec.qty = rec.line_id.product_uom_qty
+
+    # CHANGED: Extra safety - prevent mixing lines from other shipments
+    @api.constrains("shipment_id", "line_id")
+    def _check_line_same_shipment(self):
+        for rec in self:
+            if rec.line_id and rec.shipment_id and rec.line_id.shipment_id != rec.shipment_id:
+                raise ValidationError(_("Related Line must belong to the same Shipment."))
 
 
 class SaleOrder(models.Model):
@@ -381,9 +400,15 @@ class ExportLogisticsSettings(models.Model):
         default=False,
     )
 
-    _sql_constraints = [
-        ("export_logistics_settings_company_uniq", "unique(company_id)", "Settings already exist for this company."),
-    ]
+    # CHANGED: Odoo 19 warning fix - replace _sql_constraints with python constraint
+    @api.constrains("company_id")
+    def _check_unique_company(self):
+        for rec in self:
+            if not rec.company_id:
+                continue
+            exists = self.search_count([("company_id", "=", rec.company_id.id), ("id", "!=", rec.id)])
+            if exists:
+                raise ValidationError(_("Settings already exist for this company."))
 
     @api.model
     def get_or_create(self):
