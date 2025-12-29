@@ -113,7 +113,7 @@ class ExportShipment(models.Model):
     # Actions
     # -------------------------------------------------------------------------
     def action_reserve_lots(self):
-        """Create outgoing picking and reserve selected lots."""
+        """Create outgoing picking and reserve selected lots (NO qty_done here)."""
         for rec in self:
             rec._ensure_sequence()
             rec._validate_ready_to_reserve()
@@ -177,11 +177,11 @@ class ExportShipment(models.Model):
                     lot_id=lot_line.lot_id,
                     strict=True,
                 )
-            # ✅ FIX (ONLY): لا تعمل action_assign بعد الحجز اليدوي عشان مايحجزش تاني ويدبل الكمية
-            # بدل كده نعمل تحديث لحالة الـ moves/picking فقط
+
+            # IMPORTANT: do NOT call action_assign after manual reservation (avoids double reservation)
             picking.move_ids._recompute_state()
 
-            # لو كل Move اتحجز بالكامل، خلّي الـ picking Assigned (اختياري لكنه مفيد للواجهة)
+            # OPTIONAL: show assigned state if fully reserved (UI helpful)
             fully_reserved = True
             for mv in picking.move_ids:
                 demand = mv.product_uom_qty or 0.0
@@ -191,7 +191,7 @@ class ExportShipment(models.Model):
                     break
             if fully_reserved:
                 picking.state = "assigned"
-   
+
             rec.reserved_picking_id = picking.id
             rec.state = "reserved"
 
@@ -260,14 +260,10 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship) from Export Shipment screen.
-
-        This method will:
-        - Ensure picking is assigned (reservation applied).
-        - Auto-fill qty_done from reserved quantities (move lines).
-        - Call button_validate() and auto-process wizards:
-            * stock.immediate.transfer
-            * stock.backorder.confirmation
+        """Validate (ship) from Export Shipment screen:
+        - ensure reserved
+        - fill qty_done from reserved quantities (move lines only)
+        - validate + auto wizards
         """
         for rec in self:
             if not rec.reserved_picking_id:
@@ -282,64 +278,62 @@ class ExportShipment(models.Model):
                 rec.state = "shipped"
                 continue
 
-            # 1) Make sure reservation is applied
-            # (In your screenshots you manually clicked Check Availability; we do it here)
+            # Ensure reservation is applied
+            # NOTE: you already reserved manually, but assign keeps UI consistent
             try:
                 picking.action_assign()
             except Exception:
-                # If assign fails for any reason, we still try validate (wizard may appear)
                 pass
 
-            # 2) Auto-fill qty_done from reserved (ONLY when qty_done is zero)
-            #    Works for tracked products because we have move lines with lots.
-            for ml in picking.move_line_ids:
-                if (ml.qty_done or 0.0) == 0.0:
-                    reserved = (
-                        getattr(ml, "reserved_uom_qty", 0.0)
-                        or getattr(ml, "reserved_qty", 0.0)
-                        or 0.0
-                    )
-                    if reserved:
-                        ml.qty_done = reserved
-
-            # 3) Fallback for non-tracked moves that may not have move lines
-            #    Use picking.move_ids (Odoo 19) not move_ids_without_package
+            # -----------------------------------------------------------------
+            # ✅ CRITICAL FIX:
+            # Set qty_done on move lines ONLY (never on stock.move.quantity_done)
+            # -----------------------------------------------------------------
             for mv in picking.move_ids:
-                qty_done = getattr(mv, "quantity_done", 0.0) or 0.0
-                if qty_done == 0.0 and (mv.product_uom_qty or 0.0) > 0.0:
-                    # If there are no move lines, set done on the move
-                    if not mv.move_line_ids:
-                        mv.quantity_done = mv.product_uom_qty
+                if mv.move_line_ids:
+                    # Tracked products: move lines exist (with lots)
+                    for ml in mv.move_line_ids:
+                        if (ml.qty_done or 0.0) == 0.0:
+                            reserved = (
+                                getattr(ml, "reserved_uom_qty", 0.0)
+                                or getattr(ml, "reserved_qty", 0.0)
+                                or 0.0
+                            )
+                            if reserved:
+                                ml.qty_done = reserved
+                else:
+                    # Non-tracked: create one move line and set qty_done there
+                    if (mv.product_uom_qty or 0.0) > 0.0:
+                        self.env["stock.move.line"].create({
+                            "move_id": mv.id,
+                            "picking_id": picking.id,
+                            "company_id": picking.company_id.id,
+                            "product_id": mv.product_id.id,
+                            "product_uom_id": mv.product_uom.id,
+                            "location_id": mv.location_id.id,
+                            "location_dest_id": mv.location_dest_id.id,
+                            "qty_done": mv.product_uom_qty,
+                        })
 
-            # 4) Call validate and auto-process any returned wizard
+            # Validate and auto-process wizards
             res = picking.button_validate()
 
-            # button_validate may return an action (wizard). We auto-process it.
             if isinstance(res, dict) and res.get("res_model") and res.get("res_id"):
                 wizard = self.env[res["res_model"]].browse(res["res_id"]).exists()
                 if wizard:
-                    # Immediate Transfer wizard
                     if res["res_model"] == "stock.immediate.transfer":
                         wizard.process()
-
-                    # Backorder confirmation wizard
                     elif res["res_model"] == "stock.backorder.confirmation":
-                        # Prefer "process" if exists, else cancel backorder if method differs
                         if hasattr(wizard, "process"):
                             wizard.process()
                         elif hasattr(wizard, "process_cancel_backorder"):
                             wizard.process_cancel_backorder()
-
-                    # Any other wizard: try a generic process if present
                     elif hasattr(wizard, "process"):
                         wizard.process()
 
-            # 5) Final: ensure shipment state
-            # If picking succeeded it'll be done, otherwise user will see Odoo message.
             if picking.state == "done":
                 rec.state = "shipped"
             else:
-                # لو لسه مش Done يبقى Odoo محتاج تدخل (نقص مخزون/باك أوردر..)
                 raise UserError(_(
                     "Picking is not validated yet.\n"
                     "Please open the Reservation Picking and complete the required step (availability/backorder)."
@@ -388,7 +382,6 @@ class ExportShipmentLine(models.Model):
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product", required=True)
 
-    # UoM follows product (no manual edit)
     product_uom_id = fields.Many2one(
         "uom.uom",
         string="UoM",
