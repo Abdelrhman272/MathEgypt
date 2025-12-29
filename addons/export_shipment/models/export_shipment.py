@@ -86,6 +86,7 @@ class ExportShipment(models.Model):
         self.ensure_one()
 
         if not self.id:
+            # لازم Save الأول عشان lines تبقى records وتقدر تختارها في Related Line
             raise UserError(_("Please save the shipment first, then add Products and Reserved Lots."))
 
         if self.state != "draft":
@@ -97,6 +98,7 @@ class ExportShipment(models.Model):
         if not self.lot_line_ids:
             raise UserError(_("Add reserved lots first."))
 
+        # strict consistency
         for lot_line in self.lot_line_ids:
             if not lot_line.line_id:
                 raise UserError(_("Each reserved lot must be linked to a shipment line."))
@@ -176,12 +178,9 @@ class ExportShipment(models.Model):
                     strict=True,
                 )
 
-            # ✅ FIX (ONLY FOR DUPLICATED QTY ISSUE):
-            # Do NOT call picking.action_assign() here.
-            # Because we already reserved manually, calling action_assign can reserve AGAIN and double qty.
-            # Just ensure the picking state is recalculated if the method exists.
-            if hasattr(picking, "_recompute_state"):
-                picking._recompute_state()
+            # FIX: لا تنادي action_assign هنا لأنك بالفعل عملت reservation باللوت يدويًا
+            # وإلا هيتحجز تاني وتتدبل الكمية (Demand 10 / Quantity 20)
+            # picking.action_assign()
 
             rec.reserved_picking_id = picking.id
             rec.state = "reserved"
@@ -251,7 +250,15 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship) from Export Shipment screen."""
+        """Validate the reservation picking (ship) from Export Shipment screen.
+
+        This method will:
+        - Ensure picking is assigned (reservation applied).
+        - Auto-fill qty_done from reserved quantities (move lines).
+        - Call button_validate() and auto-process wizards:
+            * stock.immediate.transfer
+            * stock.backorder.confirmation
+        """
         for rec in self:
             if not rec.reserved_picking_id:
                 raise UserError(_("Reserve lots first."))
@@ -260,16 +267,18 @@ class ExportShipment(models.Model):
 
             picking = rec.reserved_picking_id
 
+            # If already done/cancelled, just mark shipped
             if picking.state in ("done", "cancel"):
                 rec.state = "shipped"
                 continue
 
+            # 1) Make sure reservation is applied
             try:
                 picking.action_assign()
             except Exception:
                 pass
 
-            # Auto-fill qty_done from reserved (ONLY when qty_done is zero)
+            # 2) Auto-fill qty_done from reserved (ONLY when qty_done is zero)
             for ml in picking.move_line_ids:
                 if (ml.qty_done or 0.0) == 0.0:
                     reserved = (
@@ -278,19 +287,16 @@ class ExportShipment(models.Model):
                         or 0.0
                     )
                     if reserved:
-                        # ✅ FIX (ONLY FOR DUPLICATED QTY ISSUE):
-                        # Clamp qty_done so it never exceeds demanded qty on the move line context.
-                        # This prevents any accidental double-reservation from pushing done qty to 2x.
-                        move_demand = ml.move_id.product_uom_qty or 0.0
-                        ml.qty_done = min(reserved, move_demand) if move_demand else reserved
+                        ml.qty_done = reserved
 
-            # Fallback for non-tracked moves that may not have move lines
+            # 3) Fallback for non-tracked moves that may not have move lines
             for mv in picking.move_ids:
                 qty_done = getattr(mv, "quantity_done", 0.0) or 0.0
                 if qty_done == 0.0 and (mv.product_uom_qty or 0.0) > 0.0:
                     if not mv.move_line_ids:
                         mv.quantity_done = mv.product_uom_qty
 
+            # 4) Call validate and auto-process any returned wizard
             res = picking.button_validate()
 
             if isinstance(res, dict) and res.get("res_model") and res.get("res_id"):
