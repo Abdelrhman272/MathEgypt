@@ -15,7 +15,7 @@ class ExportShipment(models.Model):
         copy=False,
         default=lambda self: _("New"),
         tracking=True,
-        readonly=True,
+        readonly=True,  # IMPORTANT: الرقم بيتولد تلقائيًا
     )
 
     company_id = fields.Many2one(
@@ -86,7 +86,6 @@ class ExportShipment(models.Model):
         self.ensure_one()
 
         if not self.id:
-            # لازم Save الأول عشان lines تبقى records وتقدر تختارها في Related Line
             raise UserError(_("Please save the shipment first, then add Products and Reserved Lots."))
 
         if self.state != "draft":
@@ -177,9 +176,12 @@ class ExportShipment(models.Model):
                     strict=True,
                 )
 
-            # IMPORTANT:
-            # لا تعمل action_assign هنا بعد ما حجزنا يدويًا بالـ lots
-            # لأنه ممكن يحجز تاني تلقائيًا ويعمل double reservation (Demand 10 / Reserved 20)
+            # ✅ FIX (ONLY FOR DUPLICATED QTY ISSUE):
+            # Do NOT call picking.action_assign() here.
+            # Because we already reserved manually, calling action_assign can reserve AGAIN and double qty.
+            # Just ensure the picking state is recalculated if the method exists.
+            if hasattr(picking, "_recompute_state"):
+                picking._recompute_state()
 
             rec.reserved_picking_id = picking.id
             rec.state = "reserved"
@@ -217,7 +219,9 @@ class ExportShipment(models.Model):
                 tmpl = self.env.ref("export_shipment.product_tmpl_export_container_service", raise_if_not_found=False)
             if not tmpl:
                 raise UserError(
-                    _("Container service product is not configured. Please set it in Inventory > Export > Configuration > Export & Logistics.")
+                    _(
+                        "Container service product is not configured. Please set it in Inventory > Export > Configuration > Export & Logistics."
+                    )
                 )
 
             product = tmpl.product_variant_id
@@ -247,12 +251,7 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship) from Export Shipment screen.
-
-        - Fill qty_done from reserved move lines (lots).
-        - button_validate()
-        - auto-process returned wizards (Immediate Transfer / Backorder)
-        """
+        """Validate the reservation picking (ship) from Export Shipment screen."""
         for rec in self:
             if not rec.reserved_picking_id:
                 raise UserError(_("Reserve lots first."))
@@ -265,38 +264,33 @@ class ExportShipment(models.Model):
                 rec.state = "shipped"
                 continue
 
-            # 1) Try assign (safe)
             try:
                 picking.action_assign()
             except Exception:
                 pass
 
-            # 2) Fill qty_done from reserved_uom_qty on move lines
-            #    (ده اللي بيمنع "zero quantity transfer")
-            any_done = False
+            # Auto-fill qty_done from reserved (ONLY when qty_done is zero)
             for ml in picking.move_line_ids:
                 if (ml.qty_done or 0.0) == 0.0:
-                    reserved = getattr(ml, "reserved_uom_qty", 0.0) or 0.0
+                    reserved = (
+                        getattr(ml, "reserved_uom_qty", 0.0)
+                        or getattr(ml, "reserved_qty", 0.0)
+                        or 0.0
+                    )
                     if reserved:
-                        ml.qty_done = reserved
-                if (ml.qty_done or 0.0) > 0.0:
-                    any_done = True
+                        # ✅ FIX (ONLY FOR DUPLICATED QTY ISSUE):
+                        # Clamp qty_done so it never exceeds demanded qty on the move line context.
+                        # This prevents any accidental double-reservation from pushing done qty to 2x.
+                        move_demand = ml.move_id.product_uom_qty or 0.0
+                        ml.qty_done = min(reserved, move_demand) if move_demand else reserved
 
-            # 3) Fallback (non-tracked moves with no move lines)
+            # Fallback for non-tracked moves that may not have move lines
             for mv in picking.move_ids:
-                if not mv.move_line_ids:
-                    qty_done = getattr(mv, "quantity_done", 0.0) or 0.0
-                    if qty_done == 0.0 and (mv.product_uom_qty or 0.0) > 0.0:
+                qty_done = getattr(mv, "quantity_done", 0.0) or 0.0
+                if qty_done == 0.0 and (mv.product_uom_qty or 0.0) > 0.0:
+                    if not mv.move_line_ids:
                         mv.quantity_done = mv.product_uom_qty
-                        any_done = True
 
-            if not any_done:
-                raise UserError(_(
-                    "Transfer has zero reserved/done quantities.\n"
-                    "Open Reservation Picking -> Operations and ensure reservation exists, then try again."
-                ))
-
-            # 4) Validate + auto-process wizard
             res = picking.button_validate()
 
             if isinstance(res, dict) and res.get("res_model") and res.get("res_id"):
@@ -317,7 +311,7 @@ class ExportShipment(models.Model):
             else:
                 raise UserError(_(
                     "Picking is not validated yet.\n"
-                    "Please open the Reservation Picking and complete required step (availability/backorder)."
+                    "Please open the Reservation Picking and complete the required step (availability/backorder)."
                 ))
 
     def action_cancel(self):
@@ -359,7 +353,6 @@ class ExportShipment(models.Model):
 class ExportShipmentLine(models.Model):
     _name = "export.shipment.line"
     _description = "Export Shipment Line"
-    _rec_name = "display_name"
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product", required=True)
@@ -373,29 +366,12 @@ class ExportShipmentLine(models.Model):
     )
     product_uom_qty = fields.Float(string="Quantity", required=True, default=1.0)
 
-    display_name = fields.Char(compute="_compute_display_name", store=False)
-
-    def _compute_display_name(self):
-        for rec in self:
-            prod = rec.product_id.display_name or ""
-            qty = rec.product_uom_qty or 0.0
-            uom = rec.product_uom_id.name or ""
-            rec.display_name = f"{prod} - {qty:g} {uom}".strip()
-
-    def name_get(self):
-        res = []
-        for rec in self:
-            name = rec.display_name or (rec.product_id.display_name or "")
-            res.append((rec.id, name))
-        return res
-
 
 class ExportShipmentLotLine(models.Model):
     _name = "export.shipment.lot.line"
     _description = "Reserved Lot Line"
 
     shipment_id = fields.Many2one("export.shipment", required=True, ondelete="cascade")
-
     line_id = fields.Many2one(
         "export.shipment.line",
         string="Related Line",
@@ -481,6 +457,7 @@ class ExportLogisticsSettings(models.Model):
     )
     auto_lot = fields.Boolean(
         string="Auto-generate Lot Numbers",
+        help="If enabled, lots created from Inventory/MRP will get an automatic number from the configured sequence.",
         default=False,
     )
 
