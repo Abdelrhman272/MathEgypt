@@ -249,7 +249,15 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship)."""
+        """Validate the reservation picking (ship) from Export Shipment screen.
+
+        This method will:
+        - Ensure picking is assigned (reservation applied).
+        - Auto-fill qty_done from reserved quantities (move lines).
+        - Call button_validate() and auto-process wizards:
+            * stock.immediate.transfer
+            * stock.backorder.confirmation
+        """
         for rec in self:
             if not rec.reserved_picking_id:
                 raise UserError(_("Reserve lots first."))
@@ -258,40 +266,73 @@ class ExportShipment(models.Model):
 
             picking = rec.reserved_picking_id
 
+            # If already done/cancelled, just mark shipped
             if picking.state in ("done", "cancel"):
                 rec.state = "shipped"
                 continue
 
-            # Ensure assigned/reserved
-            picking.action_assign()
+            # 1) Make sure reservation is applied
+            # (In your screenshots you manually clicked Check Availability; we do it here)
+            try:
+                picking.action_assign()
+            except Exception:
+                # If assign fails for any reason, we still try validate (wizard may appear)
+                pass
 
-            # Fill qty_done from reserved quantities (Odoo 19)
-            any_done = False
+            # 2) Auto-fill qty_done from reserved (ONLY when qty_done is zero)
+            #    Works for tracked products because we have move lines with lots.
             for ml in picking.move_line_ids:
-                if (ml.qty_done or 0.0) <= 0.0:
+                if (ml.qty_done or 0.0) == 0.0:
                     reserved = (
                         getattr(ml, "reserved_uom_qty", 0.0)
                         or getattr(ml, "reserved_qty", 0.0)
-                        or getattr(ml, "reserved_quantity", 0.0)
                         or 0.0
                     )
-                    if reserved > 0:
+                    if reserved:
                         ml.qty_done = reserved
-                        any_done = True
-                else:
-                    any_done = True
 
-            if not any_done:
-                # This means reservation didn't produce move lines (no lots reserved actually)
-                raise UserError(
-                    _(
-                        "Transfer has zero reserved/done quantities.\n"
-                        "Please make sure lots are reserved successfully (check Picking -> Operations) before validation."
-                    )
-                )
+            # 3) Fallback for non-tracked moves that may not have move lines
+            #    Use picking.move_ids (Odoo 19) not move_ids_without_package
+            for mv in picking.move_ids:
+                qty_done = getattr(mv, "quantity_done", 0.0) or 0.0
+                if qty_done == 0.0 and (mv.product_uom_qty or 0.0) > 0.0:
+                    # If there are no move lines, set done on the move
+                    if not mv.move_line_ids:
+                        mv.quantity_done = mv.product_uom_qty
 
-            picking.button_validate()
-            rec.state = "shipped"
+            # 4) Call validate and auto-process any returned wizard
+            res = picking.button_validate()
+
+            # button_validate may return an action (wizard). We auto-process it.
+            if isinstance(res, dict) and res.get("res_model") and res.get("res_id"):
+                wizard = self.env[res["res_model"]].browse(res["res_id"]).exists()
+                if wizard:
+                    # Immediate Transfer wizard
+                    if res["res_model"] == "stock.immediate.transfer":
+                        wizard.process()
+
+                    # Backorder confirmation wizard
+                    elif res["res_model"] == "stock.backorder.confirmation":
+                        # Prefer "process" if exists, else cancel backorder if method differs
+                        if hasattr(wizard, "process"):
+                            wizard.process()
+                        elif hasattr(wizard, "process_cancel_backorder"):
+                            wizard.process_cancel_backorder()
+
+                    # Any other wizard: try a generic process if present
+                    elif hasattr(wizard, "process"):
+                        wizard.process()
+
+            # 5) Final: ensure shipment state
+            # If picking succeeded it'll be done, otherwise user will see Odoo message.
+            if picking.state == "done":
+                rec.state = "shipped"
+            else:
+                # لو لسه مش Done يبقى Odoo محتاج تدخل (نقص مخزون/باك أوردر..)
+                raise UserError(_(
+                    "Picking is not validated yet.\n"
+                    "Please open the Reservation Picking and complete the required step (availability/backorder)."
+                ))
 
     def action_cancel(self):
         for rec in self:
