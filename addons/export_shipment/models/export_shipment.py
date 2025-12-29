@@ -352,40 +352,17 @@ class StockLot(models.Model):
         return super().create(vals_list)
 
 
-class ResConfigSettings(models.TransientModel):
-    _inherit = "res.config.settings"
+@api.model
+def get_values(self):
+    res = super().get_values()
+    icp = self.env["ir.config_parameter"].sudo()
 
-    export_container_product_tmpl_id = fields.Many2one(
-        "product.template",
-        string="Container Service Product",
-        domain="[('type', '=', 'service')]",
-        help="Service product used on Sale Orders (1 line per shipment).",
-    )
-    export_container_line_prefix = fields.Char(
-        string="SO Line Prefix",
-        help="First line text used in the dynamic SO line description.",
-    )
-    export_auto_lot = fields.Boolean(
-        string="Auto-generate Lot Numbers",
-        help="If enabled, lots created from Inventory/MRP will get an automatic number from the configured sequence.",
-    )
+    tmpl_id = int(icp.get_param("export_shipment.container_product_tmpl_id", "0") or 0)
+    tmpl = self.env["product.template"].browse(tmpl_id).exists() if tmpl_id else False
 
-    def set_values(self):
-        super().set_values()
-        icp = self.env["ir.config_parameter"].sudo()
-        icp.set_param("export_shipment.container_product_tmpl_id", self.export_container_product_tmpl_id.id or 0)
-        icp.set_param("export_shipment.container_line_prefix", self.export_container_line_prefix or "Export Container")
-        icp.set_param("export_shipment.auto_lot", "1" if self.export_auto_lot else "0")
-        icp.set_param("export_shipment.lot_sequence_code", "stock.lot.export")
-
-    @api.model
-    def get_values(self):
-        res = super().get_values()
-        icp = self.env["ir.config_parameter"].sudo()
-        tmpl_id = int(icp.get_param("export_shipment.container_product_tmpl_id", "0") or 0)
-        res.update(
-            export_container_product_tmpl_id=tmpl_id,
-            export_container_line_prefix=icp.get_param("export_shipment.container_line_prefix", "Export Container"),
-            export_auto_lot=icp.get_param("export_shipment.auto_lot", "0") == "1",
-        )
-        return res
+    res.update(
+        export_container_product_tmpl_id=tmpl,  # ✅ recordset مش int
+        export_container_line_prefix=icp.get_param("export_shipment.container_line_prefix", "Export Container"),
+        export_auto_lot=icp.get_param("export_shipment.auto_lot", "0") == "1",
+    )
+    return res
