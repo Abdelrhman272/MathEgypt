@@ -9,7 +9,7 @@ class ExportShipment(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "id desc"
 
-    name = fields.Char(string="Shipment No", required=True, copy=False, default="New", tracking=True)
+    name = fields.Char(string="Shipment No", required=True, copy=False, default=lambda self: _("New"), tracking=True)
     company_id = fields.Many2one(
         "res.company", string="Company", required=True, default=lambda self: self.env.company, tracking=True
     )
@@ -235,25 +235,48 @@ class ExportShipment(models.Model):
             rec.sale_order_id = so.id
 
     def action_validate_shipment(self):
-        """Validate the reservation picking (ship)."""
-        for rec in self:
-            if not rec.reserved_picking_id:
-                raise UserError(_("Reserve lots first."))
-            if rec.state != "reserved":
-                raise UserError(_("Shipment must be Reserved before validation."))
+    """Validate the reservation picking (ship)."""
+    for rec in self:
+        if not rec.reserved_picking_id:
+            raise UserError(_("Reserve lots first."))
+        if rec.state != "reserved":
+            raise UserError(_("Shipment must be Reserved before validation."))
 
-            picking = rec.reserved_picking_id
-            if picking.state not in ("done", "cancel"):
-                # CHANGED (Odoo 19): stock.move.line has no product_uom_qty
-                # Use reserved_uom_qty (or quantity) to set qty_done.
-                for ml in picking.move_line_ids:
-                    if ml.qty_done == 0:
-                        qty = getattr(ml, "reserved_uom_qty", 0.0) or getattr(ml, "quantity", 0.0)
-                        if qty:
-                            ml.qty_done = qty
-                picking.button_validate()
+        picking = rec.reserved_picking_id
 
-            rec.state = "shipped"
+        # ✅ IMPORTANT: ensure reservation is applied before validating
+        if picking.state not in ("done", "cancel"):
+            picking.action_assign()  # CHANGED
+
+            # ✅ 1) Try to set done qty from reserved move lines (if any)
+            for ml in picking.move_line_ids:
+                if ml.qty_done == 0:
+                    reserved = getattr(ml, "reserved_uom_qty", 0.0) or 0.0  # Odoo 19 field usually exists
+                    if reserved:
+                        ml.qty_done = reserved  # CHANGED
+
+            # ✅ 2) If still zero (no move lines or no reserved), set done on moves as fallback
+            for mv in picking.move_ids_without_package:
+                if getattr(mv, "quantity_done", 0.0) == 0 and mv.product_uom_qty:
+                    mv.quantity_done = mv.product_uom_qty  # CHANGED
+
+            # ✅ 3) Final guard: avoid "Validating a zero quantity transfer"
+            total_done = 0.0
+            for ml in picking.move_line_ids:
+                total_done += (ml.qty_done or 0.0)
+
+            total_done += sum(picking.move_ids_without_package.mapped("quantity_done") or [0.0])
+
+            if not total_done:
+                raise UserError(_(
+                    "Transfer has zero reserved/done quantities.\n"
+                    "Please make sure lots are reserved successfully before validation."
+                ))  # CHANGED
+
+            picking.button_validate()
+
+        rec.state = "shipped"
+
 
     def action_cancel(self):
         for rec in self:
