@@ -81,7 +81,7 @@
               <field name="lot_line_ids">
                 <list editable="bottom">
                   <!-- CHANGED: restrict line_id to same shipment lines -->
-                  <field name="line_id" domain="[('shipment_id', '=', shipment_id)]"/>
+                  <field name="line_id" domain="[('shipment_id', '=', parent_id)]"/>
                   <field name="product_id" readonly="1"/>
                   <field name="lot_id"/>
                   <field name="qty"/>
