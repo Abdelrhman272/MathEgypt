@@ -101,31 +101,37 @@
   </record>
 
   <!-- Export & Logistics Settings (under Inventory > Export) -->
-  <record id="view_export_logistics_res_config_settings" model="ir.ui.view">
-    <field name="name">export.shipment.res.config.settings.form</field>
-    <field name="model">res.config.settings</field>
+  <record id="view_export_logistics_settings_form" model="ir.ui.view">
+    <field name="name">export.logistics.settings.form</field>
+    <field name="model">export.logistics.settings</field>
     <field name="arch" type="xml">
-      <form string="Export &amp; Logistics Settings">
+      <form string="Export &amp; Logistics">
         <sheet>
           <group>
-            <div class="o_form_label fw-bold">Export &amp; Logistics</div>
-            <group>
-              <field name="export_container_product_tmpl_id"/>
-              <field name="export_container_line_prefix"/>
-              <field name="export_auto_lot"/>
-            </group>
-            <div class="text-muted">
-              These settings affect the Export Shipment workflow (Odoo 19).
-            </div>
+            <field name="company_id"/>
           </group>
+
+          <group string="Export &amp; Logistics">
+            <field name="container_product_tmpl_id"/>
+            <field name="container_line_prefix"/>
+            <field name="auto_lot"/>
+          </group>
+
+          <div class="text-muted">
+            These settings are used by Export Shipment workflow (Odoo 19).
+          </div>
         </sheet>
-        <footer>
-          <button string="Save" type="object" name="execute" class="btn-primary"/>
-          <button string="Cancel" class="btn-secondary" special="cancel"/>
-        </footer>
       </form>
     </field>
   </record>
+
+<record id="action_export_logistics_settings" model="ir.actions.act_window">
+  <field name="name">Export &amp; Logistics</field>
+  <field name="res_model">export.logistics.settings</field>
+  <field name="view_mode">form</field>
+  <field name="target">current</field>
+  <field name="context">{}</field>
+</record>
 
   <record id="action_export_logistics_settings" model="ir.actions.act_window">
     <field name="name">Export &amp; Logistics Settings</field>

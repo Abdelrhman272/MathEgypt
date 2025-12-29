@@ -352,17 +352,62 @@ class StockLot(models.Model):
         return super().create(vals_list)
 
 
-@api.model
-def get_values(self):
-    res = super().get_values()
-    icp = self.env["ir.config_parameter"].sudo()
+class ExportLogisticsSettings(models.Model):
+    _name = "export.logistics.settings"
+    _description = "Export & Logistics Settings"
+    _rec_name = "company_id"
 
-    tmpl_id = int(icp.get_param("export_shipment.container_product_tmpl_id", "0") or 0)
-    tmpl = self.env["product.template"].browse(tmpl_id).exists() if tmpl_id else False
-
-    res.update(
-        export_container_product_tmpl_id=tmpl,  # ✅ recordset مش int
-        export_container_line_prefix=icp.get_param("export_shipment.container_line_prefix", "Export Container"),
-        export_auto_lot=icp.get_param("export_shipment.auto_lot", "0") == "1",
+    company_id = fields.Many2one(
+        "res.company",
+        required=True,
+        default=lambda self: self.env.company,
+        readonly=True,
     )
-    return res
+
+    container_product_tmpl_id = fields.Many2one(
+        "product.template",
+        string="Container Service Product",
+        domain="[('type', '=', 'service')]",
+        help="Service product used on Sale Orders (1 line per shipment).",
+    )
+    container_line_prefix = fields.Char(
+        string="SO Line Prefix",
+        default="Export Container",
+        help="First line text used in the dynamic SO line description.",
+    )
+    auto_lot = fields.Boolean(
+        string="Auto-generate Lot Numbers",
+        help="If enabled, lots created from Inventory/MRP will get an automatic number from the configured sequence.",
+        default=False,
+    )
+
+    _sql_constraints = [
+        ("export_logistics_settings_company_uniq", "unique(company_id)", "Settings already exist for this company."),
+    ]
+
+    @api.model
+    def get_or_create(self):
+        """Always keep 1 settings record per company."""
+        rec = self.search([("company_id", "=", self.env.company.id)], limit=1)
+        if not rec:
+            rec = self.create({"company_id": self.env.company.id})
+        return rec
+
+    def _sync_to_icp(self):
+        icp = self.env["ir.config_parameter"].sudo()
+        icp.set_param("export_shipment.container_product_tmpl_id", self.container_product_tmpl_id.id or 0)
+        icp.set_param("export_shipment.container_line_prefix", self.container_line_prefix or "Export Container")
+        icp.set_param("export_shipment.auto_lot", "1" if self.auto_lot else "0")
+        icp.set_param("export_shipment.lot_sequence_code", "stock.lot.export")
+
+    @api.model
+    def create(self, vals):
+        rec = super().create(vals)
+        rec._sync_to_icp()
+        return rec
+
+    def write(self, vals):
+        res = super().write(vals)
+        for rec in self:
+            rec._sync_to_icp()
+        return res
