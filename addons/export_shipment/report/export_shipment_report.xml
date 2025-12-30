@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-  <!-- A4 Landscape Paperformat -->
-  <record id="paperformat_export_shipment_landscape" model="report.paperformat">
-    <field name="name">Export Shipment - A4 Landscape</field>
+  <!-- Paperformat: A4 Landscape -->
+  <record id="paperformat_export_shipment_a4_landscape" model="report.paperformat">
+    <field name="name">Export Shipment A4 Landscape</field>
     <field name="default" eval="False"/>
     <field name="format">A4</field>
     <field name="orientation">Landscape</field>
@@ -12,7 +12,6 @@
     <field name="margin_left">7</field>
     <field name="margin_right">7</field>
     <field name="header_line" eval="False"/>
-    <field name="header_spacing">5</field>
     <field name="dpi">90</field>
   </record>
 
@@ -21,7 +20,6 @@
     <field name="name">Export Shipment</field>
     <field name="model">export.shipment</field>
     <field name="report_type">qweb-pdf</field>
-    <!-- module_name.template_id -->
     <field name="report_name">export_shipment.report_export_shipment_document</field>
     <field name="report_file">export_shipment.report_export_shipment_document</field>
     <field name="paperformat_id" ref="export_shipment.paperformat_export_shipment_a4_landscape"/>
