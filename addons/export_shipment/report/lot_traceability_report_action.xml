@@ -18,7 +18,7 @@
     <!-- PDF Report Action (على الـ Wizard نفسه) -->
     <record id="action_report_lot_traceability" model="ir.actions.report">
         <field name="name">Lot Traceability Report</field>
-        <field name="model">lot.traceability.wizard</field>
+        <field name="model">export.lot.traceability.wizard</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">export_shipment.lot_traceability_report_template</field>
         <field name="report_file">export_shipment.lot_traceability_report_template</field>

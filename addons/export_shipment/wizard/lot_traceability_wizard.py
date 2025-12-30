@@ -227,7 +227,7 @@ class ExportLotTraceabilityWizard(models.TransientModel):
             "type": "ir.actions.act_window",
             "name": _("Lot Traceability Lines"),
             "res_model": "export.lot.traceability.line",
-            "view_mode": "tree",
+            "view_mode": "list,form",
             "target": "current",
             "domain": [("wizard_id", "=", self.id)],
         }
@@ -287,10 +287,8 @@ class ExportLotTraceabilityWizard(models.TransientModel):
 
         return {
             "type": "ir.actions.act_window",
-            "res_model": "export.lot.traceability.wizard",
-            "view_mode": "form",
-            "res_id": self.id,
-            "target": "new",
+            "url": f"/web/content/?model={self._name}&id={self.id}&field=file_data&filename_field=file_name&download=true",
+            "target": "self",
         }
 
 
