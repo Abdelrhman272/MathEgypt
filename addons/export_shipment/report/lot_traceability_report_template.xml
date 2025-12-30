@@ -1,80 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <template id="report_lot_traceability_pdf">
-        <t t-call="web.external_layout">
-            <main class="o_main">
+  <template id="lot_traceability_report_template">
+    <t t-call="web.external_layout">
+      <t t-set="doc" t-value="docs[0]"/>
+      <main class="o_main">
 
-                <t t-foreach="docs" t-as="wiz">
-                    <div class="page">
+        <div class="row mb-2">
+          <div class="col-8">
+            <h2 style="margin:0;">Lot Traceability Report</h2>
+            <div style="font-size:12px;">
+              <strong>Invoice:</strong>&#160;<span t-esc="doc.invoice_id.name or ''"/>
+            </div>
+            <div style="font-size:12px;">
+              <strong>Customer:</strong>&#160;<span t-esc="doc.invoice_id.partner_id.display_name or ''"/>
+            </div>
+            <div style="font-size:12px;">
+              <strong>Lots Count:</strong>&#160;<span t-esc="len(doc._get_lots_from_invoice_auto())"/>
+            </div>
+            <div style="font-size:12px;">
+              <strong>Moves Count:</strong>&#160;<span t-esc="doc.moves_count"/>
+            </div>
+          </div>
 
-                        <div class="row mb-2">
-                            <div class="col-8">
-                                <h2 style="margin:0;">Lot Traceability Report</h2>
-                                <div style="font-size:12px;">
-                                    <strong>Invoice:</strong>
-                                    <span t-esc="wiz.invoice_id.name or ''"/>
-                                </div>
-                                <div style="font-size:12px;">
-                                    <strong>Customer:</strong>
-                                    <span t-esc="wiz.invoice_id.partner_id.display_name if wiz.invoice_id.partner_id else ''"/>
-                                </div>
-                                <div style="font-size:12px;">
-                                    <strong>Lots Count:</strong>
-                                    <span t-esc="len(wiz.lot_ids)"/> <span>|</span>
-                                    <strong>Moves:</strong>
-                                    <span t-esc="wiz.move_line_count or 0"/>
-                                </div>
-                            </div>
-                            <div class="col-4 text-end" style="font-size:12px;">
-                                <strong>Date:</strong>
-                                <span t-esc="wiz.invoice_id.invoice_date or ''"/>
-                            </div>
-                        </div>
+          <div class="col-4 text-end" style="font-size:12px;">
+            <strong>Date:</strong>&#160;<span t-esc="format_date(env, fields.Date.today())"/>
+          </div>
+        </div>
 
-                        <table class="table table-sm table-bordered" style="font-size:11px;">
-                            <thead>
-                                <tr>
-                                    <th style="width:10%;">Date</th>
-                                    <th style="width:10%;">Lot</th>
-                                    <th>Product</th>
-                                    <th style="width:8%;" class="text-end">Qty</th>
-                                    <th style="width:8%;">UoM</th>
-                                    <th style="width:10%;">Picking</th>
-                                    <th style="width:8%;">Type</th>
-                                    <th style="width:12%;">Partner</th>
-                                    <th style="width:12%;">From</th>
-                                    <th style="width:12%;">To</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <t t-set="lines" t-value="wiz._get_trace_move_lines()"/>
-                                <t t-foreach="lines" t-as="ml">
-                                    <tr>
-                                        <td><span t-esc="ml.date or ''"/></td>
-                                        <td><span t-esc="ml.lot_id.name or ''"/></td>
-                                        <td><span t-esc="ml.product_id.display_name or ''"/></td>
-                                        <td class="text-end"><span t-esc="ml.qty_done or 0.0"/></td>
-                                        <td><span t-esc="ml.product_uom_id.name or ''"/></td>
-                                        <td><span t-esc="ml.picking_id.name if ml.picking_id else ''"/></td>
-                                        <td><span t-esc="ml.picking_id.picking_type_id.code if ml.picking_id and ml.picking_id.picking_type_id else ''"/></td>
-                                        <td><span t-esc="ml.picking_id.partner_id.display_name if ml.picking_id and ml.picking_id.partner_id else ''"/></td>
-                                        <td><span t-esc="ml.location_id.display_name or ''"/></td>
-                                        <td><span t-esc="ml.location_dest_id.display_name or ''"/></td>
-                                    </tr>
-                                </t>
+        <table class="table table-sm table-bordered" style="font-size:11px;">
+          <thead>
+            <tr>
+              <th style="width:12%;">Date/Time</th>
+              <th style="width:10%;">Lot</th>
+              <th style="width:16%;">Product</th>
+              <th style="width:6%;" class="text-end">Qty</th>
+              <th style="width:6%;">UoM</th>
+              <th style="width:10%;">Picking</th>
+              <th style="width:8%;">Type</th>
+              <th style="width:12%;">Partner</th>
+              <th style="width:10%;">From</th>
+              <th style="width:10%;">To</th>
+              <th style="width:10%;">Source Raw Lots</th>
+            </tr>
+          </thead>
+          <tbody>
+            <t t-foreach="doc.line_ids" t-as="ln">
+              <tr>
+                <td><span t-esc="format_datetime(env, ln.date) if ln.date else ''"/></td>
+                <td><span t-esc="ln.lot_id.name if ln.lot_id else ''"/></td>
+                <td><span t-esc="ln.product_id.display_name if ln.product_id else ''"/></td>
+                <td class="text-end"><span t-esc="ln.qty or 0.0"/></td>
+                <td><span t-esc="ln.uom_id.name if ln.uom_id else ''"/></td>
+                <td><span t-esc="ln.picking_id.name if ln.picking_id else ''"/></td>
+                <td><span t-esc="ln.picking_type_code or ''"/></td>
+                <td><span t-esc="ln.partner_id.display_name if ln.partner_id else ''"/></td>
+                <td><span t-esc="ln.location_from_id.display_name if ln.location_from_id else ''"/></td>
+                <td><span t-esc="ln.location_to_id.display_name if ln.location_to_id else ''"/></td>
+                <td>
+                  <t t-if="ln.source_raw_lot_ids">
+                    <t t-foreach="ln.source_raw_lot_ids" t-as="rl">
+                      <span t-esc="rl.name"/><t t-if="not loop.last">, </t>
+                    </t>
+                  </t>
+                </td>
+              </tr>
+            </t>
 
-                                <tr t-if="not lines">
-                                    <td colspan="10" class="text-center">No traceability lines found.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+            <tr t-if="not doc.line_ids">
+              <td colspan="11" class="text-center">No movements found</td>
+            </tr>
+          </tbody>
+        </table>
 
-                    </div>
-                </t>
-
-            </main>
-        </t>
-    </template>
+      </main>
+    </t>
+  </template>
 
 </odoo>
