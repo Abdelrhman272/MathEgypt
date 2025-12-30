@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_export_lot_traceability_wizard_form" model="ir.ui.view">
+        <field name="name">export.lot.traceability.wizard.form</field>
+        <field name="model">export.lot.traceability.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Traceability Report" create="0" edit="0">
+                <sheet>
+                    <group>
+                        <field name="invoice_id"/>
+                        <field name="lot_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        <field name="move_line_count" readonly="1"/>
+                    </group>
+                </sheet>
+
+                <footer>
+                    <button name="action_open_traceability" type="object"
+                            string="Open Screen" class="btn-primary"/>
+                    <button name="action_print_pdf" type="object"
+                            string="Download PDF" class="btn-secondary"/>
+                    <button name="action_download_excel" type="object"
+                            string="Download Excel" class="btn-secondary"/>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>
