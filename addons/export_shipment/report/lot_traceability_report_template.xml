@@ -21,8 +21,7 @@
                                 </div>
                                 <div style="font-size:12px;">
                                     <strong>Lots Count:</strong>
-                                    <span t-esc="len(wiz.lot_ids)"/>
-                                    &nbsp; | &nbsp;
+                                    <span t-esc="len(wiz.lot_ids)"/> <span>|</span>
                                     <strong>Moves:</strong>
                                     <span t-esc="wiz.move_line_count or 0"/>
                                 </div>
