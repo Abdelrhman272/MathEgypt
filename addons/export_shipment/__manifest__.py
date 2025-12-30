@@ -16,6 +16,7 @@
         "report/export_shipment_report.xml",
         "report/export_shipment_templates.xml",
         "views/export_shipment_views.xml",
+        'views/export_shipment_views_inherit_print.xml',
         "views/menu.xml",
     ],
     "assets": {},
