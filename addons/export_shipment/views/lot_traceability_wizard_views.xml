@@ -1,28 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
     <record id="view_export_lot_traceability_wizard_form" model="ir.ui.view">
         <field name="name">export.lot.traceability.wizard.form</field>
         <field name="model">export.lot.traceability.wizard</field>
         <field name="arch" type="xml">
             <form string="Lot Traceability" create="0" edit="0">
                 <header>
-                    <button name="action_generate_traceability"
-                            type="object"
-                            string="Generate"
-                            class="btn-primary"/>
-                    <button special="cancel" string="Close"/>
+                    <button name="action_generate_traceability" type="object" string="Generate" class="btn-primary"/>
+                    <button name="action_print_pdf" type="object" string="Print PDF" class="btn-secondary"/>
+                    <button name="action_export_excel" type="object" string="Export Excel" class="btn-secondary"/>
+                    <button name="action_open_screen" type="object" string="Open Screen" class="btn-secondary"/>
+                    <button special="cancel" string="Close" class="btn-link"/>
                 </header>
 
                 <sheet>
                     <group>
-                        <field name="invoice_id"/>
-                        <field name="shipment_ids" widget="many2many_tags"/>
-                        <field name="lot_ids" widget="many2many_tags"/>
+                        <group>
+                            <field name="invoice_id" readonly="1"/>
+                            <field name="shipment_ids" widget="many2many_tags" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="lot_ids" widget="many2many_tags" readonly="1"
+                                   help="Detected finished lots from related shipments/deliveries."/>
+                        </group>
+                    </group>
+
+                    <group string="Download" invisible="not file_data">
+                        <field name="file_name" readonly="1"/>
+                        <field name="file_data" filename="file_name" readonly="1"/>
                     </group>
 
                     <notebook>
                         <page string="Traceability Lines">
-                            <field name="line_ids">
+                            <field name="line_ids" nolabel="1" readonly="1">
                                 <tree create="0" edit="0" delete="0">
+                                    <field name="delivery_date"/>
                                     <field name="finished_product"/>
                                     <field name="finished_lot"/>
                                     <field name="production"/>
@@ -39,4 +52,5 @@
             </form>
         </field>
     </record>
+
 </odoo>

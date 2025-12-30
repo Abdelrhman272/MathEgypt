@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Tree view for traceability lines (used by Open Screen) -->
     <record id="view_export_lot_traceability_line_tree" model="ir.ui.view">
         <field name="name">export.lot.traceability.line.tree</field>
         <field name="model">export.lot.traceability.line</field>
         <field name="arch" type="xml">
-            <tree string="Lot Traceability" create="0" edit="0" delete="0">
+            <tree create="0" edit="0" delete="0">
                 <field name="invoice_id"/>
                 <field name="customer_id"/>
                 <field name="shipment_refs"/>
@@ -23,5 +21,4 @@
             </tree>
         </field>
     </record>
-
 </odoo>
