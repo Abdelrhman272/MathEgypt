@@ -1,12 +1,12 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ✅ Tree view مستقل لسطور التتبع (Lines) -->
-    <record id="view_export_lot_traceability_line_tree" model="ir.ui.view">
-        <field name="name">export.lot.traceability.line.tree</field>
+    <!-- ✅ List view مستقل لسطور التتبع (Lines) -->
+    <record id="view_export_lot_traceability_line_list" model="ir.ui.view">
+        <field name="name">export.lot.traceability.line.list</field>
         <field name="model">export.lot.traceability.line</field>
         <field name="arch" type="xml">
-            <tree create="0" edit="0" delete="0">
+            <list create="0" edit="0" delete="0">
                 <field name="delivery_date"/>
                 <field name="finished_product"/>
                 <field name="finished_lot"/>
@@ -16,7 +16,7 @@
                 <field name="vendors"/>
                 <field name="receipts"/>
                 <field name="receipt_date"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -46,11 +46,11 @@
 
                     <notebook>
                         <page string="Traceability Lines">
-                            <!-- ✅ بدل الـ tree inline: اربطنا الـ field بـ tree_view_ref -->
+                            <!-- ✅ ربط الـ one2many بالـ list view المرجعي -->
                             <field name="line_ids"
                                    nolabel="1"
                                    readonly="1"
-                                   context="{'tree_view_ref': 'export_shipment.view_export_lot_traceability_line_tree'}"/>
+                                   context="{'tree_view_ref': 'export_shipment.view_export_lot_traceability_line_list'}"/>
                         </page>
 
                         <page string="Export">
