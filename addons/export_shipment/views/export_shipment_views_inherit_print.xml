@@ -6,18 +6,15 @@
     <field name="model">export.shipment</field>
     <field name="inherit_id" ref="export_shipment.view_export_shipment_form"/>
     <field name="arch" type="xml">
-
-      <!-- Add Print button in header -->
       <xpath expr="//header" position="inside">
         <button
           name="%(export_shipment.action_report_export_shipment)d"
           type="action"
           string="Print"
           class="btn-secondary"
-          attrs="{'invisible': [('id', '=', False)]}"
+          modifiers='{"invisible":[["id","=",false]]}'
         />
       </xpath>
-
     </field>
   </record>
 
