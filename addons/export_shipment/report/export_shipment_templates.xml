@@ -3,143 +3,149 @@
 
   <template id="report_export_shipment_document">
     <t t-call="web.external_layout">
-      <t t-foreach="docs" t-as="doc">
-        <div class="page">
+      <main class="o_report_layout">
+        <t t-foreach="docs" t-as="doc">
+          <div class="page">
 
-          <!-- Header -->
-          <div class="row mb-2">
-            <div class="col-8">
-              <h2 style="margin: 0;">Export Shipment</h2>
+            <!-- Header -->
+            <div class="row mb-2">
+              <div class="col-8">
+                <h2 style="margin: 0;">Export Shipment</h2>
 
-              <div style="font-size: 12px;">
-                <strong>Shipment No:</strong>
-                <span t-esc="doc.name or ''"/>
+                <div style="font-size: 12px;">
+                  <strong>Shipment No:</strong>
+                  <span t-esc="doc.name or ''"/>
+                </div>
+
+                <div style="font-size: 12px;">
+                  <strong>Company:</strong>
+                  <span t-esc="doc.company_id.display_name if doc.company_id else ''"/>
+                </div>
+
+                <div style="font-size: 12px;">
+                  <strong>Customer:</strong>
+                  <span t-esc="doc.partner_id.display_name if doc.partner_id else ''"/>
+                </div>
+
+                <div style="font-size: 12px;">
+                  <strong>Status:</strong>
+                  <span t-esc="doc.state or ''"/>
+                </div>
               </div>
 
-              <div style="font-size: 12px;">
-                <strong>Company:</strong>
-                <span t-esc="doc.company_id.display_name if doc.company_id else ''"/>
-              </div>
-
-              <div style="font-size: 12px;">
-                <strong>Customer:</strong>
-                <span t-esc="doc.partner_id.display_name if doc.partner_id else ''"/>
-              </div>
-
-              <div style="font-size: 12px;">
-                <strong>Status:</strong>
-                <span t-esc="doc.state or ''"/>
+              <div class="col-4 text-end">
+                <div t-if="doc.name" style="margin-top: 6px;">
+                  <img t-att-src="'/report/barcode/Code128/%s?humanreadable=1' % (doc.name)"
+                       style="max-height: 60px;"/>
+                </div>
+                <div style="font-size: 11px; margin-top: 6px;">
+                  <strong>Date:</strong>
+                  <span t-esc="doc.create_date and doc.create_date.strftime('%Y-%m-%d %H:%M') or ''"/>
+                </div>
               </div>
             </div>
 
-            <div class="col-4 text-end">
-              <div t-if="doc.name" style="margin-top: 6px;">
-                <img t-att-src="'/report/barcode/Code128/%s?humanreadable=1' % (doc.name)"
-                     style="max-height: 60px;"/>
-              </div>
-
-              <div style="font-size: 11px; margin-top: 6px;">
-                <strong>Date:</strong>
-                <!-- ✔ الطريقة الصح بدون format_date -->
-                <span t-field="doc.create_date" t-options="{'widget': 'date'}"/>
-              </div>
-            </div>
-          </div>
-
-          <!-- Shipment Details -->
-          <table class="table table-sm" style="font-size: 12px;">
-            <tbody>
-              <tr>
-                <td style="width: 20%;"><strong>Container No</strong></td>
-                <td style="width: 30%;"><span t-esc="doc.container_no or ''"/></td>
-                <td style="width: 20%;"><strong>Seal No</strong></td>
-                <td style="width: 30%;"><span t-esc="doc.seal_no or ''"/></td>
-              </tr>
-              <tr>
-                <td><strong>Destination</strong></td>
-                <td><span t-esc="doc.destination or ''"/></td>
-                <td><strong>Total Qty</strong></td>
-                <td><span t-esc="doc.total_qty or 0.0"/></td>
-              </tr>
-              <tr>
-                <td><strong>Reservation Picking</strong></td>
-                <td><span t-esc="doc.reserved_picking_id.name if doc.reserved_picking_id else ''"/></td>
-                <td><strong>Sale Order</strong></td>
-                <td><span t-esc="doc.sale_order_id.name if doc.sale_order_id else ''"/></td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- Products -->
-          <h4 style="margin-top: 12px;">Products</h4>
-          <table class="table table-sm table-bordered" style="font-size: 12px;">
-            <thead>
-              <tr>
-                <th style="width: 6%;">#</th>
-                <th>Product</th>
-                <th style="width: 12%;">UoM</th>
-                <th style="width: 14%;" class="text-end">Quantity</th>
-              </tr>
-            </thead>
-            <tbody>
-              <t t-set="i" t-value="0"/>
-              <t t-foreach="doc.line_ids" t-as="ln">
-                <t t-set="i" t-value="i + 1"/>
+            <!-- Shipment Details -->
+            <table class="table table-sm" style="font-size: 12px;">
+              <tbody>
                 <tr>
-                  <td t-esc="i"/>
-                  <td><span t-esc="ln.product_id.display_name if ln.product_id else ''"/></td>
-                  <td><span t-esc="ln.product_uom_id.name if ln.product_uom_id else ''"/></td>
-                  <td class="text-end"><span t-esc="ln.product_uom_qty or 0.0"/></td>
+                  <td style="width: 20%;"><strong>Container No</strong></td>
+                  <td style="width: 30%;"><span t-esc="doc.container_no or ''"/></td>
+                  <td style="width: 20%;"><strong>Seal No</strong></td>
+                  <td style="width: 30%;"><span t-esc="doc.seal_no or ''"/></td>
                 </tr>
-              </t>
-            </tbody>
-          </table>
-
-          <!-- Reserved Lots -->
-          <h4 style="margin-top: 14px;">Reserved Lots</h4>
-          <table class="table table-sm table-bordered" style="font-size: 12px;">
-            <thead>
-              <tr>
-                <th style="width: 6%;">#</th>
-                <th style="width: 32%;">Related Line</th>
-                <th>Product</th>
-                <th style="width: 18%;">Lot</th>
-                <th style="width: 14%;" class="text-end">Reserved Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              <t t-set="j" t-value="0"/>
-              <t t-foreach="doc.lot_line_ids" t-as="ll">
-                <t t-set="j" t-value="j + 1"/>
                 <tr>
-                  <td t-esc="j"/>
-                  <td><span t-esc="ll.line_id.display_name if ll.line_id else ''"/></td>
-                  <td><span t-esc="ll.product_id.display_name if ll.product_id else ''"/></td>
-                  <td><span t-esc="ll.lot_id.name if ll.lot_id else ''"/></td>
-                  <td class="text-end"><span t-esc="ll.qty or 0.0"/></td>
+                  <td><strong>Destination</strong></td>
+                  <td><span t-esc="doc.destination or ''"/></td>
+                  <td><strong>Total Qty</strong></td>
+                  <td><span t-esc="doc.total_qty or 0.0"/></td>
                 </tr>
-              </t>
-            </tbody>
-          </table>
+                <tr>
+                  <td><strong>Reservation Picking</strong></td>
+                  <td><span t-esc="doc.reserved_picking_id.name if doc.reserved_picking_id else ''"/></td>
+                  <td><strong>Sale Order</strong></td>
+                  <td><span t-esc="doc.sale_order_id.name if doc.sale_order_id else ''"/></td>
+                </tr>
+              </tbody>
+            </table>
 
-          <!-- Signatures -->
-          <div class="row" style="margin-top: 26px; font-size: 12px;">
-            <div class="col-4">
-              <strong>Prepared By:</strong>
-              <div style="border-bottom: 1px solid #000; height: 22px;"></div>
+            <!-- Products Table -->
+            <h4 style="margin-top: 12px;">Products</h4>
+            <table class="table table-sm table-bordered" style="font-size: 12px;">
+              <thead>
+                <tr>
+                  <th style="width: 6%;">#</th>
+                  <th>Product</th>
+                  <th style="width: 12%;">UoM</th>
+                  <th style="width: 14%;" class="text-end">Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <t t-set="i" t-value="0"/>
+                <t t-foreach="doc.line_ids" t-as="ln">
+                  <t t-set="i" t-value="i + 1"/>
+                  <tr>
+                    <td t-esc="i"/>
+                    <td><span t-esc="ln.product_id.display_name if ln.product_id else ''"/></td>
+                    <td><span t-esc="ln.product_uom_id.name if ln.product_uom_id else ''"/></td>
+                    <td class="text-end"><span t-esc="ln.product_uom_qty or 0.0"/></td>
+                  </tr>
+                </t>
+                <tr t-if="not doc.line_ids">
+                  <td colspan="4" class="text-center">No products</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Reserved Lots Table -->
+            <h4 style="margin-top: 14px;">Reserved Lots</h4>
+            <table class="table table-sm table-bordered" style="font-size: 12px;">
+              <thead>
+                <tr>
+                  <th style="width: 6%;">#</th>
+                  <th style="width: 32%;">Related Line</th>
+                  <th>Product</th>
+                  <th style="width: 18%;">Lot</th>
+                  <th style="width: 14%;" class="text-end">Reserved Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                <t t-set="j" t-value="0"/>
+                <t t-foreach="doc.lot_line_ids" t-as="ll">
+                  <t t-set="j" t-value="j + 1"/>
+                  <tr>
+                    <td t-esc="j"/>
+                    <td><span t-esc="ll.line_id.display_name if ll.line_id else ''"/></td>
+                    <td><span t-esc="ll.product_id.display_name if ll.product_id else ''"/></td>
+                    <td><span t-esc="ll.lot_id.name if ll.lot_id else ''"/></td>
+                    <td class="text-end"><span t-esc="ll.qty or 0.0"/></td>
+                  </tr>
+                </t>
+                <tr t-if="not doc.lot_line_ids">
+                  <td colspan="5" class="text-center">No reserved lots</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Signatures -->
+            <div class="row" style="margin-top: 26px; font-size: 12px;">
+              <div class="col-4">
+                <strong>Prepared By:</strong>
+                <div style="border-bottom: 1px solid #000; height: 22px;"></div>
+              </div>
+              <div class="col-4">
+                <strong>Checked By:</strong>
+                <div style="border-bottom: 1px solid #000; height: 22px;"></div>
+              </div>
+              <div class="col-4">
+                <strong>Approved By:</strong>
+                <div style="border-bottom: 1px solid #000; height: 22px;"></div>
+              </div>
             </div>
-            <div class="col-4">
-              <strong>Checked By:</strong>
-              <div style="border-bottom: 1px solid #000; height: 22px;"></div>
-            </div>
-            <div class="col-4">
-              <strong>Approved By:</strong>
-              <div style="border-bottom: 1px solid #000; height: 22px;"></div>
-            </div>
+
           </div>
-
-        </div>
-      </t>
+        </t>
+      </main>
     </t>
   </template>
 
