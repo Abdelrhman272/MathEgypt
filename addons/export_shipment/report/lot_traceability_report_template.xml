@@ -53,7 +53,7 @@
           <tbody>
             <t t-foreach="doc.line_ids" t-as="ln">
               <tr>
-                <td><span t-esc="format_datetime(env, ln.delivery_date) if ln.delivery_date else ''"/></td>
+                <td><span t-esc="ln.delivery_date and ln.delivery_date.strftime('%Y-%m-%d %H:%M:%S') or ''"/></td>
                 <td><span t-esc="ln.delivery_picking or ''"/></td>
                 <td><span t-esc="ln.finished_product or ''"/></td>
                 <td><span t-esc="ln.finished_lot or ''"/></td>
