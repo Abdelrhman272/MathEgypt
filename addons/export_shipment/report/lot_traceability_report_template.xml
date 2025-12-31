@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+  <!-- Report for: export.lot.traceability.wizard
+       Data source: doc.line_ids (export.lot.traceability.line) -->
   <template id="lot_traceability_report_template">
     <t t-call="web.external_layout">
       <t t-set="doc" t-value="docs[0]"/>
@@ -9,6 +11,7 @@
         <div class="row mb-2">
           <div class="col-8">
             <h2 style="margin:0;">Lot Traceability Report</h2>
+
             <div style="font-size:12px;">
               <strong>Invoice:</strong>&#160;<span t-esc="doc.invoice_id.name or ''"/>
             </div>
@@ -16,7 +19,10 @@
               <strong>Customer:</strong>&#160;<span t-esc="doc.invoice_id.partner_id.display_name or ''"/>
             </div>
             <div style="font-size:12px;">
-              <strong>Lots Count:</strong>&#160;<span t-esc="len(doc.line_ids)"/>
+              <strong>Shipments:</strong>&#160;<span t-esc="', '.join(doc.shipment_ids.mapped('name')) if doc.shipment_ids else ''"/>
+            </div>
+            <div style="font-size:12px;">
+              <strong>Lines Count:</strong>&#160;<span t-esc="len(doc.line_ids)"/>
             </div>
             <div style="font-size:12px;">
               <strong>Moves Count:</strong>&#160;<span t-esc="doc.moves_count"/>
@@ -31,44 +37,36 @@
         <table class="table table-sm table-bordered" style="font-size:11px;">
           <thead>
             <tr>
-              <th style="width:12%;">Date/Time</th>
-              <th style="width:10%;">Lot</th>
-              <th style="width:16%;">Product</th>
-              <th style="width:6%;" class="text-end">Qty</th>
-              <th style="width:6%;">UoM</th>
-              <th style="width:10%;">Picking</th>
-              <th style="width:8%;">Type</th>
-              <th style="width:12%;">Partner</th>
-              <th style="width:10%;">From</th>
-              <th style="width:10%;">To</th>
-              <th style="width:10%;">Source Raw Lots</th>
+              <th style="width:10%;">Delivery Date</th>
+              <th style="width:10%;">Delivery Picking</th>
+              <th style="width:10%;">Finished Product</th>
+              <th style="width:10%;">Finished Lot</th>
+              <th style="width:10%;">Production</th>
+              <th style="width:10%;">Production Date</th>
+              <th style="width:15%;">Raw Lots</th>
+              <th style="width:10%;">Vendors</th>
+              <th style="width:10%;">Receipts</th>
+              <th style="width:10%;">Receipt Date</th>
             </tr>
           </thead>
           <tbody>
             <t t-foreach="doc.line_ids" t-as="ln">
               <tr>
-                <td><span t-esc="format_datetime(env, ln.date) if ln.date else ''"/></td>
-                <td><span t-esc="ln.lot_id.name if ln.lot_id else ''"/></td>
-                <td><span t-esc="ln.product_id.display_name if ln.product_id else ''"/></td>
-                <td class="text-end"><span t-esc="ln.qty or 0.0"/></td>
-                <td><span t-esc="ln.uom_id.name if ln.uom_id else ''"/></td>
-                <td><span t-esc="ln.picking_id.name if ln.picking_id else ''"/></td>
-                <td><span t-esc="ln.picking_type_code or ''"/></td>
-                <td><span t-esc="ln.partner_id.display_name if ln.partner_id else ''"/></td>
-                <td><span t-esc="ln.location_from_id.display_name if ln.location_from_id else ''"/></td>
-                <td><span t-esc="ln.location_to_id.display_name if ln.location_to_id else ''"/></td>
-                <td>
-                  <t t-if="ln.source_raw_lot_ids">
-                    <t t-foreach="ln.source_raw_lot_ids" t-as="rl">
-                      <span t-esc="rl.name"/><t t-if="not loop.last">, </t>
-                    </t>
-                  </t>
-                </td>
+                <td><span t-esc="format_datetime(env, ln.delivery_date) if ln.delivery_date else ''"/></td>
+                <td><span t-esc="ln.delivery_picking or ''"/></td>
+                <td><span t-esc="ln.finished_product or ''"/></td>
+                <td><span t-esc="ln.finished_lot or ''"/></td>
+                <td><span t-esc="ln.production or ''"/></td>
+                <td><span t-esc="format_datetime(env, ln.production_date) if ln.production_date else ''"/></td>
+                <td><span t-esc="ln.raw_lots or ''"/></td>
+                <td><span t-esc="ln.vendors or ''"/></td>
+                <td><span t-esc="ln.receipts or ''"/></td>
+                <td><span t-esc="format_datetime(env, ln.receipt_date) if ln.receipt_date else ''"/></td>
               </tr>
             </t>
 
             <tr t-if="not doc.line_ids">
-              <td colspan="11" class="text-center">No movements found</td>
+              <td colspan="10" class="text-center">No traceability lines found</td>
             </tr>
           </tbody>
         </table>

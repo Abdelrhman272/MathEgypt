@@ -59,7 +59,12 @@ class FarmEvaluationLine(models.Model):
                     if prod_grade != (line.grade or "").strip().upper():
                         continue
 
-                    qty = move.quantity_done or 0.0
+                    # ✅ Odoo 19: done qty is on move lines
+                    qty = sum(move.move_line_ids.mapped("qty_done")) or 0.0
+
+                    # fallback (rare): if no move lines, use planned qty
+                    if not qty:
+                        qty = move.product_uom_qty or 0.0
 
                     # Convert move UoM -> evaluation UoM (kg -> ton, etc.)
                     if eval_uom and move.product_uom and move.product_uom != eval_uom:

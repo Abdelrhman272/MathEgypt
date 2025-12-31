@@ -31,6 +31,9 @@ class ExportLotTraceabilityWizard(models.TransientModel):
         readonly=True,
     )
 
+    # Used by QWeb report (avoid template errors)
+    moves_count = fields.Integer(string="Moves Count", compute="_compute_moves_count")
+
     # Excel export (download)
     file_name = fields.Char(readonly=True)
     file_data = fields.Binary(readonly=True)
@@ -65,6 +68,12 @@ class ExportLotTraceabilityWizard(models.TransientModel):
         res["lot_ids"] = [(6, 0, finished_lots.ids)]
 
         return res
+
+    @api.depends("line_ids")
+    def _compute_moves_count(self):
+        for wiz in self:
+            # In this wizard, each line represents one finished lot trace row
+            wiz.moves_count = len(wiz.line_ids)
 
     # -------------------------------------------------------------------------
     # Helpers
@@ -286,7 +295,7 @@ class ExportLotTraceabilityWizard(models.TransientModel):
         output.close()
 
         return {
-            "type": "ir.actions.act_window",
+            "type": "ir.actions.act_url",
             "url": f"/web/content/?model={self._name}&id={self.id}&field=file_data&filename_field=file_name&download=true",
             "target": "self",
         }
