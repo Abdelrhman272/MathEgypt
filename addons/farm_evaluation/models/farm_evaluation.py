@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
@@ -22,7 +23,6 @@ class FarmEvaluation(models.Model):
         string="Raw Material",
         required=True,
         tracking=True,
-        # IMPORTANT: keep domain safe + multi-company friendly
         domain=lambda self: [
             ("purchase_ok", "=", True),
             ("company_id", "in", [False, self.env.company.id]),
@@ -31,7 +31,6 @@ class FarmEvaluation(models.Model):
 
     uom_id = fields.Many2one(related="raw_product_id.uom_id", readonly=True)
     total_expected_qty = fields.Float(string="Total Expected Qty", required=True, tracking=True)
-
     season = fields.Char(string="Season")
 
     line_ids = fields.One2many(
@@ -75,12 +74,7 @@ class FarmEvaluation(models.Model):
         self.write({"state": "draft"})
 
     def action_create_po(self):
-        """Create a single RFQ/PO line for the raw material (total weight).
-
-        Business rule (per client):
-        - Evaluation has ONE raw product + total expected qty (weight)
-        - Grade lines are ONLY for expected distribution comparison, NOT for purchasing lines
-        """
+        """Create a single RFQ/PO line for the raw material (total weight)."""
         self.ensure_one()
 
         if self.state != "approved":
@@ -102,7 +96,6 @@ class FarmEvaluation(models.Model):
         }
         po = self.env["purchase.order"].create(po_vals)
 
-        # ONE purchase line only (raw material by total weight)
         line_vals = (0, 0, {
             "product_id": self.raw_product_id.id,
             "name": self.raw_product_id.display_name,
@@ -121,6 +114,30 @@ class FarmEvaluation(models.Model):
             "view_mode": "form",
             "res_id": po.id,
         }
+
+    def action_recompute_actuals(self):
+        """Recompute stored actual/variance/achievement and reload the form."""
+        self.ensure_one()
+
+        mo_count = self.env["mrp.production"].search_count([
+            ("farm_evaluation_id", "=", self.id),
+            ("state", "=", "done"),
+        ])
+        if not mo_count:
+            raise UserError(_(
+                "No DONE Manufacturing Orders linked to this Farm Evaluation.\n\n"
+                "Fix:\n"
+                "1) Open the Manufacturing Order (MO)\n"
+                "2) Set 'Farm Evaluation' = %s\n"
+                "3) Mark MO as Done\n"
+                "Then click Recompute again."
+            ) % (self.name or ""))
+
+        # force compute (stored fields)
+        self.line_ids._compute_actuals()
+        self.line_ids.flush_recordset()
+
+        return {"type": "ir.actions.client", "tag": "reload"}
 
 
 class FarmEvaluationLine(models.Model):
@@ -144,13 +161,3 @@ class FarmEvaluationLine(models.Model):
         for rec in self:
             total = rec.evaluation_id.total_expected_qty or 0.0
             rec.expected_qty = (total * (rec.expected_percent or 0.0)) / 100.0
-
-class FarmEvaluation(models.Model):
-    _inherit = "farm.evaluation"
-
-    def action_recompute_actuals(self):
-        for evaluation in self:
-            evaluation.line_ids._compute_actual_qty()
-            evaluation.line_ids._compute_variance_qty()
-            evaluation.line_ids._compute_achievement_percent()
-
