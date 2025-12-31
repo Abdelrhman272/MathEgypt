@@ -30,7 +30,8 @@
           </div>
 
           <div class="col-4 text-end" style="font-size:12px;">
-            <strong>Date:</strong>&#160;<span t-esc="format_date(env, fields.Date.today())"/>
+            <strong>Date:</strong>&#160;<span t-esc="time.strftime('%Y-%m-%d')"/>
+
           </div>
         </div>
 
