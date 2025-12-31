@@ -144,3 +144,13 @@ class FarmEvaluationLine(models.Model):
         for rec in self:
             total = rec.evaluation_id.total_expected_qty or 0.0
             rec.expected_qty = (total * (rec.expected_percent or 0.0)) / 100.0
+
+class FarmEvaluation(models.Model):
+    _inherit = "farm.evaluation"
+
+    def action_recompute_actuals(self):
+        for evaluation in self:
+            evaluation.line_ids._compute_actual_qty()
+            evaluation.line_ids._compute_variance_qty()
+            evaluation.line_ids._compute_achievement_percent()
+

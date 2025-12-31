@@ -16,7 +16,7 @@
               <strong>Customer:</strong>&#160;<span t-esc="doc.invoice_id.partner_id.display_name or ''"/>
             </div>
             <div style="font-size:12px;">
-              <strong>Lots Count:</strong>&#160;<span t-esc="len(doc._get_lots_from_invoice_auto())"/>
+              <strong>Lots Count:</strong>&#160;<span t-esc="len(doc.line_ids)"/>
             </div>
             <div style="font-size:12px;">
               <strong>Moves Count:</strong>&#160;<span t-esc="doc.moves_count"/>

@@ -69,4 +69,27 @@
         <field name="res_model">farm.evaluation</field>
         <field name="view_mode">list,form</field>
     </record>
+
+        <record id="farm_evaluation_form_inherit_actuals" model="ir.ui.view">
+        <field name="name">farm.evaluation.form.actuals</field>
+        <field name="model">farm.evaluation</field>
+        <field name="inherit_id" ref="farm_evaluation.view_farm_evaluation_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//header" position="inside">
+                <button name="action_recompute_actuals"
+                        string="Recompute Actuals"
+                        type="object"
+                        class="btn-primary"/>
+            </xpath>
+
+            <xpath expr="//field[@name='line_ids']/tree" position="inside">
+                <field name="actual_qty"/>
+                <field name="variance_qty"/>
+                <field name="achievement_percent"/>
+            </xpath>
+
+        </field>
+    </record>
+
 </odoo>

@@ -15,6 +15,7 @@
         "data/sequence.xml",
         "views/farm_evaluation_views.xml",
         "views/purchase_order_views.xml",
+        "views/mrp_production_views.xml",
         "views/menu.xml",
     ],
     "assets": {},
