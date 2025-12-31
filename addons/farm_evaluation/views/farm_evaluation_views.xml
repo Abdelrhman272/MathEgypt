@@ -83,7 +83,7 @@
                         class="btn-primary"/>
             </xpath>
 
-            <xpath expr="//field[@name='line_ids']/tree" position="inside">
+            <xpath expr="//field[@name='line_ids']//list" position="inside">
                 <field name="actual_qty"/>
                 <field name="variance_qty"/>
                 <field name="achievement_percent"/>
