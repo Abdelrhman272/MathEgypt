@@ -1,11 +1,11 @@
 <odoo>
-    <!-- Custom group -->
+    <!-- Group -->
     <record id="group_agri_user" model="res.groups">
         <field name="name">Agri Export User</field>
-        <field name="category_id" ref="base.module_category_inventory"/>
+        <!-- ✅ Odoo 19: category_id removed, do NOT set it -->
     </record>
 
-    <!-- ✅ Important: grant this group to ALL internal users -->
+    <!-- ✅ Give this group automatically to ALL internal users (including Administrator) -->
     <record id="base.group_user" model="res.groups">
         <field name="implied_ids" eval="[(4, ref('agri_export_core.group_agri_user'))]"/>
     </record>
