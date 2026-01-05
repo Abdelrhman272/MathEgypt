@@ -1,0 +1,15 @@
+
+<odoo>
+ <record id="seq_eval" model="ir.sequence">
+  <field name="name">Farm Evaluation</field>
+  <field name="code">agri.farm.evaluation</field>
+ </record>
+ <record id="seq_prod" model="ir.sequence">
+  <field name="name">Production Batch</field>
+  <field name="code">agri.production.batch</field>
+ </record>
+ <record id="seq_ship" model="ir.sequence">
+  <field name="name">Export Shipment</field>
+  <field name="code">agri.export.shipment</field>
+ </record>
+</odoo>

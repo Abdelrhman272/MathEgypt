@@ -1,0 +1,6 @@
+
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_farm,access_farm,model_agri_farm,group_agri_user,1,1,1,1
+access_eval,access_eval,model_agri_farm_evaluation,group_agri_user,1,1,1,1
+access_prod,access_prod,model_agri_production_batch,group_agri_user,1,1,1,1
+access_ship,access_ship,model_agri_export_shipment,group_agri_user,1,1,1,1

@@ -1,0 +1,6 @@
+
+<odoo>
+ <record id="group_agri_user" model="res.groups">
+  <field name="name">Agri Export User</field>
+ </record>
+</odoo>

@@ -1,0 +1,13 @@
+
+<odoo>
+ <record id="view_trace_wiz" model="ir.ui.view">
+  <field name="name">trace.wiz</field>
+  <field name="model">agri.traceability.wizard</field>
+  <field name="arch" type="xml">
+   <form>
+    <group><field name="invoice_id"/></group>
+    <footer><button name="action_print" type="object" string="Print" class="btn-primary"/></footer>
+   </form>
+  </field>
+ </record>
+</odoo>

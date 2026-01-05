@@ -1,0 +1,13 @@
+
+<odoo>
+ <record id="view_agri_ship_tree" model="ir.ui.view">
+  <field name="name">agri.ship.tree</field>
+  <field name="model">agri.export.shipment</field>
+  <field name="arch" type="xml"><tree><field name="name"/><field name="state"/></tree></field>
+ </record>
+ <record id="action_agri_ship" model="ir.actions.act_window">
+  <field name="name">Shipments</field>
+  <field name="res_model">agri.export.shipment</field>
+  <field name="view_mode">tree,form</field>
+ </record>
+</odoo>

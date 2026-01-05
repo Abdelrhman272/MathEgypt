@@ -1,0 +1,13 @@
+
+<odoo>
+ <record id="view_agri_farm_tree" model="ir.ui.view">
+  <field name="name">agri.farm.tree</field>
+  <field name="model">agri.farm</field>
+  <field name="arch" type="xml"><tree><field name="name"/></tree></field>
+ </record>
+ <record id="action_agri_farm" model="ir.actions.act_window">
+  <field name="name">Farms</field>
+  <field name="res_model">agri.farm</field>
+  <field name="view_mode">tree,form</field>
+ </record>
+</odoo>
