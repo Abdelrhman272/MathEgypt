@@ -11,7 +11,6 @@
         'security/security.xml',
         'security/ir.model.access.csv',
         'data/sequence.xml',
-        'views/menu.xml',
         'views/farm_views.xml',
         'views/crop_views.xml',
         'views/evaluation_views.xml',
@@ -19,7 +18,9 @@
         'views/shipment_views.xml',
         'reports/traceability_report.xml',
         'wizard/traceability_wizard_views.xml',
+        'views/menu.xml',
         'demo/demo.xml',
+
     ],
     'installable': True,
     'application': True,
