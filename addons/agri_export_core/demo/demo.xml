@@ -1,7 +1,13 @@
-
 <odoo>
- <record id="demo_farm" model="agri.farm">
-  <field name="name">Demo Farm</field>
-  <field name="partner_id" ref="base.res_partner_1"/>
- </record>
+    <!-- Create a demo partner that is guaranteed to exist (created by this module) -->
+    <record id="demo_partner_farm" model="res.partner">
+        <field name="name">Demo Farm Partner</field>
+        <field name="company_type">company</field>
+    </record>
+
+    <!-- Demo Farm -->
+    <record id="demo_farm" model="agri.farm">
+        <field name="name">Demo Farm</field>
+        <field name="partner_id" ref="agri_export_core.demo_partner_farm"/>
+    </record>
 </odoo>
