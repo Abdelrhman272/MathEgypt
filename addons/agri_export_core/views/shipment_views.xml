@@ -6,8 +6,9 @@
             <list>
                 <field name="name"/>
                 <field name="container_no"/>
+                <field name="customer_id"/>
                 <field name="sale_order_id"/>
-                <field name="invoice_id"/>
+                <field name="picking_id"/>
                 <field name="state"/>
             </list>
         </field>
@@ -19,20 +20,50 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,shipped,invoiced"/>
+                    <button name="action_create_sale_order" type="object" string="Create SO" class="btn-primary"
+                            attrs="{'invisible':[('sale_order_id','!=',False)]}"/>
+                    <button name="action_open_sale" type="object" string="Open SO"
+                            attrs="{'invisible':[('sale_order_id','=',False)]}"/>
+
+                    <button name="action_create_delivery" type="object" string="Create Delivery"
+                            class="btn-primary"
+                            attrs="{'invisible':[('picking_id','!=',False)]}"/>
+                    <button name="action_open_picking" type="object" string="Open Delivery"
+                            attrs="{'invisible':[('picking_id','=',False)]}"/>
+
+                    <field name="state" widget="statusbar" statusbar_visible="draft,reserved,shipped,invoiced"/>
                 </header>
+
                 <sheet>
                     <group>
                         <field name="name" readonly="1"/>
                         <field name="container_no"/>
+                        <field name="evaluation_id"/>
                     </group>
-                    <group>
-                        <field name="sale_order_id"/>
-                        <field name="invoice_id"/>
+
+                    <group string="Customer & Container Sale">
+                        <field name="customer_id"/>
+                        <field name="container_product_id"/>
+                        <field name="container_qty"/>
+                        <field name="sale_order_id" readonly="1"/>
+                        <field name="invoice_id" readonly="1"/>
                     </group>
-                    <group>
-                        <field name="lot_ids" widget="many2many_tags"/>
+
+                    <group string="Delivery">
+                        <field name="picking_id" readonly="1"/>
                     </group>
+
+                    <notebook>
+                        <page string="Lot Reservations">
+                            <field name="reservation_line_ids">
+                                <list editable="bottom">
+                                    <field name="lot_id"/>
+                                    <field name="product_id" readonly="1"/>
+                                    <field name="qty"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>

@@ -6,3 +6,4 @@ access_prod,access_prod,model_agri_production_batch,agri_export_core.group_agri_
 access_prod_out,access_prod_out,model_agri_production_output,agri_export_core.group_agri_user,1,1,1,1
 access_ship,access_ship,model_agri_export_shipment,agri_export_core.group_agri_user,1,1,1,1
 access_trace_wiz,access_trace_wiz,model_agri_traceability_wizard,agri_export_core.group_agri_user,1,1,1,1
+access_ship_res,access_ship_res,model_agri_shipment_reservation,agri_export_core.group_agri_user,1,1,1,1
