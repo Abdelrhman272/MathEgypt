@@ -21,15 +21,14 @@
             <form>
                 <header>
                     <button name="action_create_sale_order" type="object" string="Create SO" class="btn-primary"
-                            attrs="{'invisible':[('sale_order_id','!=',False)]}"/>
+                            modifiers='{"invisible":[["sale_order_id","!=",false]]}'/>
                     <button name="action_open_sale" type="object" string="Open SO"
-                            attrs="{'invisible':[('sale_order_id','=',False)]}"/>
+                            modifiers='{"invisible":[["sale_order_id","=",false]]}'/>
 
-                    <button name="action_create_delivery" type="object" string="Create Delivery"
-                            class="btn-primary"
-                            attrs="{'invisible':[('picking_id','!=',False)]}"/>
+                    <button name="action_create_delivery" type="object" string="Create Delivery" class="btn-primary"
+                            modifiers='{"invisible":[["picking_id","!=",false]]}'/>
                     <button name="action_open_picking" type="object" string="Open Delivery"
-                            attrs="{'invisible':[('picking_id','=',False)]}"/>
+                            modifiers='{"invisible":[["picking_id","=",false]]}'/>
 
                     <field name="state" widget="statusbar" statusbar_visible="draft,reserved,shipped,invoiced"/>
                 </header>
@@ -41,7 +40,7 @@
                         <field name="evaluation_id"/>
                     </group>
 
-                    <group string="Customer & Container Sale">
+                    <group string="Customer &amp; Container Sale">
                         <field name="customer_id"/>
                         <field name="container_product_id"/>
                         <field name="container_qty"/>
