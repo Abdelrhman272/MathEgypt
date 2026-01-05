@@ -21,9 +21,9 @@
             <form>
                 <header>
                     <button name="action_create_purchase" type="object" string="Create PO" class="btn-primary"
-                            attrs="{'invisible':[('purchase_id','!=',False)]}"/>
+                            modifiers='{"invisible":[["purchase_id","!=",false]]}'/>
                     <button name="action_open_purchase" type="object" string="Open PO"
-                            attrs="{'invisible':[('purchase_id','=',False)]}"/>
+                            modifiers='{"invisible":[["purchase_id","=",false]]}'/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,cancelled"/>
                 </header>
 
