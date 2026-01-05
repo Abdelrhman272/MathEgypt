@@ -1,33 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- ROOT APPLICATION MENU -->
-    <menuitem
-        id="menu_agri_root"
-        name="Agricultural Export"
-        application="True"
-        sequence="15"/>
+    <data>
+        <!-- ROOT APPLICATION MENU -->
+        <menuitem
+            id="menu_agri_root"
+            name="Agricultural Export"
+            sequence="15"/>
 
-    <!-- Sub Menus -->
-    <menuitem
-        id="menu_agri_farm"
-        parent="menu_agri_root"
-        name="Farms"
-        action="action_agri_farm"/>
+        <!-- Sub Menus -->
+        <menuitem
+            id="menu_agri_farm"
+            parent="menu_agri_root"
+            name="Farms"
+            action="action_agri_farm"/>
 
-    <menuitem
-        id="menu_agri_eval"
-        parent="menu_agri_root"
-        name="Evaluations"
-        action="action_agri_eval"/>
+        <menuitem
+            id="menu_agri_eval"
+            parent="menu_agri_root"
+            name="Evaluations"
+            action="action_agri_eval"/>
 
-    <menuitem
-        id="menu_agri_prod"
-        parent="menu_agri_root"
-        name="Production"
-        action="action_agri_prod"/>
+        <menuitem
+            id="menu_agri_prod"
+            parent="menu_agri_root"
+            name="Production"
+            action="action_agri_prod"/>
 
-    <menuitem
-        id="menu_agri_ship"
-        parent="menu_agri_root"
-        name="Shipments"
-        action="action_agri_ship"/>
+        <menuitem
+            id="menu_agri_ship"
+            parent="menu_agri_root"
+            name="Shipments"
+            action="action_agri_ship"/>
+    </data>
 </odoo>

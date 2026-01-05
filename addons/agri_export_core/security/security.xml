@@ -1,12 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Group -->
     <record id="group_agri_user" model="res.groups">
         <field name="name">Agri Export User</field>
-        <!-- ✅ Odoo 19: category_id removed, do NOT set it -->
+        <!-- Odoo 19: do NOT set category_id -->
     </record>
 
-    <!-- ✅ Give this group automatically to ALL internal users (including Administrator) -->
+    <!-- Give this group automatically to ALL internal users (including Administrator) -->
     <record id="base.group_user" model="res.groups">
-        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="implied_ids" eval="[(4, ref('agri_export_core.group_agri_user'))]"/>
     </record>
 </odoo>
