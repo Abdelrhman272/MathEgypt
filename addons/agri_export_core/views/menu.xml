@@ -1,41 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <data>
-        <!-- ROOT APPLICATION MENU -->
-        <menuitem
-            id="menu_agri_root"
-            name="Agricultural Export"
-            application="True"
-            sequence="15"
-            groups="base.group_user"/>
 
-        <!-- Sub Menus -->
-        <menuitem
-            id="menu_agri_farm"
-            parent="menu_agri_root"
-            name="Farms"
-            action="action_agri_farm"
-            groups="base.group_user"/>
+        <!-- Root App Menu -->
+        <record id="menu_agri_root" model="ir.ui.menu">
+            <field name="name">Agricultural Export</field>
+            <field name="sequence">15</field>
+            <!-- اختياري: لو عندك icon في static/description/icon.png سيبه، لو مش موجود احذف السطر ده -->
+            <!-- <field name="web_icon">agri_export_core,static/description/icon.png</field> -->
+        </record>
 
-        <menuitem
-            id="menu_agri_eval"
-            parent="menu_agri_root"
-            name="Evaluations"
-            action="action_agri_eval"
-            groups="base.group_user"/>
+        <!-- Farms -->
+        <record id="menu_agri_farm" model="ir.ui.menu">
+            <field name="name">Farms</field>
+            <field name="parent_id" ref="agri_export_core.menu_agri_root"/>
+            <field name="action" ref="agri_export_core.action_agri_farm"/>
+            <field name="sequence">10</field>
+        </record>
 
-        <menuitem
-            id="menu_agri_prod"
-            parent="menu_agri_root"
-            name="Production"
-            action="action_agri_prod"
-            groups="base.group_user"/>
+        <!-- Evaluations -->
+        <record id="menu_agri_eval" model="ir.ui.menu">
+            <field name="name">Evaluations</field>
+            <field name="parent_id" ref="agri_export_core.menu_agri_root"/>
+            <field name="action" ref="agri_export_core.action_agri_eval"/>
+            <field name="sequence">20</field>
+        </record>
 
-        <menuitem
-            id="menu_agri_ship"
-            parent="menu_agri_root"
-            name="Shipments"
-            action="action_agri_ship"
-            groups="base.group_user"/>
+        <!-- Production -->
+        <record id="menu_agri_prod" model="ir.ui.menu">
+            <field name="name">Production</field>
+            <field name="parent_id" ref="agri_export_core.menu_agri_root"/>
+            <field name="action" ref="agri_export_core.action_agri_prod"/>
+            <field name="sequence">30</field>
+        </record>
+
+        <!-- Shipments -->
+        <record id="menu_agri_ship" model="ir.ui.menu">
+            <field name="name">Shipments</field>
+            <field name="parent_id" ref="agri_export_core.menu_agri_root"/>
+            <field name="action" ref="agri_export_core.action_agri_ship"/>
+            <field name="sequence">40</field>
+        </record>
+
     </data>
 </odoo>
