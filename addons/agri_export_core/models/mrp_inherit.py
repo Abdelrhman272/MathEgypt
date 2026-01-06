@@ -5,7 +5,8 @@ from odoo.exceptions import UserError
 class MrpProduction(models.Model):
     _inherit = 'mrp.production'
 
-    evaluation_id = fields.Many2one('agri.farm.evaluation', string="Farm Evaluation")
+    # NOTE: label intentionally differs from other modules to avoid duplicate label warnings
+    evaluation_id = fields.Many2one('agri.farm.evaluation', string="Agri Evaluation")
     agri_batch_id = fields.Many2one('agri.production.batch', string="Agri Batch", readonly=True)
 
     def button_mark_done(self):

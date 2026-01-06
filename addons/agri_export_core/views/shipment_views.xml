@@ -20,14 +20,25 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_fetch_output_lots" type="object" string="Fetch Output Lots" class="btn-secondary"
+                            modifiers='{"invisible":[["evaluation_id","=",false]]}'/>
+
                     <button name="action_create_sale_order" type="object" string="Create SO" class="btn-primary"
                             modifiers='{"invisible":[["sale_order_id","!=",false]]}'/>
                     <button name="action_open_sale" type="object" string="Open SO"
                             modifiers='{"invisible":[["sale_order_id","=",false]]}'/>
 
+                    <button name="action_create_invoice" type="object" string="Create Invoice" class="btn-primary"
+                            modifiers='{"invisible":[["sale_order_id","=",false],["invoice_id","!=",false]]}'/>
+                    <button name="action_open_invoice" type="object" string="Open Invoice"
+                            modifiers='{"invisible":[["invoice_id","=",false]]}'/>
+
                     <button name="action_create_delivery" type="object" string="Create Delivery" class="btn-primary"
                             modifiers='{"invisible":[["picking_id","!=",false]]}'/>
                     <button name="action_open_picking" type="object" string="Open Delivery"
+                            modifiers='{"invisible":[["picking_id","=",false]]}'/>
+
+                    <button name="action_validate_delivery" type="object" string="Validate Delivery" class="btn-primary"
                             modifiers='{"invisible":[["picking_id","=",false]]}'/>
 
                     <field name="state" widget="statusbar" statusbar_visible="draft,reserved,shipped,invoiced"/>

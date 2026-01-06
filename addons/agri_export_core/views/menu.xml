@@ -5,6 +5,7 @@
         <menuitem
             id="menu_agri_root"
             name="Agricultural Export"
+            application="True"
             sequence="15"/>
 
         <!-- Sub Menus -->

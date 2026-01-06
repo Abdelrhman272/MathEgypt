@@ -25,6 +25,29 @@ class AgriExportShipment(models.Model):
     reservation_line_ids = fields.One2many('agri.shipment.reservation', 'shipment_id')
     state = fields.Selection([('draft', 'Draft'), ('reserved', 'Reserved'), ('shipped', 'Shipped'), ('invoiced', 'Invoiced')], default='draft')
 
+    def action_fetch_output_lots(self):
+        """Populate reservation lines from done production outputs of the linked evaluation."""
+        self.ensure_one()
+        if not self.evaluation_id:
+            raise UserError(_("Please set Farm Evaluation first."))
+
+        # Collect lots from production batches linked to the evaluation
+        lines = []
+        for batch in self.evaluation_id.production_ids:
+            for out in batch.output_line_ids:
+                if out.lot_id and out.qty > 0:
+                    lines.append((0, 0, {
+                        'lot_id': out.lot_id.id,
+                        'qty': out.qty,
+                    }))
+
+        if not lines:
+            raise UserError(_("No production output lots found for this evaluation."))
+
+        # Replace current reservation lines
+        self.reservation_line_ids = [(5, 0, 0)] + lines
+        return True
+
     def action_create_sale_order(self):
         self.ensure_one()
         if self.sale_order_id:
@@ -129,6 +152,59 @@ class AgriExportShipment(models.Model):
         self.state = 'reserved'
 
         return self.action_open_picking()
+
+    def action_validate_delivery(self):
+        """Auto-fill qty_done from reserved reservation lines then validate picking."""
+        self.ensure_one()
+        if not self.picking_id:
+            raise UserError(_("No Delivery Picking linked yet."))
+
+        picking = self.picking_id
+        if picking.state not in ('assigned', 'confirmed'):
+            # allow validating even if already done/cancelled; Odoo will raise
+            pass
+
+        # Set done qty for each move line based on reservation lines
+        lot_qty_map = {}
+        for line in self.reservation_line_ids:
+            if line.lot_id and line.qty > 0:
+                lot_qty_map[line.lot_id.id] = lot_qty_map.get(line.lot_id.id, 0.0) + line.qty
+
+        for ml in picking.move_line_ids:
+            if ml.lot_id and ml.lot_id.id in lot_qty_map:
+                ml.qty_done = lot_qty_map[ml.lot_id.id]
+
+        # Validate
+        picking.button_validate()
+        self.state = 'shipped'
+        return self.action_open_picking()
+
+    def action_create_invoice(self):
+        self.ensure_one()
+        if self.invoice_id:
+            return self.action_open_invoice()
+        if not self.sale_order_id:
+            raise UserError(_("Create Sale Order first."))
+
+        invoices = self.sale_order_id._create_invoices()
+        if not invoices:
+            raise UserError(_("No invoice created."))
+        self.invoice_id = invoices[0].id
+        self.state = 'invoiced'
+        return self.action_open_invoice()
+
+    def action_open_invoice(self):
+        self.ensure_one()
+        if not self.invoice_id:
+            raise UserError(_("No Invoice linked yet."))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Invoice'),
+            'res_model': 'account.move',
+            'res_id': self.invoice_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
 
     def action_open_picking(self):
         self.ensure_one()
