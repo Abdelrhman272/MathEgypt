@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_export_shipment_tree_inherit_costing" model="ir.ui.view">
+        <field name="name">export.shipment.list.costing</field>
+        <field name="model">export.shipment</field>
+        <field name="inherit_id" ref="export_shipment.view_export_shipment_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list/field[@name='total_qty']" position="after">
+                <field name="logistics_total_cost" optional="show"/>
+                <field name="revenue_amount" optional="show"/>
+                <field name="gross_profit_amount" optional="show"/>
+                <field name="gross_margin_pct" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_export_shipment_form_inherit_costing" model="ir.ui.view">
+        <field name="name">export.shipment.form.costing</field>
+        <field name="model">export.shipment</field>
+        <field name="inherit_id" ref="export_shipment.view_export_shipment_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group/group/field[@name='container_no']" position="after">
+                <field name="container_count"/>
+            </xpath>
+
+            <xpath expr="//notebook/page[@string='Products']/field[@name='line_ids']/list/field[@name='product_uom_qty']" position="after">
+                <field name="carton_qty" optional="show"/>
+                <field name="net_weight" optional="show"/>
+                <field name="gross_weight" optional="show"/>
+                <field name="allocated_logistics_cost" readonly="1" optional="show"/>
+                <field name="logistics_cost_per_carton" readonly="1" optional="hide"/>
+                <field name="logistics_cost_per_qty" readonly="1" optional="hide"/>
+            </xpath>
+
+            <xpath expr="//notebook" position="inside">
+                <page string="Logistics Costs">
+                    <group>
+                        <group>
+                            <field name="logistics_total_cost" readonly="1"/>
+                            <field name="logistics_cost_per_container" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="revenue_amount" readonly="1"/>
+                            <field name="gross_profit_amount" readonly="1"/>
+                            <field name="gross_margin_pct" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="logistics_cost_line_ids">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="name"/>
+                            <field name="cost_type"/>
+                            <field name="allocation_basis"/>
+                            <field name="amount"/>
+                            <field name="note" optional="hide"/>
+                        </list>
+                    </field>
+                    <div class="text-muted">
+                        Add inland transport, port, freight, customs, and other shipment costs here.
+                        Costs are allocated to shipment lines based on the selected basis.
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

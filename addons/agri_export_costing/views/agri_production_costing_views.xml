@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_agri_prod_list_inherit_costing" model="ir.ui.view">
+        <field name="name">agri.production.batch.list.costing</field>
+        <field name="model">agri.production.batch</field>
+        <field name="inherit_id" ref="agri_export_core.view_agri_prod_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list/field[@name='variance_qty']" position="after">
+                <field name="total_allocable_cost" optional="show"/>
+                <field name="total_relative_sales_value" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_agri_prod_form_inherit_costing" model="ir.ui.view">
+        <field name="name">agri.production.batch.form.costing</field>
+        <field name="model">agri.production.batch</field>
+        <field name="inherit_id" ref="agri_export_core.view_agri_prod_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group/field[@name='variance_qty']" position="after">
+                <group string="Cost Share" colspan="2">
+                    <group>
+                        <field name="costing_method" readonly="1"/>
+                        <field name="raw_material_cost_amount"/>
+                        <field name="operation_cost_amount"/>
+                        <field name="other_cost_amount"/>
+                    </group>
+                    <group>
+                        <field name="total_allocable_cost" readonly="1"/>
+                        <field name="total_relative_sales_value" readonly="1"/>
+                    </group>
+                </group>
+            </xpath>
+
+            <xpath expr="//page[@string='Outputs']/field[@name='output_line_ids']/list/field[@name='uom_id']" position="after">
+                <field name="sales_price_unit" optional="show"/>
+                <field name="sales_value" readonly="1" optional="show"/>
+                <field name="relative_sales_ratio" readonly="1" optional="show"/>
+                <field name="allocated_cost" readonly="1" optional="show"/>
+                <field name="cost_per_unit" readonly="1" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
