@@ -55,22 +55,12 @@
                 </group>
             </xpath>
 
-            <xpath expr="//notebook/page[field[@name='output_line_ids']]" position="replace">
-                <page string="Outputs">
-                    <field name="output_line_ids">
-                        <list editable="bottom">
-                            <field name="product_id"/>
-                            <field name="lot_id"/>
-                            <field name="qty"/>
-                            <field name="uom_id"/>
-                            <field name="sales_price_unit" optional="show"/>
-                            <field name="sales_value" readonly="1" optional="show"/>
-                            <field name="relative_sales_ratio" readonly="1" optional="show"/>
-                            <field name="allocated_cost" readonly="1" optional="show"/>
-                            <field name="cost_per_unit" readonly="1" optional="show"/>
-                        </list>
-                    </field>
-                </page>
+            <xpath expr="//field[@name='output_line_ids']/list/field[@name='uom_id']" position="after">
+                <field name="sales_price_unit" optional="show"/>
+                <field name="sales_value" readonly="1" optional="show"/>
+                <field name="relative_sales_ratio" readonly="1" optional="show"/>
+                <field name="allocated_cost" readonly="1" optional="show"/>
+                <field name="cost_per_unit" readonly="1" optional="show"/>
             </xpath>
         </field>
     </record>

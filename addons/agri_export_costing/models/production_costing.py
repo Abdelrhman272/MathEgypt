@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import api, fields, models, _
+from odoo import api, fields, models
 
 
 class AgriProductionBatch(models.Model):
@@ -22,7 +22,6 @@ class AgriProductionBatch(models.Model):
         default="relative_sales_value",
         required=True,
     )
-    # Manual fallback inputs
     raw_material_cost_amount = fields.Monetary(
         string="Manual Raw Material Cost",
         currency_field="currency_id",
@@ -40,7 +39,6 @@ class AgriProductionBatch(models.Model):
         currency_field="currency_id",
         default=0.0,
     )
-    # Actual costs refreshed from the linked MO
     actual_raw_material_cost = fields.Monetary(
         string="Actual Raw Material Cost",
         currency_field="currency_id",
@@ -141,6 +139,7 @@ class AgriProductionBatch(models.Model):
         "actual_other_cost",
         "output_line_ids.sales_value",
         "mrp_production_id",
+        "mrp_production_id.move_raw_ids.state",
     )
     def _compute_costing_totals(self):
         for rec in self:
@@ -258,7 +257,8 @@ class AgriProductionBatch(models.Model):
         return True
 
     def action_sync_from_mo(self):
-        res = super().action_sync_from_mo()
+        parent_method = getattr(super(AgriProductionBatch, self), "action_sync_from_mo", None)
+        res = parent_method() if parent_method else True
         self.action_refresh_actual_costs()
         return res
 
