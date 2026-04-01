@@ -2,44 +2,42 @@
 <odoo>
     <data>
 
-        <!-- Root App Menu -->
         <record id="menu_agri_root" model="ir.ui.menu">
             <field name="name">Agricultural Export</field>
             <field name="sequence">15</field>
-            <!-- اختياري: لو عندك icon في static/description/icon.png سيبه، لو مش موجود احذف السطر ده -->
-            <!-- <field name="web_icon">agri_export_core,static/description/icon.png</field> -->
+            <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
 
-        <!-- Farms -->
         <record id="menu_agri_farm" model="ir.ui.menu">
             <field name="name">Farms</field>
             <field name="parent_id" ref="agri_export_core.menu_agri_root"/>
             <field name="action" ref="agri_export_core.action_agri_farm"/>
             <field name="sequence">10</field>
+            <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
 
-        <!-- Evaluations -->
         <record id="menu_agri_eval" model="ir.ui.menu">
             <field name="name">Evaluations</field>
             <field name="parent_id" ref="agri_export_core.menu_agri_root"/>
             <field name="action" ref="agri_export_core.action_agri_eval"/>
             <field name="sequence">20</field>
+            <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
 
-        <!-- Production -->
         <record id="menu_agri_prod" model="ir.ui.menu">
             <field name="name">Production</field>
             <field name="parent_id" ref="agri_export_core.menu_agri_root"/>
             <field name="action" ref="agri_export_core.action_agri_prod"/>
             <field name="sequence">30</field>
+            <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
 
-        <!-- Shipments -->
         <record id="menu_agri_ship" model="ir.ui.menu">
             <field name="name">Shipments</field>
             <field name="parent_id" ref="agri_export_core.menu_agri_root"/>
             <field name="action" ref="agri_export_core.action_agri_ship"/>
             <field name="sequence">40</field>
+            <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
 
     </data>

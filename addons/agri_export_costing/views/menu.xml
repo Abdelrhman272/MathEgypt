@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_export_production_batches" model="ir.actions.act_window">
+        <field name="name">Production Batches</field>
+        <field name="res_model">agri.production.batch</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_export_production_batches"
+              name="Production Batches"
+              parent="export_shipment.menu_export_root"
+              action="agri_export_costing.action_export_production_batches"
+              sequence="20"
+              groups="export_shipment.group_export_shipment_user"/>
+</odoo>

@@ -8,8 +8,8 @@
         <field name="arch" type="xml">
             <xpath expr="//list/field[@name='variance_qty']" position="after">
                 <field name="costing_status" optional="show"/>
-                <field name="actual_total_allocable_cost" optional="show"/>
                 <field name="total_allocable_cost" optional="show"/>
+                <field name="actual_total_allocable_cost" optional="hide"/>
                 <field name="total_relative_sales_value" optional="hide"/>
             </xpath>
         </field>
@@ -21,46 +21,77 @@
         <field name="inherit_id" ref="agri_export_core.view_agri_prod_form"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet/group/field[@name='variance_qty']" position="after">
-                <group string="Cost Share" colspan="2">
-                    <group>
-                        <field name="costing_method" readonly="1"/>
-                        <field name="costing_status" readonly="1"/>
-                        <field name="actual_cost_last_refresh" readonly="1"/>
-                        <button name="action_refresh_actual_costs"
-                                string="Refresh Actual Costs"
-                                type="object"
-                                class="btn-primary"/>
-                    </group>
-                    <group string="Manual Fallback">
-                        <field name="raw_material_cost_amount"/>
-                        <field name="operation_cost_amount"/>
-                        <field name="other_cost_amount"/>
-                    </group>
-                    <group string="Actual Costs">
-                        <field name="actual_raw_material_cost" readonly="1"/>
-                        <field name="actual_operation_cost" readonly="1"/>
-                        <field name="actual_other_cost" readonly="1"/>
-                        <field name="actual_total_allocable_cost" readonly="1"/>
-                    </group>
-                    <group string="Effective Costs">
-                        <field name="raw_costing_source" readonly="1"/>
-                        <field name="effective_raw_material_cost" readonly="1"/>
-                        <field name="operation_costing_source" readonly="1"/>
-                        <field name="effective_operation_cost" readonly="1"/>
-                        <field name="other_costing_source" readonly="1"/>
-                        <field name="effective_other_cost" readonly="1"/>
-                        <field name="total_allocable_cost" readonly="1"/>
-                        <field name="total_relative_sales_value" readonly="1"/>
-                    </group>
-                </group>
+                <field name="costing_status" readonly="1"/>
+                <field name="total_allocable_cost" readonly="1"/>
+                <field name="total_relative_sales_value" readonly="1"/>
             </xpath>
 
-            <xpath expr="//field[@name='output_line_ids']/list/field[@name='uom_id']" position="after">
-                <field name="sales_price_unit" optional="show"/>
-                <field name="sales_value" readonly="1" optional="show"/>
-                <field name="relative_sales_ratio" readonly="1" optional="show"/>
-                <field name="allocated_cost" readonly="1" optional="show"/>
-                <field name="cost_per_unit" readonly="1" optional="show"/>
+            <xpath expr="//notebook" position="replace">
+                <notebook>
+                    <page string="Outputs">
+                        <field name="output_line_ids">
+                            <list editable="bottom">
+                                <field name="product_id"/>
+                                <field name="lot_id"/>
+                                <field name="qty"/>
+                                <field name="uom_id"/>
+                                <field name="sales_price_unit" optional="show"/>
+                                <field name="sales_value" readonly="1" optional="show"/>
+                                <field name="allocated_cost" readonly="1" optional="show"/>
+                                <field name="cost_per_unit" readonly="1" optional="hide"/>
+                                <field name="relative_sales_ratio" readonly="1" optional="hide"/>
+                            </list>
+                        </field>
+                    </page>
+
+                    <page string="Cost Share">
+                        <group>
+                            <group>
+                                <field name="costing_method" readonly="1"/>
+                                <field name="costing_status" readonly="1"/>
+                                <field name="actual_cost_last_refresh" readonly="1"/>
+                                <button name="action_refresh_actual_costs"
+                                        string="Refresh Actual Costs"
+                                        type="object"
+                                        class="btn-primary"/>
+                            </group>
+                            <group>
+                                <field name="total_allocable_cost" readonly="1"/>
+                                <field name="actual_total_allocable_cost" readonly="1"/>
+                                <field name="total_relative_sales_value" readonly="1"/>
+                            </group>
+                        </group>
+
+                        <group string="Manual Fallback">
+                            <group>
+                                <field name="raw_material_cost_amount"/>
+                                <field name="operation_cost_amount"/>
+                                <field name="other_cost_amount"/>
+                            </group>
+                        </group>
+
+                        <group string="Actual Costs">
+                            <group>
+                                <field name="actual_raw_material_cost" readonly="1"/>
+                                <field name="actual_operation_cost" readonly="1"/>
+                                <field name="actual_other_cost" readonly="1"/>
+                            </group>
+                            <group>
+                                <field name="raw_costing_source" readonly="1"/>
+                                <field name="operation_costing_source" readonly="1"/>
+                                <field name="other_costing_source" readonly="1"/>
+                            </group>
+                        </group>
+
+                        <group string="Effective Costs">
+                            <group>
+                                <field name="effective_raw_material_cost" readonly="1"/>
+                                <field name="effective_operation_cost" readonly="1"/>
+                                <field name="effective_other_cost" readonly="1"/>
+                            </group>
+                        </group>
+                    </page>
+                </notebook>
             </xpath>
         </field>
     </record>

@@ -11,6 +11,7 @@
         "security/agri_export_costing_security.xml",
         "views/export_shipment_costing_views.xml",
         "views/agri_production_costing_views.xml",
+        "views/menu.xml",
     ],
     "installable": True,
     "application": False,
