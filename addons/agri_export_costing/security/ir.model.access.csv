@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_export_shipment_cost_line_user,export.shipment.cost.line user,model_export_shipment_cost_line,export_shipment.group_export_shipment_user,1,1,1,1
+access_export_shipment_cost_line_manager,export.shipment.cost.line manager,model_export_shipment_cost_line,export_shipment.group_export_shipment_manager,1,1,1,1
