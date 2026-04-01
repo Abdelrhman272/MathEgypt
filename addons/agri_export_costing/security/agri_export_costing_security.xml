@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="access_export_shipment_cost_line_user" model="ir.model.access">
+        <field name="name">export.shipment.cost.line user</field>
+        <field name="model_id" search="[('model', '=', 'export.shipment.cost.line')]"/>
+        <field name="group_id" ref="export_shipment.group_export_shipment_user"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="1"/>
+        <field name="perm_create" eval="1"/>
+        <field name="perm_unlink" eval="1"/>
+    </record>
+
+    <record id="access_export_shipment_cost_line_manager" model="ir.model.access">
+        <field name="name">export.shipment.cost.line manager</field>
+        <field name="model_id" search="[('model', '=', 'export.shipment.cost.line')]"/>
+        <field name="group_id" ref="export_shipment.group_export_shipment_manager"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="1"/>
+        <field name="perm_create" eval="1"/>
+        <field name="perm_unlink" eval="1"/>
+    </record>
+</odoo>

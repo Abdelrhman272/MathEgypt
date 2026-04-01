@@ -24,13 +24,22 @@
                 <field name="container_count"/>
             </xpath>
 
-            <xpath expr="//field[@name='line_ids']/list/field[@name='product_uom_qty']/field[@name='line_ids']/list/field[@name='product_uom_qty']" position="after">
-                <field name="carton_qty" optional="show"/>
-                <field name="net_weight" optional="show"/>
-                <field name="gross_weight" optional="show"/>
-                <field name="allocated_logistics_cost" readonly="1" optional="show"/>
-                <field name="logistics_cost_per_carton" readonly="1" optional="hide"/>
-                <field name="logistics_cost_per_qty" readonly="1" optional="hide"/>
+            <xpath expr="//notebook/page[field[@name='line_ids']]" position="replace">
+                <page string="Products">
+                    <field name="line_ids">
+                        <list editable="bottom">
+                            <field name="product_id"/>
+                            <field name="product_uom_id" readonly="1"/>
+                            <field name="product_uom_qty"/>
+                            <field name="carton_qty" optional="show"/>
+                            <field name="net_weight" optional="show"/>
+                            <field name="gross_weight" optional="show"/>
+                            <field name="allocated_logistics_cost" readonly="1" optional="show"/>
+                            <field name="logistics_cost_per_carton" readonly="1" optional="hide"/>
+                            <field name="logistics_cost_per_qty" readonly="1" optional="hide"/>
+                        </list>
+                    </field>
+                </page>
             </xpath>
 
             <xpath expr="//notebook" position="inside">

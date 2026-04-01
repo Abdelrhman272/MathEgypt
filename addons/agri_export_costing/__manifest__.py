@@ -8,7 +8,7 @@
     "license": "LGPL-3",
     "depends": ["export_shipment", "agri_export_core", "sale_management", "mrp", "account", "mail"],
     "data": [
-        "security/ir.model.access.csv",
+        "security/agri_export_costing_security.xml",
         "views/export_shipment_costing_views.xml",
         "views/agri_production_costing_views.xml",
     ],
