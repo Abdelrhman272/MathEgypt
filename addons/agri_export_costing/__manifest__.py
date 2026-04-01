@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Agri Export Costing",
-    "version": "19.0.2.0.0",
+    "version": "19.0.3.0.0",
     "category": "Inventory",
     "summary": "Shipment logistics costing and MRP relative sales value cost sharing",
     "author": "NextGen Systems",
