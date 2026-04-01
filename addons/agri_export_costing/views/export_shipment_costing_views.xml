@@ -7,7 +7,10 @@
         <field name="inherit_id" ref="export_shipment.view_export_shipment_tree"/>
         <field name="arch" type="xml">
             <xpath expr="//list/field[@name='total_qty']" position="after">
+                <field name="costing_status" optional="show"/>
                 <field name="logistics_total_cost" optional="show"/>
+                <field name="actual_logistics_total_cost" optional="hide"/>
+                <field name="manual_logistics_total_cost" optional="hide"/>
                 <field name="revenue_amount" optional="show"/>
                 <field name="gross_profit_amount" optional="show"/>
                 <field name="gross_margin_pct" optional="show"/>
@@ -46,10 +49,13 @@
                 <page string="Logistics Costs">
                     <group>
                         <group>
+                            <field name="costing_status" readonly="1"/>
                             <field name="logistics_total_cost" readonly="1"/>
                             <field name="logistics_cost_per_container" readonly="1"/>
                         </group>
                         <group>
+                            <field name="manual_logistics_total_cost" readonly="1"/>
+                            <field name="actual_logistics_total_cost" readonly="1"/>
                             <field name="revenue_amount" readonly="1"/>
                             <field name="gross_profit_amount" readonly="1"/>
                             <field name="gross_margin_pct" readonly="1"/>
@@ -61,13 +67,48 @@
                             <field name="name"/>
                             <field name="cost_type"/>
                             <field name="allocation_basis"/>
-                            <field name="amount"/>
+                            <field name="cost_source_type"/>
+                            <field name="amount" optional="hide"/>
+                            <field name="source_amount" readonly="1" optional="show"/>
+                            <field name="effective_amount" readonly="1" optional="show"/>
+                            <field name="vendor_bill_id" optional="hide"/>
+                            <field name="vendor_bill_line_id" optional="hide"/>
+                            <field name="landed_cost_id" optional="hide"/>
                             <field name="note" optional="hide"/>
                         </list>
+                        <form string="Logistics Cost Line">
+                            <group>
+                                <group>
+                                    <field name="name"/>
+                                    <field name="cost_type"/>
+                                    <field name="allocation_basis"/>
+                                    <field name="cost_source_type"/>
+                                </group>
+                                <group>
+                                    <field name="amount" invisible="cost_source_type != 'manual'"/>
+                                    <field name="source_amount" readonly="1"/>
+                                    <field name="effective_amount" readonly="1"/>
+                                    <field name="note"/>
+                                </group>
+                            </group>
+                            <group string="Actual Cost Source">
+                                <group>
+                                    <field name="vendor_bill_id"
+                                           invisible="cost_source_type not in ['vendor_bill', 'vendor_bill_line']"
+                                           domain="[('move_type','in',['in_invoice','in_refund']),('company_id','=',parent.company_id)]"/>
+                                    <field name="vendor_bill_line_id"
+                                           invisible="cost_source_type != 'vendor_bill_line'"
+                                           domain="[('move_id','=',vendor_bill_id),('display_type','=',False)]"/>
+                                    <field name="landed_cost_id"
+                                           invisible="cost_source_type != 'landed_cost'"
+                                           domain="[('company_id','=',parent.company_id)]"/>
+                                </group>
+                            </group>
+                        </form>
                     </field>
                     <div class="text-muted">
-                        Add inland transport, port, freight, customs, and other shipment costs here.
-                        Costs are allocated to shipment lines based on the selected basis.
+                        Manual lines still work as before. For actual costing, link the line to a Vendor Bill,
+                        Vendor Bill Line, or Landed Cost. Shipment profitability and allocation use Effective Amount.
                     </div>
                 </page>
             </xpath>

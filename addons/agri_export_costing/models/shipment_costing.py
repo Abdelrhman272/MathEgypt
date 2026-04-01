@@ -30,9 +30,31 @@ class ExportShipment(models.Model):
         compute="_compute_profitability_totals",
         store=True,
     )
+    manual_logistics_total_cost = fields.Monetary(
+        string="Manual Logistics Cost",
+        currency_field="currency_id",
+        compute="_compute_profitability_totals",
+        store=True,
+    )
+    actual_logistics_total_cost = fields.Monetary(
+        string="Actual Logistics Cost",
+        currency_field="currency_id",
+        compute="_compute_profitability_totals",
+        store=True,
+    )
     logistics_cost_per_container = fields.Monetary(
         string="Cost / Container",
         currency_field="currency_id",
+        compute="_compute_profitability_totals",
+        store=True,
+    )
+    costing_status = fields.Selection(
+        [
+            ("manual", "Manual"),
+            ("partial_actual", "Partial Actual"),
+            ("full_actual", "Full Actual"),
+        ],
+        string="Costing Status",
         compute="_compute_profitability_totals",
         store=True,
     )
@@ -57,19 +79,39 @@ class ExportShipment(models.Model):
     )
 
     @api.depends(
-        "logistics_cost_line_ids.amount",
+        "logistics_cost_line_ids.cost_source_type",
+        "logistics_cost_line_ids.effective_amount",
         "container_count",
         "sale_order_id.amount_untaxed",
     )
     def _compute_profitability_totals(self):
         for rec in self:
-            total_cost = sum(rec.logistics_cost_line_ids.mapped("amount"))
+            total_cost = sum(rec.logistics_cost_line_ids.mapped("effective_amount"))
+            manual_cost = sum(
+                rec.logistics_cost_line_ids.filtered(lambda l: l.cost_source_type == "manual").mapped("effective_amount")
+            )
+            actual_cost = sum(
+                rec.logistics_cost_line_ids.filtered(lambda l: l.cost_source_type != "manual").mapped("effective_amount")
+            )
             revenue = rec.sale_order_id.amount_untaxed if rec.sale_order_id else 0.0
+
             rec.logistics_total_cost = total_cost
+            rec.manual_logistics_total_cost = manual_cost
+            rec.actual_logistics_total_cost = actual_cost
             rec.revenue_amount = revenue
             rec.logistics_cost_per_container = total_cost / rec.container_count if rec.container_count else 0.0
             rec.gross_profit_amount = revenue - total_cost
             rec.gross_margin_pct = (rec.gross_profit_amount / revenue * 100.0) if revenue else 0.0
+
+            lines = rec.logistics_cost_line_ids.filtered(lambda l: l.effective_amount or l.cost_source_type == "manual")
+            if not lines:
+                rec.costing_status = "manual"
+            elif all(line.cost_source_type == "manual" for line in lines):
+                rec.costing_status = "manual"
+            elif all(line.cost_source_type != "manual" for line in lines):
+                rec.costing_status = "full_actual"
+            else:
+                rec.costing_status = "partial_actual"
 
 
 class ExportShipmentLine(models.Model):
@@ -116,7 +158,7 @@ class ExportShipmentLine(models.Model):
     )
 
     @api.depends(
-        "shipment_id.logistics_cost_line_ids.amount",
+        "shipment_id.logistics_cost_line_ids.effective_amount",
         "shipment_id.logistics_cost_line_ids.allocation_basis",
         "shipment_id.line_ids.product_uom_qty",
         "shipment_id.line_ids.carton_qty",
@@ -147,7 +189,7 @@ class ExportShipmentLine(models.Model):
                     numerator = line.product_uom_qty
 
                 if denominator:
-                    total_allocated += cost_line.amount * (numerator / denominator)
+                    total_allocated += cost_line.effective_amount * (numerator / denominator)
 
             line.allocated_logistics_cost = total_allocated
             line.logistics_cost_per_carton = total_allocated / line.carton_qty if line.carton_qty else 0.0
@@ -201,11 +243,156 @@ class ExportShipmentCostLine(models.Model):
         required=True,
         default="qty",
     )
-    amount = fields.Monetary(required=True, currency_field="currency_id")
+    cost_source_type = fields.Selection(
+        [
+            ("manual", "Manual"),
+            ("vendor_bill", "Vendor Bill"),
+            ("vendor_bill_line", "Vendor Bill Line"),
+            ("landed_cost", "Landed Cost"),
+        ],
+        string="Cost Source",
+        required=True,
+        default="manual",
+    )
+    vendor_bill_id = fields.Many2one(
+        "account.move",
+        string="Vendor Bill",
+        domain="[(\"move_type\", \"in\", [\"in_invoice\", \"in_refund\"])]",
+    )
+    vendor_bill_line_id = fields.Many2one(
+        "account.move.line",
+        string="Vendor Bill Line",
+        domain="[(\"display_type\", \"=\", False)]",
+    )
+    landed_cost_id = fields.Many2one(
+        "stock.landed.cost",
+        string="Landed Cost",
+    )
+    amount = fields.Monetary(
+        string="Manual Amount",
+        currency_field="currency_id",
+        default=0.0,
+        help="Used when Cost Source is Manual.",
+    )
+    source_amount = fields.Monetary(
+        string="Source Amount",
+        currency_field="currency_id",
+        compute="_compute_source_amounts",
+        store=True,
+        readonly=True,
+    )
+    effective_amount = fields.Monetary(
+        string="Effective Amount",
+        currency_field="currency_id",
+        compute="_compute_source_amounts",
+        store=True,
+        readonly=True,
+        help="Amount actually used in shipment profitability and allocation.",
+    )
     note = fields.Char()
 
-    @api.constrains("amount")
+    @api.depends(
+        "cost_source_type",
+        "amount",
+        "vendor_bill_id.invoice_line_ids.price_subtotal",
+        "vendor_bill_line_id.price_subtotal",
+        "landed_cost_id.cost_lines.price_unit",
+    )
+    def _compute_source_amounts(self):
+        for rec in self:
+            source_amount = 0.0
+
+            if rec.cost_source_type == "vendor_bill_line":
+                source_amount = rec.vendor_bill_line_id.price_subtotal if rec.vendor_bill_line_id else 0.0
+            elif rec.cost_source_type == "vendor_bill":
+                bill_lines = rec.vendor_bill_id.invoice_line_ids.filtered(lambda l: not l.display_type)
+                source_amount = sum(bill_lines.mapped("price_subtotal")) if rec.vendor_bill_id else 0.0
+            elif rec.cost_source_type == "landed_cost":
+                source_amount = rec._get_landed_cost_total()
+
+            rec.source_amount = source_amount
+            rec.effective_amount = rec.amount if rec.cost_source_type == "manual" else source_amount
+
+    def _get_landed_cost_total(self):
+        self.ensure_one()
+        landed_cost = self.landed_cost_id
+        if not landed_cost:
+            return 0.0
+
+        if "cost_lines" in landed_cost._fields:
+            try:
+                return sum(landed_cost.cost_lines.mapped("price_unit"))
+            except Exception:
+                pass
+
+        if "amount_total" in landed_cost._fields:
+            try:
+                return landed_cost.amount_total or 0.0
+            except Exception:
+                pass
+
+        if "total_amount" in landed_cost._fields:
+            try:
+                return landed_cost.total_amount or 0.0
+            except Exception:
+                pass
+
+        if "valuation_adjustment_lines" in landed_cost._fields:
+            try:
+                return sum(landed_cost.valuation_adjustment_lines.mapped("additional_landed_cost"))
+            except Exception:
+                pass
+
+        return 0.0
+
+    @api.onchange("cost_source_type")
+    def _onchange_cost_source_type(self):
+        for rec in self:
+            if rec.cost_source_type == "manual":
+                rec.vendor_bill_id = False
+                rec.vendor_bill_line_id = False
+                rec.landed_cost_id = False
+            elif rec.cost_source_type == "vendor_bill":
+                rec.vendor_bill_line_id = False
+                rec.landed_cost_id = False
+            elif rec.cost_source_type == "vendor_bill_line":
+                rec.landed_cost_id = False
+            elif rec.cost_source_type == "landed_cost":
+                rec.vendor_bill_id = False
+                rec.vendor_bill_line_id = False
+
+    @api.onchange("vendor_bill_line_id")
+    def _onchange_vendor_bill_line_id(self):
+        for rec in self:
+            if rec.vendor_bill_line_id:
+                rec.vendor_bill_id = rec.vendor_bill_line_id.move_id
+
+    @api.constrains("amount", "effective_amount")
     def _check_amount_positive(self):
         for rec in self:
             if rec.amount < 0:
-                raise ValidationError(_("Logistics cost amount cannot be negative."))
+                raise ValidationError(_("Manual logistics cost amount cannot be negative."))
+            if rec.effective_amount < 0:
+                raise ValidationError(_("Effective logistics cost amount cannot be negative."))
+
+    @api.constrains("cost_source_type", "vendor_bill_id", "vendor_bill_line_id", "landed_cost_id")
+    def _check_source_reference(self):
+        for rec in self:
+            if rec.cost_source_type == "vendor_bill" and not rec.vendor_bill_id:
+                raise ValidationError(_("Please select a Vendor Bill for this logistics cost line."))
+            if rec.cost_source_type == "vendor_bill_line" and not rec.vendor_bill_line_id:
+                raise ValidationError(_("Please select a Vendor Bill Line for this logistics cost line."))
+            if rec.cost_source_type == "landed_cost" and not rec.landed_cost_id:
+                raise ValidationError(_("Please select a Landed Cost for this logistics cost line."))
+
+    @api.constrains("vendor_bill_id", "vendor_bill_line_id", "landed_cost_id", "company_id")
+    def _check_company_consistency(self):
+        for rec in self:
+            if rec.vendor_bill_id and rec.vendor_bill_id.company_id != rec.company_id:
+                raise ValidationError(_("Vendor Bill company must match Shipment company."))
+            if rec.vendor_bill_line_id and rec.vendor_bill_line_id.company_id != rec.company_id:
+                raise ValidationError(_("Vendor Bill Line company must match Shipment company."))
+            if rec.landed_cost_id and rec.landed_cost_id.company_id != rec.company_id:
+                raise ValidationError(_("Landed Cost company must match Shipment company."))
+            if rec.vendor_bill_line_id and rec.vendor_bill_id and rec.vendor_bill_line_id.move_id != rec.vendor_bill_id:
+                raise ValidationError(_("Vendor Bill Line must belong to the selected Vendor Bill."))
