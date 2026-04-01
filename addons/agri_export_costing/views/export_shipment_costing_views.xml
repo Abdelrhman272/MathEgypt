@@ -24,7 +24,7 @@
                 <field name="container_count"/>
             </xpath>
 
-            <xpath expr="//notebook/page[@string='Products']/field[@name='line_ids']/list/field[@name='product_uom_qty']" position="after">
+            <xpath expr="//field[@name='line_ids']/list/field[@name='product_uom_qty']/field[@name='line_ids']/list/field[@name='product_uom_qty']" position="after">
                 <field name="carton_qty" optional="show"/>
                 <field name="net_weight" optional="show"/>
                 <field name="gross_weight" optional="show"/>
