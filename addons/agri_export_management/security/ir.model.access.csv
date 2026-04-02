@@ -7,8 +7,6 @@ access_agx_destination_user,agx.destination user,model_agx_destination,agri_expo
 access_agx_shipment_cost_type_user,agx.shipment.cost.type user,model_agx_shipment_cost_type,agri_export_management.group_agx_user,1,1,1,1
 access_agx_evaluation_user,agx.evaluation user,model_agx_evaluation,agri_export_management.group_agx_user,1,1,1,1
 access_agx_evaluation_line_user,agx.evaluation.line user,model_agx_evaluation_line,agri_export_management.group_agx_user,1,1,1,1
-access_agx_raw_receipt_user,agx.raw.receipt user,model_agx_raw_receipt,agri_export_management.group_agx_user,1,1,1,1
-access_agx_raw_receipt_line_user,agx.raw.receipt.line user,model_agx_raw_receipt_line,agri_export_management.group_agx_user,1,1,1,1
 access_agx_batch_user,agx.batch user,model_agx_batch,agri_export_management.group_agx_user,1,1,1,1
 access_agx_batch_input_user,agx.batch.input user,model_agx_batch_input,agri_export_management.group_agx_user,1,1,1,1
 access_agx_batch_output_user,agx.batch.output user,model_agx_batch_output,agri_export_management.group_agx_user,1,1,1,1

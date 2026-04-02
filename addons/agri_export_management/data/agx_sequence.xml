@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <record id="seq_agx_evaluation" model="ir.sequence"><field name="name">AGX Evaluation</field><field name="code">agx.evaluation</field><field name="prefix">EVAL/%(year)s/</field><field name="padding">4</field></record>
-    <record id="seq_agx_raw_receipt" model="ir.sequence"><field name="name">AGX Raw Receipt</field><field name="code">agx.raw.receipt</field><field name="prefix">RAW/%(year)s/</field><field name="padding">4</field></record>
     <record id="seq_agx_batch" model="ir.sequence"><field name="name">AGX Batch</field><field name="code">agx.batch</field><field name="prefix">BAT/%(year)s/</field><field name="padding">4</field></record>
     <record id="seq_agx_shipment" model="ir.sequence"><field name="name">AGX Shipment</field><field name="code">agx.shipment</field><field name="prefix">SHP/%(year)s/</field><field name="padding">4</field></record>
 </odoo>

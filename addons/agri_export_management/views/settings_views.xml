@@ -7,9 +7,6 @@
         <field name="arch" type="xml">
             <xpath expr="//form" position="inside">
                 <app string="Agricultural Export" name="agx_settings">
-                    <block title="Procurement Settings">
-                        <setting string="Auto-generate Lot Numbers" help="Generate lot numbers automatically in operational flows."><field name="agx_auto_generate_lot_numbers"/></setting>
-                    </block>
                     <block title="Shipment Settings">
                         <setting string="Container Service Product" help="Default service product used when creating the shipment sales order."><field name="agx_container_service_product_id"/></setting>
                         <setting string="SO Line Prefix" help="Prefix used in generated sales order lines."><field name="agx_so_line_prefix"/></setting>
@@ -20,10 +17,8 @@
                         <setting string="Allow Landed Cost Source"><field name="agx_allow_landed_cost_source"/></setting>
                         <setting string="Margin Precision"><field name="agx_margin_precision"/></setting>
                     </block>
-                    <block title="Dashboard &amp; Traceability Settings">
-                        <setting string="Strict Lot Traceability"><field name="agx_strict_lot_traceability"/></setting>
-                        <setting string="Show Destination Analysis on Dashboard"><field name="agx_dashboard_show_destination_analysis"/></setting>
-                        <setting string="Show Customer Analysis on Dashboard"><field name="agx_dashboard_show_customer_analysis"/></setting>
+                    <block title="Lot Settings">
+                        <setting string="Auto-generate Lot Numbers"><field name="agx_auto_generate_lot_numbers"/></setting>
                     </block>
                 </app>
             </xpath>
