@@ -6,7 +6,7 @@
     "category": "Inventory/Inventory",
     "author": "OpenAI / NextGen Systems",
     "license": "LGPL-3",
-    "depends": ["base", "mail", "purchase", "stock", "mrp", "sale_management", "account", "base_setup"],
+    "depends": ["base", "mail", "purchase", "stock", "mrp", "sale_management", "account", "base_setup", "stock_landed_costs"],
     "data": [
         "security/agx_security.xml",
         "security/ir.model.access.csv",
