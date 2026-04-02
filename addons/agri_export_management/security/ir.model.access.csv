@@ -1,0 +1,18 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_agx_farm_user,agx.farm user,model_agx_farm,agri_export_management.group_agx_user,1,1,1,1
+access_agx_crop_user,agx.crop user,model_agx_crop,agri_export_management.group_agx_user,1,1,1,1
+access_agx_grade_user,agx.grade user,model_agx_grade,agri_export_management.group_agx_user,1,1,1,1
+access_agx_size_user,agx.size user,model_agx_size,agri_export_management.group_agx_user,1,1,1,1
+access_agx_destination_user,agx.destination user,model_agx_destination,agri_export_management.group_agx_user,1,1,1,1
+access_agx_shipment_cost_type_user,agx.shipment.cost.type user,model_agx_shipment_cost_type,agri_export_management.group_agx_user,1,1,1,1
+access_agx_evaluation_user,agx.evaluation user,model_agx_evaluation,agri_export_management.group_agx_user,1,1,1,1
+access_agx_evaluation_line_user,agx.evaluation.line user,model_agx_evaluation_line,agri_export_management.group_agx_user,1,1,1,1
+access_agx_raw_receipt_user,agx.raw.receipt user,model_agx_raw_receipt,agri_export_management.group_agx_user,1,1,1,1
+access_agx_raw_receipt_line_user,agx.raw.receipt.line user,model_agx_raw_receipt_line,agri_export_management.group_agx_user,1,1,1,1
+access_agx_batch_user,agx.batch user,model_agx_batch,agri_export_management.group_agx_user,1,1,1,1
+access_agx_batch_input_user,agx.batch.input user,model_agx_batch_input,agri_export_management.group_agx_user,1,1,1,1
+access_agx_batch_output_user,agx.batch.output user,model_agx_batch_output,agri_export_management.group_agx_user,1,1,1,1
+access_agx_shipment_user,agx.shipment user,model_agx_shipment,agri_export_management.group_agx_user,1,1,1,1
+access_agx_shipment_line_user,agx.shipment.line user,model_agx_shipment_line,agri_export_management.group_agx_user,1,1,1,1
+access_agx_shipment_lot_line_user,agx.shipment.lot.line user,model_agx_shipment_lot_line,agri_export_management.group_agx_user,1,1,1,1
+access_agx_shipment_cost_line_user,agx.shipment.cost.line user,model_agx_shipment_cost_line,agri_export_management.group_agx_user,1,1,1,1

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_agx_res_config_settings" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.agx</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="Agricultural Export" name="agx_settings">
+                    <block title="Procurement Settings">
+                        <setting string="Auto-generate Lot Numbers" help="Generate lot numbers automatically in operational flows."><field name="agx_auto_generate_lot_numbers"/></setting>
+                    </block>
+                    <block title="Shipment Settings">
+                        <setting string="Container Service Product" help="Default service product used when creating the shipment sales order."><field name="agx_container_service_product_id"/></setting>
+                        <setting string="SO Line Prefix" help="Prefix used in generated sales order lines."><field name="agx_so_line_prefix"/></setting>
+                    </block>
+                    <block title="Costing Settings">
+                        <setting string="Default Logistics Allocation Basis"><field name="agx_default_logistics_basis"/></setting>
+                        <setting string="Allow Vendor Bill Cost Source"><field name="agx_allow_vendor_bill_cost_source"/></setting>
+                        <setting string="Allow Landed Cost Source"><field name="agx_allow_landed_cost_source"/></setting>
+                        <setting string="Margin Precision"><field name="agx_margin_precision"/></setting>
+                    </block>
+                    <block title="Dashboard &amp; Traceability Settings">
+                        <setting string="Strict Lot Traceability"><field name="agx_strict_lot_traceability"/></setting>
+                        <setting string="Show Destination Analysis on Dashboard"><field name="agx_dashboard_show_destination_analysis"/></setting>
+                        <setting string="Show Customer Analysis on Dashboard"><field name="agx_dashboard_show_customer_analysis"/></setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+    <record id="action_agx_settings" model="ir.actions.act_window"><field name="name">Settings</field><field name="res_model">res.config.settings</field><field name="view_mode">form</field><field name="target">inline</field><field name="context">{'module': 'agri_export_management'}</field></record>
+    <menuitem id="menu_agx_settings" name="Settings" parent="menu_agx_configuration" action="action_agx_settings" sequence="10"/>
+</odoo>
