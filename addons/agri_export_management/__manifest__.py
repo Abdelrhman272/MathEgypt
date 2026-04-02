@@ -22,11 +22,14 @@
         "security/ir.model.access.csv",
         "data/agx_sequence.xml",
         "views/menu.xml",
+        "views/dashboard_views.xml",
         "views/master_views.xml",
         "views/evaluation_views.xml",
         "views/batch_views.xml",
         "views/shipment_views.xml",
-        "views/settings_views.xml"
+        "wizard/wizard_views.xml",
+        "views/settings_views.xml",
+        "report/agx_reports.xml"
     ],
     "application": True,
     "installable": True,
