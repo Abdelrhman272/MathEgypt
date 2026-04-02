@@ -15,3 +15,6 @@ access_agx_shipment_line_user,agx.shipment.line user,model_agx_shipment_line,agr
 access_agx_shipment_lot_line_user,agx.shipment.lot.line user,model_agx_shipment_lot_line,agri_export_management.group_agx_user,1,1,1,1
 access_agx_shipment_cost_line_user,agx.shipment.cost.line user,model_agx_shipment_cost_line,agri_export_management.group_agx_user,1,1,1,1
 access_agx_dashboard_user,agx.dashboard user,model_agx_dashboard,agri_export_management.group_agx_user,1,1,1,0
+access_agx_reserve_lots_wizard_user,agx.reserve.lots.wizard user,model_agx_reserve_lots_wizard,agri_export_management.group_agx_user,1,1,1,1
+access_agx_import_costs_wizard_user,agx.import.costs.wizard user,model_agx_import_costs_wizard,agri_export_management.group_agx_user,1,1,1,1
+access_agx_traceability_wizard_user,agx.traceability.wizard user,model_agx_traceability_wizard,agri_export_management.group_agx_user,1,1,1,1
