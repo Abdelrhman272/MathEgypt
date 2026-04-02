@@ -29,6 +29,6 @@
             </xpath>
         </field>
     </record>
-    <record id="action_agx_settings" model="ir.actions.act_window"><field name="name">Settings</field><field name="res_model">res.config.settings</field><field name="view_mode">form</field><field name="target">inline</field><field name="context">{'module': 'agri_export_management'}</field></record>
+    <record id="action_agx_settings" model="ir.actions.act_window"><field name="name">Settings</field><field name="res_model">res.config.settings</field><field name="view_mode">form</field><field name="target">current</field><field name="context">{'module': 'agri_export_management'}</field></record>
     <menuitem id="menu_agx_settings" name="Settings" parent="menu_agx_configuration" action="action_agx_settings" sequence="10"/>
 </odoo>
