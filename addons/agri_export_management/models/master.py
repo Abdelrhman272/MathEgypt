@@ -43,22 +43,35 @@ class AgxGrade(models.Model):
 class AgxSize(models.Model):
     _name = "agx.size"
     _description = "Size"
-    _order = "number, id"
+    _order = "sequence, number, id"
 
+    name = fields.Char(required=True, copy=False)
     number = fields.Float(required=True)
-    name = fields.Char(compute="_compute_name", store=True)
     code = fields.Char()
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)
     note = fields.Text()
 
-    @api.depends("number")
-    def _compute_name(self):
+    @api.onchange('number')
+    def _onchange_number(self):
         for rec in self:
-            if rec.number == int(rec.number):
-                rec.name = str(int(rec.number))
-            else:
-                rec.name = str(rec.number)
+            if rec.number:
+                rec.name = str(int(rec.number)) if float(rec.number).is_integer() else str(rec.number)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            number = vals.get('number')
+            if number not in (None, False):
+                vals['name'] = str(int(number)) if float(number).is_integer() else str(number)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if 'number' in vals:
+            number = vals.get('number')
+            vals['name'] = str(int(number)) if float(number).is_integer() else str(number)
+        return super().write(vals)
+
 
 class AgxDestination(models.Model):
     _name = "agx.destination"

@@ -20,6 +20,13 @@
                     <block title="Lot Settings">
                         <setting string="Auto-generate Lot Numbers"><field name="agx_auto_generate_lot_numbers"/></setting>
                     </block>
+                    <block title="Inventory Automation">
+                        <setting string="Batch Internal Picking Type"><field name="agx_internal_picking_type_id"/></setting>
+                        <setting string="Production Location"><field name="agx_production_location_id"/></setting>
+                        <setting string="Finished Goods Location"><field name="agx_finished_goods_location_id"/></setting>
+                        <setting string="Shipment Outgoing Picking Type"><field name="agx_outgoing_picking_type_id"/></setting>
+                        <setting string="Shipment Source Location"><field name="agx_shipment_source_location_id"/></setting>
+                    </block>
                 </app>
             </xpath>
         </field>

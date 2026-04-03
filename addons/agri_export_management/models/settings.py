@@ -17,6 +17,11 @@ class ResCompany(models.Model):
     agx_allow_vendor_bill_cost_source = fields.Boolean(default=True)
     agx_allow_landed_cost_source = fields.Boolean(default=True)
     agx_margin_precision = fields.Integer(default=2)
+    agx_internal_picking_type_id = fields.Many2one("stock.picking.type", string="Batch Internal Picking Type")
+    agx_production_location_id = fields.Many2one("stock.location", string="Production Location")
+    agx_finished_goods_location_id = fields.Many2one("stock.location", string="Finished Goods Location")
+    agx_outgoing_picking_type_id = fields.Many2one("stock.picking.type", string="Shipment Outgoing Picking Type")
+    agx_shipment_source_location_id = fields.Many2one("stock.location", string="Shipment Source Location")
 
 
 class ResConfigSettings(models.TransientModel):
@@ -29,3 +34,8 @@ class ResConfigSettings(models.TransientModel):
     agx_allow_vendor_bill_cost_source = fields.Boolean(related="company_id.agx_allow_vendor_bill_cost_source", readonly=False)
     agx_allow_landed_cost_source = fields.Boolean(related="company_id.agx_allow_landed_cost_source", readonly=False)
     agx_margin_precision = fields.Integer(related="company_id.agx_margin_precision", readonly=False)
+    agx_internal_picking_type_id = fields.Many2one(related="company_id.agx_internal_picking_type_id", readonly=False)
+    agx_production_location_id = fields.Many2one(related="company_id.agx_production_location_id", readonly=False)
+    agx_finished_goods_location_id = fields.Many2one(related="company_id.agx_finished_goods_location_id", readonly=False)
+    agx_outgoing_picking_type_id = fields.Many2one(related="company_id.agx_outgoing_picking_type_id", readonly=False)
+    agx_shipment_source_location_id = fields.Many2one(related="company_id.agx_shipment_source_location_id", readonly=False)

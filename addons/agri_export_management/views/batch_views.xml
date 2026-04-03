@@ -1,10 +1,144 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="view_agx_batch_list" model="ir.ui.view"><field name="name">agx.batch.list</field><field name="model">agx.batch</field><field name="arch" type="xml"><list><field name="name"/><field name="batch_date"/><field name="evaluation_id"/><field name="input_qty"/><field name="output_qty"/><field name="variance_qty"/><field name="effective_allocable_cost"/><field name="costing_status"/><field name="state"/></list></field></record>
-    <record id="view_agx_batch_form" model="ir.ui.view"><field name="name">agx.batch.form</field><field name="model">agx.batch</field><field name="arch" type="xml"><form string="Production Batch"><header><button name="action_start" string="Start" type="object" class="btn-primary" invisible="state != 'draft'"/><button name="action_refresh_actual_costs" string="Refresh Actual Costs" type="object" invisible="state == 'cancelled'"/><button name="action_done" string="Mark Done" type="object" invisible="state not in ('draft', 'in_progress')"/><button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/><field name="state" widget="statusbar" statusbar_visible="draft,in_progress,done,cancelled"/></header><sheet><div class="oe_title"><h1><field name="name" readonly="1"/></h1></div><group><group><field name="batch_date"/><field name="evaluation_id"/><field name="incoming_picking_id"/><field name="mrp_production_id"/></group><group><field name="company_id" groups="base.group_multi_company"/><field name="input_qty" readonly="1"/><field name="output_qty" readonly="1"/><field name="variance_qty" readonly="1"/></group></group><group><group><field name="costing_status" readonly="1"/><field name="effective_allocable_cost" readonly="1"/></group><group><field name="total_relative_sales_value" readonly="1"/><field name="actual_cost_last_refresh" readonly="1"/></group></group><notebook><page string="Inputs"><field name="input_line_ids"><list editable="bottom"><field name="sequence" widget="handle"/><field name="product_id"/><field name="lot_id"/><field name="qty"/><field name="uom_id"/><field name="note"/></list></field></page><page string="Outputs"><field name="output_line_ids"><list editable="bottom"><field name="sequence" widget="handle"/><field name="product_id"/><field name="lot_id"/><field name="grade_id"/><field name="size_id"/><field name="qty"/><field name="uom_id"/><field name="sales_price_unit"/><field name="sales_value" readonly="1"/><field name="relative_sales_ratio" readonly="1"/><field name="allocated_cost" readonly="1"/><field name="cost_per_unit" readonly="1"/></list></field></page><page string="Cost Share"><group string="Manual Fallback"><group><field name="manual_raw_material_cost"/><field name="manual_operation_cost"/><field name="manual_other_cost"/></group></group><group string="Actual Costs"><group><field name="actual_raw_material_cost" readonly="1"/><field name="actual_operation_cost" readonly="1"/><field name="actual_other_cost"/></group></group><group string="Effective Costing"><group><field name="effective_allocable_cost" readonly="1"/><field name="total_relative_sales_value" readonly="1"/><field name="costing_status" readonly="1"/></group></group></page></notebook></sheet><chatter/></form></field></record>
-    <record id="action_agx_batch" model="ir.actions.act_window"><field name="name">Production Batches</field><field name="res_model">agx.batch</field><field name="view_mode">list,form</field></record>
+    <record id="view_agx_batch_list" model="ir.ui.view">
+        <field name="name">agx.batch.list</field>
+        <field name="model">agx.batch</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="batch_date"/>
+                <field name="evaluation_id"/>
+                <field name="incoming_picking_id"/>
+                <field name="input_qty"/>
+                <field name="output_qty"/>
+                <field name="variance_qty"/>
+                <field name="effective_allocable_cost"/>
+                <field name="stock_transfer_state"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_agx_batch_form" model="ir.ui.view">
+        <field name="name">agx.batch.form</field>
+        <field name="model">agx.batch</field>
+        <field name="arch" type="xml">
+            <form string="Production Batch">
+                <header>
+                    <button name="action_start" string="Start" type="object" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_load_inputs_from_receipt" string="Load Inputs from Receipt" type="object" invisible="not incoming_picking_id or state == 'done'"/>
+                    <button name="action_prepare_stock_transfers" string="Prepare Stock Transfers" type="object" invisible="state == 'cancelled'"/>
+                    <button name="action_validate_stock_transfers" string="Validate Transfers" type="object" invisible="stock_transfer_count == 0 or state == 'cancelled'"/>
+                    <button name="action_refresh_actual_costs" string="Refresh Actual Costs" type="object" invisible="state == 'cancelled'"/>
+                    <button name="action_done" string="Mark Done" type="object" invisible="state not in ('draft', 'in_progress')"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,done,cancelled"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" name="action_view_stock_transfers" type="object" icon="fa-exchange" invisible="stock_transfer_count == 0">
+                            <field name="stock_transfer_count" widget="statinfo" string="Transfers"/>
+                        </button>
+                    </div>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="batch_date"/>
+                            <field name="evaluation_id"/>
+                            <field name="incoming_picking_id"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="input_qty" readonly="1"/>
+                            <field name="output_qty" readonly="1"/>
+                            <field name="variance_qty" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="costing_status" readonly="1"/>
+                            <field name="effective_allocable_cost" readonly="1"/>
+                            <field name="stock_transfer_state" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="total_relative_sales_value" readonly="1"/>
+                            <field name="actual_cost_last_refresh" readonly="1"/>
+                            <field name="consumption_picking_id" readonly="1"/>
+                            <field name="output_picking_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="cost_basis_note" readonly="1" nolabel="1" class="text-muted"/>
+                    </group>
+                    <notebook>
+                        <page string="Inputs">
+                            <field name="input_line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="product_id"/>
+                                    <field name="lot_id"/>
+                                    <field name="qty"/>
+                                    <field name="uom_id"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Outputs">
+                            <field name="output_line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="product_id"/>
+                                    <field name="lot_id"/>
+                                    <field name="grade_id"/>
+                                    <field name="size_id"/>
+                                    <field name="qty"/>
+                                    <field name="uom_id"/>
+                                    <field name="sales_price_unit"/>
+                                    <field name="sales_value" readonly="1"/>
+                                    <field name="relative_sales_ratio" readonly="1"/>
+                                    <field name="allocated_cost" readonly="1"/>
+                                    <field name="cost_per_unit" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Cost Share">
+                            <group string="Manual Fallback">
+                                <group>
+                                    <field name="manual_raw_material_cost"/>
+                                    <field name="manual_operation_cost"/>
+                                    <field name="manual_other_cost"/>
+                                </group>
+                            </group>
+                            <group string="Actual Costs">
+                                <group>
+                                    <field name="actual_raw_material_cost" readonly="1"/>
+                                    <field name="actual_operation_cost" readonly="1"/>
+                                </group>
+                            </group>
+                            <group string="Effective Costing">
+                                <group>
+                                    <field name="effective_allocable_cost" readonly="1"/>
+                                    <field name="total_relative_sales_value" readonly="1"/>
+                                    <field name="costing_status" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_agx_batch" model="ir.actions.act_window">
+        <field name="name">Production Batches</field>
+        <field name="res_model">agx.batch</field>
+        <field name="view_mode">list,form</field>
+    </record>
     <menuitem id="menu_agx_batch" name="Production Batches" parent="menu_agx_operations" action="action_agx_batch" sequence="20"/>
 
-    <record id="action_agx_cost_share_analysis" model="ir.actions.act_window"><field name="name">Production Cost Share</field><field name="res_model">agx.batch.output</field><field name="view_mode">graph,pivot</field></record>
+    <record id="action_agx_cost_share_analysis" model="ir.actions.act_window">
+        <field name="name">Production Cost Share</field>
+        <field name="res_model">agx.batch.output</field>
+        <field name="view_mode">graph,pivot</field>
+    </record>
     <menuitem id="menu_agx_cost_share_analysis" name="Production Cost Share" parent="menu_agx_analytics" action="action_agx_cost_share_analysis" sequence="20"/>
 </odoo>

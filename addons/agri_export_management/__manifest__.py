@@ -2,7 +2,7 @@
 {
     "name": "Agricultural Export",
     "summary": "Agricultural export operations, costing, and profitability",
-    "version": "19.0.2.0.0",
+    "version": "19.0.3.0.0",
     "category": "Inventory/Inventory",
     "author": "NextGen Systems",
     "license": "LGPL-3",
@@ -27,6 +27,7 @@
         "views/evaluation_views.xml",
         "views/batch_views.xml",
         "views/shipment_views.xml",
+        "views/purchase_views.xml",
         "wizard/wizard_views.xml",
         "views/settings_views.xml",
         "report/agx_reports.xml"
