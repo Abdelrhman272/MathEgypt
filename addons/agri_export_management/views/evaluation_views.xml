@@ -11,12 +11,11 @@
                 <field name="partner_id"/>
                 <field name="expected_total_qty"/>
                 <field name="actual_total_qty"/>
-                <field name="variance_qty"/>
+                <field name="achievement_pct"/>
                 <field name="state"/>
             </list>
         </field>
     </record>
-
     <record id="view_agx_evaluation_form" model="ir.ui.view">
         <field name="name">agx.evaluation.form</field>
         <field name="model">agx.evaluation</field>
@@ -24,16 +23,21 @@
             <form string="Farm Evaluation">
                 <header>
                     <button name="action_approve" string="Approve" type="object" class="btn-primary" invisible="state != 'draft'"/>
-                    <button name="action_create_purchase_order" string="Create Purchase Order" type="object" invisible="state not in ('approved', 'po_created')"/>
-                    <button name="action_view_purchase_order" string="View Purchase Order" type="object" invisible="po_count == 0"/>
+                    <button name="action_create_purchase_order" string="Create Purchase Order" type="object" invisible="state != 'approved' or po_id"/>
                     <button name="action_reset_draft" string="Reset to Draft" type="object" invisible="state == 'draft'"/>
                     <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,approved,po_created,closed,cancelled"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button class="oe_stat_button" type="object" name="action_view_purchase_order" icon="fa-shopping-cart" invisible="po_count == 0">
+                        <button class="oe_stat_button" name="action_view_purchase_order" type="object" icon="fa-shopping-cart" invisible="not po_id">
                             <field name="po_count" widget="statinfo" string="Purchase Order"/>
+                        </button>
+                        <button class="oe_stat_button" name="action_view_receipts" type="object" icon="fa-truck" invisible="receipt_count == 0">
+                            <field name="receipt_count" widget="statinfo" string="Receipts"/>
+                        </button>
+                        <button class="oe_stat_button" name="action_view_batches" type="object" icon="fa-industry" invisible="batch_count == 0">
+                            <field name="batch_count" widget="statinfo" string="Batches"/>
                         </button>
                     </div>
                     <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
@@ -48,12 +52,7 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="expected_total_qty" readonly="1"/>
                             <field name="actual_total_qty" readonly="1"/>
-                            <field name="variance_qty" readonly="1"/>
                             <field name="achievement_pct" readonly="1"/>
-                        </group>
-                    </group>
-                    <group>
-                        <group>
                             <field name="estimated_purchase_value" readonly="1"/>
                         </group>
                     </group>
@@ -63,7 +62,6 @@
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
                                     <field name="product_id"/>
-                                    <field name="uom_id"/>
                                     <field name="grade_id"/>
                                     <field name="size_id"/>
                                     <field name="expected_ratio"/>
@@ -71,6 +69,7 @@
                                     <field name="actual_qty" readonly="1"/>
                                     <field name="variance_qty" readonly="1"/>
                                     <field name="achievement_pct" readonly="1"/>
+                                    <field name="uom_id"/>
                                     <field name="estimated_unit_price"/>
                                     <field name="note"/>
                                 </list>
@@ -83,19 +82,9 @@
             </form>
         </field>
     </record>
-
-    <record id="action_agx_evaluation" model="ir.actions.act_window">
-        <field name="name">Farm Evaluations</field>
-        <field name="res_model">agx.evaluation</field>
-        <field name="view_mode">list,form</field>
-    </record>
+    <record id="action_agx_evaluation" model="ir.actions.act_window"><field name="name">Farm Evaluations</field><field name="res_model">agx.evaluation</field><field name="view_mode">list,form</field></record>
     <menuitem id="menu_agx_evaluation" name="Farm Evaluations" parent="menu_agx_procurement" action="action_agx_evaluation" sequence="10"/>
 
-    <record id="action_agx_incoming_receipts" model="ir.actions.act_window">
-        <field name="name">Incoming Receipts</field>
-        <field name="res_model">stock.picking</field>
-        <field name="view_mode">list,form</field>
-        <field name="domain">[("picking_type_id.code", "=", "incoming")]</field>
-    </record>
+    <record id="action_agx_incoming_receipts" model="ir.actions.act_window"><field name="name">Incoming Receipts</field><field name="res_model">stock.picking</field><field name="view_mode">list,form</field><field name="domain">[("picking_type_id.code", "=", "incoming"), ("agx_evaluation_id", "!=", False)]</field></record>
     <menuitem id="menu_agx_incoming_receipts" name="Incoming Receipts" parent="menu_agx_operations" action="action_agx_incoming_receipts" sequence="10"/>
 </odoo>

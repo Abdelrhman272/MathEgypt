@@ -15,7 +15,7 @@
         "sale_management",
         "account",
         "base_setup",
-        "stock_landed_costs"
+        "stock_landed_costs",
     ],
     "data": [
         "security/agx_security.xml",
@@ -30,7 +30,7 @@
         "views/purchase_views.xml",
         "wizard/wizard_views.xml",
         "views/settings_views.xml",
-        "report/agx_reports.xml"
+        "report/agx_reports.xml",
     ],
     "application": True,
     "installable": True,

@@ -22,7 +22,7 @@ class AgxDashboard(models.Model):
     open_evaluations_count = fields.Integer(compute="_compute_metrics")
     approved_evaluations_count = fields.Integer(compute="_compute_metrics")
     pending_purchases_count = fields.Integer(compute="_compute_metrics")
-    raw_material_received_count = fields.Integer(compute="_compute_metrics")
+    pending_incoming_receipts_count = fields.Integer(compute="_compute_metrics")
     active_batches_count = fields.Integer(compute="_compute_metrics")
     pending_shipments_count = fields.Integer(compute="_compute_metrics")
     reserved_lots_qty = fields.Float(compute="_compute_metrics")
@@ -67,15 +67,15 @@ class AgxDashboard(models.Model):
             ("batch_date", "<=", self.date_to),
         ]
 
-    def _get_receipt_domain(self):
+    def _get_pending_receipt_domain(self):
         self.ensure_one()
         return [
             ("company_id", "=", self.company_id.id),
             ("picking_type_id.code", "=", "incoming"),
-            ("date_done", "!=", False),
-            ("date_done", ">=", self.date_from),
-            ("date_done", "<=", f"{self.date_to} 23:59:59"),
-            ("state", "=", "done"),
+            ("agx_evaluation_id", "!=", False),
+            ("scheduled_date", ">=", self.date_from),
+            ("scheduled_date", "<=", f"{self.date_to} 23:59:59"),
+            ("state", "not in", ["done", "cancel"]),
         ]
 
     @api.depends("company_id", "date_from", "date_to")
@@ -88,12 +88,12 @@ class AgxDashboard(models.Model):
             eval_domain = rec._get_eval_domain()
             shipment_domain = rec._get_shipment_domain()
             batch_domain = rec._get_batch_domain()
-            receipt_domain = rec._get_receipt_domain()
+            pending_receipt_domain = rec._get_pending_receipt_domain()
 
             rec.open_evaluations_count = Evaluation.search_count(eval_domain + [("state", "=", "draft")])
             rec.approved_evaluations_count = Evaluation.search_count(eval_domain + [("state", "=", "approved")])
             rec.pending_purchases_count = Evaluation.search_count(eval_domain + [("state", "=", "approved"), ("po_id", "=", False)])
-            rec.raw_material_received_count = Picking.search_count(receipt_domain)
+            rec.pending_incoming_receipts_count = Picking.search_count(pending_receipt_domain)
             rec.active_batches_count = Batch.search_count(batch_domain + [("state", "in", ["draft", "in_progress"])])
             rec.pending_shipments_count = Shipment.search_count(shipment_domain + [("state", "in", ["draft", "reserved"])])
 
@@ -129,10 +129,6 @@ class AgxDashboard(models.Model):
             "target": "current",
         }
 
-    def action_refresh_dashboard(self):
-        self.ensure_one()
-        return self.action_open_dashboard()
-
     def _action_for_model(self, model_name, title, domain, views=None):
         return {
             "type": "ir.actions.act_window",
@@ -157,8 +153,8 @@ class AgxDashboard(models.Model):
 
     def action_open_profitability(self):
         self.ensure_one()
-        return self._action_for_model("agx.shipment", _("Shipment Profitability Analysis"), self._get_shipment_domain(), views="graph,pivot,list,form")
+        return self._action_for_model("agx.shipment", _("Shipment Profitability Analysis"), self._get_shipment_domain(), views="graph,pivot")
 
     def action_open_incoming_receipts(self):
         self.ensure_one()
-        return self._action_for_model("stock.picking", _("Incoming Receipts"), self._get_receipt_domain())
+        return self._action_for_model("stock.picking", _("Pending Incoming Receipts"), self._get_pending_receipt_domain())
