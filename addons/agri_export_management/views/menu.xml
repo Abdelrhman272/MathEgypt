@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <menuitem id="menu_agx_root" name="Agricultural Export" sequence="15" groups="agri_export_management.group_agx_user" web_icon="agri_export_management,static/description/icon.png"/>
-    <menuitem id="menu_agx_master_data" name="Master Data" parent="menu_agx_root" sequence="10"/>
     <menuitem id="menu_agx_procurement" name="Procurement" parent="menu_agx_root" sequence="20"/>
     <menuitem id="menu_agx_operations" name="Operations" parent="menu_agx_root" sequence="30"/>
     <menuitem id="menu_agx_analytics" name="Analytics" parent="menu_agx_root" sequence="40"/>
     <menuitem id="menu_agx_configuration" name="Configuration" parent="menu_agx_root" sequence="50" groups="agri_export_management.group_agx_admin"/>
+    <menuitem id="menu_agx_configuration_master_data" name="Master Data" parent="menu_agx_configuration" sequence="20" groups="agri_export_management.group_agx_admin"/>
 </odoo>

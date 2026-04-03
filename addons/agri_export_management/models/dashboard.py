@@ -8,9 +8,10 @@ class AgxDashboard(models.Model):
     _description = "Agricultural Export Dashboard"
     _order = "company_id"
 
-    _sql_constraints = [
-        ("agx_dashboard_company_unique", "unique(company_id)", "Only one dashboard record is allowed per company."),
-    ]
+    _agx_dashboard_company_unique = models.Constraint(
+        "UNIQUE(company_id)",
+        "Only one dashboard record is allowed per company.",
+    )
 
     name = fields.Char(compute="_compute_name")
     company_id = fields.Many2one("res.company", required=True, default=lambda self: self.env.company, index=True)
