@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class AgxFarm(models.Model):
@@ -13,7 +13,6 @@ class AgxFarm(models.Model):
     company_id = fields.Many2one("res.company", required=True, default=lambda self: self.env.company, index=True)
     region = fields.Char()
     location = fields.Char()
-    capacity = fields.Float()
     active = fields.Boolean(default=True)
     note = fields.Html()
 
@@ -44,14 +43,22 @@ class AgxGrade(models.Model):
 class AgxSize(models.Model):
     _name = "agx.size"
     _description = "Size"
-    _order = "sequence, name"
+    _order = "number, id"
 
-    name = fields.Char(required=True)
+    number = fields.Float(required=True)
+    name = fields.Char(compute="_compute_name", store=True)
     code = fields.Char()
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)
     note = fields.Text()
 
+    @api.depends("number")
+    def _compute_name(self):
+        for rec in self:
+            if rec.number == int(rec.number):
+                rec.name = str(int(rec.number))
+            else:
+                rec.name = str(rec.number)
 
 class AgxDestination(models.Model):
     _name = "agx.destination"

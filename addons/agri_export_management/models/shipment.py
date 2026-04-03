@@ -116,6 +116,12 @@ class AgxShipmentLine(models.Model):
     cost_per_carton = fields.Monetary(currency_field="currency_id", compute="_compute_allocated_costs", store=True)
     cost_per_qty = fields.Monetary(currency_field="currency_id", compute="_compute_allocated_costs", store=True)
 
+    @api.onchange("product_id")
+    def _onchange_product_id(self):
+        for rec in self:
+            if rec.product_id:
+                rec.uom_id = rec.product_id.uom_id
+
     @api.depends("shipment_id.cost_line_ids.effective_amount", "shipment_id.cost_line_ids.allocation_basis", "shipment_id.line_ids.product_qty", "shipment_id.line_ids.carton_qty", "shipment_id.line_ids.net_weight", "shipment_id.line_ids.gross_weight")
     def _compute_allocated_costs(self):
         for line in self:
@@ -193,6 +199,12 @@ class AgxShipmentCostLine(models.Model):
     vendor_bill_line_id = fields.Many2one("account.move.line")
     landed_cost_id = fields.Many2one("stock.landed.cost")
     note = fields.Char()
+
+    @api.onchange("cost_type_id")
+    def _onchange_cost_type_id(self):
+        for rec in self:
+            if rec.cost_type_id and not rec.allocation_basis:
+                rec.allocation_basis = rec.cost_type_id.default_allocation_basis
 
     @api.depends("cost_source", "manual_amount", "vendor_bill_id.amount_untaxed", "vendor_bill_line_id.price_subtotal", "landed_cost_id.amount_total")
     def _compute_source_amount(self):

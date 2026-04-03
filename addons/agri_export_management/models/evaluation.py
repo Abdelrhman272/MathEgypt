@@ -24,15 +24,27 @@ class AgxEvaluation(models.Model):
         ("cancelled", "Cancelled"),
     ], default="draft", tracking=True)
     expected_total_qty = fields.Float(compute="_compute_totals", store=True)
+    actual_total_qty = fields.Float(compute="_compute_totals", store=True)
+    variance_qty = fields.Float(compute="_compute_totals", store=True)
+    achievement_pct = fields.Float(compute="_compute_totals", store=True, digits=(16, 2))
     estimated_purchase_value = fields.Monetary(currency_field="currency_id", compute="_compute_totals", store=True)
     po_id = fields.Many2one("purchase.order", copy=False, readonly=True)
     note = fields.Html()
 
-    @api.depends("line_ids.expected_qty", "line_ids.estimated_unit_price")
+    @api.depends("line_ids.expected_qty", "line_ids.actual_qty", "line_ids.estimated_unit_price")
     def _compute_totals(self):
         for rec in self:
             rec.expected_total_qty = sum(rec.line_ids.mapped("expected_qty"))
+            rec.actual_total_qty = sum(rec.line_ids.mapped("actual_qty"))
+            rec.variance_qty = rec.actual_total_qty - rec.expected_total_qty
+            rec.achievement_pct = (rec.actual_total_qty / rec.expected_total_qty * 100.0) if rec.expected_total_qty else 0.0
             rec.estimated_purchase_value = sum(line.expected_qty * line.estimated_unit_price for line in rec.line_ids)
+
+    @api.onchange("farm_id")
+    def _onchange_farm_id(self):
+        for rec in self:
+            if rec.farm_id and not rec.partner_id:
+                rec.partner_id = rec.farm_id.partner_id
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -70,13 +82,19 @@ class AgxEvaluation(models.Model):
                 "product_id": line.product_id.id,
                 "name": line.product_id.display_name,
                 "product_qty": line.expected_qty,
-                "product_uom": line.uom_id.id or line.product_id.uom_po_id.id,
+                "product_uom_id": (line.uom_id.id or line.product_id.uom_po_id.id or line.product_id.uom_id.id),
                 "price_unit": line.estimated_unit_price,
                 "date_planned": fields.Datetime.now(),
             }))
+        if not po_vals["order_line"]:
+            raise UserError(_("Please add at least one line with product and expected quantity before creating a purchase order."))
         po = self.env["purchase.order"].create(po_vals)
         self.write({"po_id": po.id, "state": "po_created"})
         return self.action_view_purchase_order()
+
+    def action_print_evaluation_report(self):
+        self.ensure_one()
+        return self.env.ref("agri_export_management.action_report_agx_evaluation").report_action(self)
 
     def action_view_purchase_order(self):
         self.ensure_one()
@@ -106,6 +124,31 @@ class AgxEvaluationLine(models.Model):
     size_id = fields.Many2one("agx.size")
     expected_ratio = fields.Float(string="Expected %")
     expected_qty = fields.Float()
+    actual_qty = fields.Float(compute="_compute_actual_qty", store=True)
+    variance_qty = fields.Float(compute="_compute_actual_qty", store=True)
+    achievement_pct = fields.Float(compute="_compute_actual_qty", store=True, digits=(16, 2))
     uom_id = fields.Many2one("uom.uom", string="UoM")
     estimated_unit_price = fields.Monetary(currency_field="currency_id")
     note = fields.Char()
+
+    @api.onchange("product_id")
+    def _onchange_product_id(self):
+        for rec in self:
+            if rec.product_id:
+                rec.uom_id = rec.product_id.uom_po_id or rec.product_id.uom_id
+
+    @api.depends("evaluation_id", "product_id", "grade_id", "size_id", "expected_qty")
+    def _compute_actual_qty(self):
+        BatchOutput = self.env["agx.batch.output"]
+        for rec in self:
+            actual_qty = 0.0
+            if rec.evaluation_id and rec.product_id:
+                domain = [("batch_id.evaluation_id", "=", rec.evaluation_id.id), ("product_id", "=", rec.product_id.id)]
+                if rec.grade_id:
+                    domain.append(("grade_id", "=", rec.grade_id.id))
+                if rec.size_id:
+                    domain.append(("size_id", "=", rec.size_id.id))
+                actual_qty = sum(BatchOutput.search(domain).mapped("qty"))
+            rec.actual_qty = actual_qty
+            rec.variance_qty = actual_qty - (rec.expected_qty or 0.0)
+            rec.achievement_pct = (actual_qty / rec.expected_qty * 100.0) if rec.expected_qty else 0.0

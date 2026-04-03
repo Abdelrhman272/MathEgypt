@@ -12,4 +12,58 @@
     <template id="report_agx_shipment_summary">
         <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout"><div class="page"><h2>Shipment Summary</h2><p><strong>Shipment:</strong> <span t-esc="o.name"/></p><p><strong>Customer:</strong> <span t-esc="o.customer_id.display_name"/></p><p><strong>Destination:</strong> <span t-esc="o.destination_id.display_name"/></p><p><strong>Total Logistics Cost:</strong> <span t-esc="o.total_logistics_cost"/></p><p><strong>Revenue:</strong> <span t-esc="o.revenue_amount"/></p><p><strong>Gross Profit:</strong> <span t-esc="o.gross_profit_amount"/></p></div></t></t></t>
     </template>
+
+    <record id="action_report_agx_evaluation" model="ir.actions.report">
+        <field name="name">Farm Evaluation</field>
+        <field name="model">agx.evaluation</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">agri_export_management.report_agx_evaluation</field>
+        <field name="report_file">agri_export_management.report_agx_evaluation</field>
+        <field name="binding_model_id" ref="model_agx_evaluation"/>
+        <field name="binding_type">report</field>
+    </record>
+    <template id="report_agx_evaluation">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Farm Evaluation</h2>
+                        <p><strong>Evaluation:</strong> <span t-esc="o.name"/></p>
+                        <p><strong>Date:</strong> <span t-esc="o.evaluation_date"/></p>
+                        <p><strong>Farm:</strong> <span t-esc="o.farm_id.display_name"/></p>
+                        <p><strong>Vendor:</strong> <span t-esc="o.partner_id.display_name"/></p>
+                        <p><strong>Expected Total Qty:</strong> <span t-esc="o.expected_total_qty"/></p>
+                        <p><strong>Actual Total Qty:</strong> <span t-esc="o.actual_total_qty"/></p>
+                        <p><strong>Variance Qty:</strong> <span t-esc="o.variance_qty"/></p>
+                        <p><strong>Achievement %:</strong> <span t-esc="o.achievement_pct"/></p>
+                        <table class="table table-sm table-bordered mt32">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Grade</th>
+                                    <th>Size</th>
+                                    <th>Expected Qty</th>
+                                    <th>Actual Qty</th>
+                                    <th>Variance</th>
+                                    <th>Achievement %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="o.line_ids" t-as="l">
+                                    <td><span t-esc="l.product_id.display_name"/></td>
+                                    <td><span t-esc="l.grade_id.display_name"/></td>
+                                    <td><span t-esc="l.size_id.display_name"/></td>
+                                    <td><span t-esc="l.expected_qty"/></td>
+                                    <td><span t-esc="l.actual_qty"/></td>
+                                    <td><span t-esc="l.variance_qty"/></td>
+                                    <td><span t-esc="l.achievement_pct"/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
 </odoo>
