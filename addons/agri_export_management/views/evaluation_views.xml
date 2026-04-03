@@ -50,6 +50,7 @@
                         </group>
                         <group>
                             <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="farm_expected_qty"/>
                             <field name="expected_total_qty" readonly="1"/>
                             <field name="actual_total_qty" readonly="1"/>
                             <field name="achievement_pct" readonly="1"/>
@@ -65,7 +66,7 @@
                                     <field name="grade_id"/>
                                     <field name="size_id"/>
                                     <field name="expected_ratio"/>
-                                    <field name="expected_qty"/>
+                                    <field name="expected_qty" readonly="1"/>
                                     <field name="actual_qty" readonly="1"/>
                                     <field name="variance_qty" readonly="1"/>
                                     <field name="achievement_pct" readonly="1"/>

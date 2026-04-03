@@ -15,6 +15,7 @@ class AgxEvaluation(models.Model):
     farm_id = fields.Many2one("agx.farm", required=True, tracking=True)
     crop_id = fields.Many2one("agx.crop", tracking=True)
     currency_id = fields.Many2one("res.currency", related="company_id.currency_id", store=True, readonly=True)
+    farm_expected_qty = fields.Float(string="Expected Purchase Qty", tracking=True)
     line_ids = fields.One2many("agx.evaluation.line", "evaluation_id", string="Evaluation Lines", copy=True)
     state = fields.Selection([
         ("draft", "Draft"),
@@ -35,6 +36,7 @@ class AgxEvaluation(models.Model):
     note = fields.Html()
 
     @api.depends(
+        "farm_expected_qty",
         "line_ids.expected_qty",
         "line_ids.estimated_unit_price",
         "line_ids.actual_qty",
@@ -79,6 +81,18 @@ class AgxEvaluation(models.Model):
             raise UserError(_("Please select a vendor before creating a purchase order."))
         if self.po_id:
             return self.action_view_purchase_order()
+        legacy_eval_id = False
+        if "farm_evaluation_id" in self.env["purchase.order"]._fields and "farm.evaluation" in self.env:
+            first_line = self.line_ids.filtered(lambda l: l.product_id)[:1]
+            if first_line:
+                legacy_vals = {
+                    "vendor_id": self.partner_id.id,
+                    "raw_product_id": first_line.product_id.id,
+                    "total_expected_qty": self.farm_expected_qty or self.expected_total_qty or first_line.expected_qty or 0.0,
+                    "date": self.evaluation_date or fields.Date.context_today(self),
+                }
+                legacy_eval = self.env["farm.evaluation"].create(legacy_vals)
+                legacy_eval_id = legacy_eval.id
         order_lines = []
         for line in self.line_ids:
             if not line.product_id or not line.expected_qty:
@@ -93,14 +107,17 @@ class AgxEvaluation(models.Model):
             }))
         if not order_lines:
             raise UserError(_("Please add at least one evaluation line with product and quantity before creating a purchase order."))
-        po = self.env["purchase.order"].create({
+        po_vals = {
             "partner_id": self.partner_id.id,
             "company_id": self.company_id.id,
             "origin": self.name,
             "date_order": fields.Datetime.now(),
             "agx_evaluation_id": self.id,
             "order_line": order_lines,
-        })
+        }
+        if legacy_eval_id:
+            po_vals["farm_evaluation_id"] = legacy_eval_id
+        po = self.env["purchase.order"].create(po_vals)
         self.write({"po_id": po.id, "state": "po_created"})
         return self.action_view_purchase_order()
 
@@ -153,13 +170,19 @@ class AgxEvaluationLine(models.Model):
     grade_id = fields.Many2one("agx.grade")
     size_id = fields.Many2one("agx.size")
     expected_ratio = fields.Float(string="Expected %")
-    expected_qty = fields.Float()
+    expected_qty = fields.Float(compute="_compute_expected_qty", store=True)
     actual_qty = fields.Float(compute="_compute_actuals")
     variance_qty = fields.Float(compute="_compute_actuals")
     achievement_pct = fields.Float(compute="_compute_actuals", digits=(16, 2))
     uom_id = fields.Many2one("uom.uom", string="UoM")
     estimated_unit_price = fields.Monetary(currency_field="currency_id")
     note = fields.Char()
+
+
+    @api.depends("expected_ratio", "evaluation_id.farm_expected_qty")
+    def _compute_expected_qty(self):
+        for rec in self:
+            rec.expected_qty = (rec.evaluation_id.farm_expected_qty or 0.0) * ((rec.expected_ratio or 0.0) / 100.0)
 
     @api.onchange("product_id")
     def _onchange_product_id(self):

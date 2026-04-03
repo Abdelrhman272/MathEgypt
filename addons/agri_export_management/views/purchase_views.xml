@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='partner_id']" position="after">
-                <field name="agx_evaluation_id"/>
+                <field name="agx_evaluation_id" invisible="1"/>
             </xpath>
         </field>
     </record>

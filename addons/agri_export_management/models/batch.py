@@ -203,11 +203,17 @@ class AgxBatch(models.Model):
 
     def _get_default_stock_location(self):
         self.ensure_one()
-        internal = self.env["stock.location"].search([
+        return self.env["stock.location"].search([
             ("company_id", "in", [False, self.company_id.id]),
             ("usage", "=", "internal"),
         ], limit=1)
-        return internal
+
+    def _get_default_production_location(self):
+        self.ensure_one()
+        return self.env["stock.location"].search([
+            ("company_id", "in", [False, self.company_id.id]),
+            ("usage", "=", "production"),
+        ], limit=1) or self._get_default_stock_location()
 
     def _input_source_location(self, line):
         self.ensure_one()
@@ -232,7 +238,7 @@ class AgxBatch(models.Model):
         for rec in self:
             if rec.stock_move_ids.filtered(lambda m: m.state == "done"):
                 continue
-            production_location = rec.company_id.agx_production_location_id or rec._get_default_stock_location()
+            production_location = rec.company_id.agx_production_location_id or rec._get_default_production_location()
             finished_location = rec.company_id.agx_finished_goods_location_id or rec._get_default_stock_location()
             if not production_location or not finished_location:
                 raise UserError(_("Please configure Production and Finished Goods locations in Settings."))
@@ -240,7 +246,7 @@ class AgxBatch(models.Model):
             for line in rec.input_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
                 source_location = rec._input_source_location(line)
                 move = Move.create({
-                    "name": f"{rec.name} / Consume / {line.product_id.display_name}",
+                    "description_picking": f"{rec.name} / Consume / {line.product_id.display_name}",
                     "company_id": rec.company_id.id,
                     "product_id": line.product_id.id,
                     "product_uom_qty": line.qty,
@@ -267,7 +273,7 @@ class AgxBatch(models.Model):
                 created_moves |= move
             for line in rec.output_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
                 move = Move.create({
-                    "name": f"{rec.name} / Output / {line.product_id.display_name}",
+                    "description_picking": f"{rec.name} / Output / {line.product_id.display_name}",
                     "company_id": rec.company_id.id,
                     "product_id": line.product_id.id,
                     "product_uom_qty": line.qty,

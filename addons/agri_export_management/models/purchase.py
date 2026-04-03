@@ -4,7 +4,7 @@ from odoo import api, fields, models
 class PurchaseOrder(models.Model):
     _inherit = "purchase.order"
 
-    agx_evaluation_id = fields.Many2one("agx.evaluation", string="Export Evaluation", index=True)
+    agx_evaluation_id = fields.Many2one("agx.evaluation", string="AGX Evaluation Link", index=True, copy=False)
 
 
 class StockPicking(models.Model):
