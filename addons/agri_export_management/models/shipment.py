@@ -60,11 +60,46 @@ class AgxShipment(models.Model):
                 vals["name"] = self.env["ir.sequence"].next_by_code("agx.shipment") or _("New")
         return super().create(vals_list)
 
+    def _get_other_reserved_qty(self, lot_id, product_id, exclude_shipment_id=False, exclude_lot_line_id=False):
+        domain = [
+            ("lot_id", "=", lot_id),
+            ("product_id", "=", product_id),
+            ("shipment_id.state", "!=", "cancelled"),
+        ]
+        if exclude_shipment_id:
+            domain.append(("shipment_id", "!=", exclude_shipment_id))
+        if exclude_lot_line_id:
+            domain.append(("id", "!=", exclude_lot_line_id))
+        return sum(self.env["agx.shipment.lot.line"].search(domain).mapped("reserved_qty"))
+
+    def _get_lot_physical_available_qty(self, lot_id, product_id):
+        quants = self.env["stock.quant"].search([
+            ("company_id", "=", self.company_id.id),
+            ("product_id", "=", product_id),
+            ("lot_id", "=", lot_id),
+            ("location_id.usage", "=", "internal"),
+        ])
+        available_qty = 0.0
+        for quant in quants:
+            available_qty += max((quant.quantity or 0.0) - (quant.reserved_quantity or 0.0), 0.0)
+        return available_qty
+
+    def _get_lot_effective_available_qty(self, lot_id, product_id, exclude_shipment_id=False, exclude_lot_line_id=False):
+        physical_available = self._get_lot_physical_available_qty(lot_id, product_id)
+        other_reserved = self._get_other_reserved_qty(
+            lot_id=lot_id,
+            product_id=product_id,
+            exclude_shipment_id=exclude_shipment_id,
+            exclude_lot_line_id=exclude_lot_line_id,
+        )
+        return max(physical_available - other_reserved, 0.0)
+
     def action_reserve(self):
         Quant = self.env["stock.quant"]
         BatchOutput = self.env["agx.batch.output"]
         for rec in self:
-            rec.lot_line_ids.unlink()
+            allocations = []
+            pending_reserved = {}
             for line in rec.line_ids:
                 needed = line.product_qty
                 if needed <= 0:
@@ -75,11 +110,16 @@ class AgxShipment(models.Model):
                     ("location_id.usage", "=", "internal"),
                     ("lot_id", "!=", False),
                     ("quantity", ">", 0),
-                ])
-                allocations = []
+                ], order="in_date,id")
                 for quant in quants:
-                    available = max(quant.quantity - quant.reserved_quantity, 0.0)
-                    if available <= 0:
+                    reservation_key = (quant.lot_id.id, line.product_id.id)
+                    effective_available = rec._get_lot_effective_available_qty(
+                        lot_id=quant.lot_id.id,
+                        product_id=line.product_id.id,
+                        exclude_shipment_id=rec.id,
+                    ) - pending_reserved.get(reservation_key, 0.0)
+                    effective_available = max(effective_available, 0.0)
+                    if effective_available <= 0:
                         continue
                     output = BatchOutput.search([
                         ("lot_id", "=", quant.lot_id.id),
@@ -89,7 +129,7 @@ class AgxShipment(models.Model):
                         continue
                     if line.size_id and output and output.size_id != line.size_id:
                         continue
-                    take = min(needed, available)
+                    take = min(needed, effective_available)
                     if take <= 0:
                         continue
                     allocations.append((0, 0, {
@@ -97,14 +137,17 @@ class AgxShipment(models.Model):
                         "product_id": line.product_id.id,
                         "lot_id": quant.lot_id.id,
                         "batch_output_id": output.id if output else False,
-                        "available_qty": available,
+                        "available_qty": effective_available,
                         "reserved_qty": take,
                     }))
+                    pending_reserved[reservation_key] = pending_reserved.get(reservation_key, 0.0) + take
                     needed -= take
                     if needed <= 0:
                         break
                 if needed > 0:
                     raise UserError(_("Not enough available lots for product %s.") % line.product_id.display_name)
+            rec.lot_line_ids.unlink()
+            if allocations:
                 rec.write({"lot_line_ids": allocations})
             rec.state = "reserved"
         return True
@@ -225,11 +268,18 @@ class AgxShipmentLotLine(models.Model):
     reserved_qty = fields.Float(required=True, default=1.0)
     note = fields.Char()
 
-    @api.constrains("reserved_qty", "available_qty")
+    @api.constrains("reserved_qty", "available_qty", "lot_id", "product_id", "shipment_id")
     def _check_reserved_qty(self):
         for rec in self:
-            if rec.available_qty and rec.reserved_qty > rec.available_qty:
-                raise ValidationError(_("Reserved quantity cannot exceed available quantity."))
+            if rec.reserved_qty <= 0:
+                raise ValidationError(_("Reserved quantity must be greater than zero."))
+            effective_available = rec.shipment_id._get_lot_effective_available_qty(
+                lot_id=rec.lot_id.id,
+                product_id=rec.product_id.id,
+                exclude_lot_line_id=rec.id,
+            )
+            if rec.reserved_qty > effective_available:
+                raise ValidationError(_("Reserved quantity cannot exceed the currently available quantity for this lot."))
 
 
 class AgxShipmentCostLine(models.Model):

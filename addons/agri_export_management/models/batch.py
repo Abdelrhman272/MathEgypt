@@ -181,7 +181,12 @@ class AgxBatch(models.Model):
         for rec in self:
             if not rec.input_line_ids:
                 rec._load_inputs_from_evaluation_receipts(onchange_mode=False)
+            if not rec.input_line_ids:
+                raise UserError(_("Please load or add at least one input line before marking the batch as done."))
+            if not rec.output_line_ids:
+                raise UserError(_("Please add at least one output line before marking the batch as done."))
             rec._ensure_output_lots()
+            rec._validate_stock_posting()
             rec._post_stock_moves()
             rec.state = "done"
         return True
@@ -215,6 +220,61 @@ class AgxBatch(models.Model):
             ("usage", "=", "production"),
         ], limit=1) or self._get_default_stock_location()
 
+    def _quantity_field_name(self, model):
+        return "quantity" if "quantity" in model._fields else "qty_done"
+
+    def _get_line_available_qty(self, line):
+        self.ensure_one()
+        domain = [
+            ("company_id", "=", self.company_id.id),
+            ("product_id", "=", line.product_id.id),
+            ("location_id.usage", "=", "internal"),
+        ]
+        if line.lot_id:
+            domain.append(("lot_id", "=", line.lot_id.id))
+        quants = self.env["stock.quant"].search(domain)
+        available_qty = 0.0
+        for quant in quants:
+            available_qty += max((quant.quantity or 0.0) - (quant.reserved_quantity or 0.0), 0.0)
+        return available_qty
+
+    def _validate_stock_posting(self):
+        self.ensure_one()
+        production_location = self.company_id.agx_production_location_id or self._get_default_production_location()
+        finished_location = self.company_id.agx_finished_goods_location_id or self._get_default_stock_location()
+        if not production_location or not finished_location:
+            raise UserError(_("Please configure Production and Finished Goods locations in Settings."))
+        if self.stock_move_ids.filtered(lambda m: m.state == "done"):
+            raise UserError(_("This batch already has posted stock moves. To avoid duplicate inventory movements, a done batch cannot be posted again."))
+        for line in self.input_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
+            available_qty = self._get_line_available_qty(line)
+            if available_qty < line.qty:
+                if line.lot_id:
+                    raise UserError(_("Not enough available quantity for product %(product)s in lot %(lot)s. Needed: %(needed)s, Available: %(available)s") % {
+                        "product": line.product_id.display_name,
+                        "lot": line.lot_id.display_name,
+                        "needed": line.qty,
+                        "available": available_qty,
+                    })
+                raise UserError(_("Not enough available quantity for product %(product)s. Needed: %(needed)s, Available: %(available)s") % {
+                    "product": line.product_id.display_name,
+                    "needed": line.qty,
+                    "available": available_qty,
+                })
+
+    def _prepare_move_line_vals(self, move, product, uom, location_id, location_dest_id, qty, lot_id=False):
+        vals = {
+            "move_id": move.id,
+            "product_id": product.id,
+            "product_uom_id": uom.id,
+            "location_id": location_id.id,
+            "location_dest_id": location_dest_id.id,
+        }
+        vals[self._quantity_field_name(self.env["stock.move.line"])] = qty
+        if lot_id:
+            vals["lot_id"] = lot_id.id
+        return vals
+
     def _input_source_location(self, line):
         self.ensure_one()
         quant = False
@@ -235,13 +295,10 @@ class AgxBatch(models.Model):
     def _post_stock_moves(self):
         Move = self.env["stock.move"]
         MoveLine = self.env["stock.move.line"]
+        all_created_moves = self.env["stock.move"]
         for rec in self:
-            if rec.stock_move_ids.filtered(lambda m: m.state == "done"):
-                continue
             production_location = rec.company_id.agx_production_location_id or rec._get_default_production_location()
             finished_location = rec.company_id.agx_finished_goods_location_id or rec._get_default_stock_location()
-            if not production_location or not finished_location:
-                raise UserError(_("Please configure Production and Finished Goods locations in Settings."))
             created_moves = self.env["stock.move"]
             for line in rec.input_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
                 source_location = rec._input_source_location(line)
@@ -258,17 +315,15 @@ class AgxBatch(models.Model):
                     "origin": rec.name,
                 })
                 move._action_confirm()
-                ml_vals = {
-                    "move_id": move.id,
-                    "product_id": line.product_id.id,
-                    "product_uom_id": (line.uom_id or line.product_id.uom_id).id,
-                    "location_id": source_location.id,
-                    "location_dest_id": production_location.id,
-                    "quantity": line.qty,
-                }
-                if line.lot_id:
-                    ml_vals["lot_id"] = line.lot_id.id
-                MoveLine.create(ml_vals)
+                MoveLine.create(rec._prepare_move_line_vals(
+                    move=move,
+                    product=line.product_id,
+                    uom=(line.uom_id or line.product_id.uom_id),
+                    location_id=source_location,
+                    location_dest_id=production_location,
+                    qty=line.qty,
+                    lot_id=line.lot_id,
+                ))
                 move._action_done()
                 created_moves |= move
             for line in rec.output_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
@@ -285,20 +340,19 @@ class AgxBatch(models.Model):
                     "origin": rec.name,
                 })
                 move._action_confirm()
-                ml_vals = {
-                    "move_id": move.id,
-                    "product_id": line.product_id.id,
-                    "product_uom_id": (line.uom_id or line.product_id.uom_id).id,
-                    "location_id": production_location.id,
-                    "location_dest_id": finished_location.id,
-                    "quantity": line.qty,
-                }
-                if line.lot_id:
-                    ml_vals["lot_id"] = line.lot_id.id
-                MoveLine.create(ml_vals)
+                MoveLine.create(rec._prepare_move_line_vals(
+                    move=move,
+                    product=line.product_id,
+                    uom=(line.uom_id or line.product_id.uom_id),
+                    location_id=production_location,
+                    location_dest_id=finished_location,
+                    qty=line.qty,
+                    lot_id=line.lot_id,
+                ))
                 move._action_done()
                 created_moves |= move
-            return created_moves
+            all_created_moves |= created_moves
+        return all_created_moves
 
     def action_view_stock_moves(self):
         self.ensure_one()
