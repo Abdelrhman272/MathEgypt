@@ -23,10 +23,12 @@ class AgxShipment(models.Model):
         ("shipped", "Shipped"),
         ("cancelled", "Cancelled"),
     ], default="draft", tracking=True)
+    container_ids = fields.One2many("agx.shipment.container", "shipment_id", string="Containers", copy=True)
     line_ids = fields.One2many("agx.shipment.line", "shipment_id", string="Products", copy=True)
     lot_line_ids = fields.One2many("agx.shipment.lot.line", "shipment_id", string="Reserved Lots", copy=True)
     cost_line_ids = fields.One2many("agx.shipment.cost.line", "shipment_id", string="Logistics Costs", copy=True)
     sale_order_id = fields.Many2one("sale.order", copy=False)
+    delivery_picking_id = fields.Many2one("stock.picking", copy=False, readonly=True)
     total_qty = fields.Float(compute="_compute_profitability", store=True)
     total_reserved_qty = fields.Float(compute="_compute_profitability", store=True)
     total_logistics_cost = fields.Monetary(currency_field="currency_id", compute="_compute_profitability", store=True)
@@ -48,7 +50,8 @@ class AgxShipment(models.Model):
             rec.total_qty = sum(rec.line_ids.mapped("product_qty"))
             rec.total_reserved_qty = sum(rec.lot_line_ids.mapped("reserved_qty"))
             rec.total_logistics_cost = sum(rec.cost_line_ids.mapped("effective_amount"))
-            rec.cost_per_container = rec.total_logistics_cost / rec.container_count if rec.container_count else 0.0
+            effective_container_count = rec.container_count or len(rec.container_ids) or 1
+            rec.cost_per_container = rec.total_logistics_cost / effective_container_count if effective_container_count else 0.0
             rec.revenue_amount = rec.sale_order_id.amount_untaxed if rec.sale_order_id else 0.0
             rec.gross_profit_amount = rec.revenue_amount - rec.total_logistics_cost
             rec.gross_margin_pct = (rec.gross_profit_amount / rec.revenue_amount * 100.0) if rec.revenue_amount else 0.0
@@ -58,7 +61,60 @@ class AgxShipment(models.Model):
         for vals in vals_list:
             if vals.get("name", _("New")) == _("New"):
                 vals["name"] = self.env["ir.sequence"].next_by_code("agx.shipment") or _("New")
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        records._sync_container_setup()
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        if not self.env.context.get("agx_skip_container_sync"):
+            self._sync_container_setup()
+        return res
+
+    def _sync_container_setup(self):
+        Container = self.env["agx.shipment.container"]
+        for rec in self:
+            target_count = rec.container_count or 1
+            if not rec.container_ids:
+                for index in range(target_count):
+                    Container.create({
+                        "shipment_id": rec.id,
+                        "sequence": (index + 1) * 10,
+                        "name": f"{rec.name}-C{index + 1}",
+                        "container_no": rec.container_no if index == 0 else False,
+                        "seal_no": rec.seal_no if index == 0 else False,
+                    })
+            elif len(rec.container_ids) < target_count:
+                existing = len(rec.container_ids)
+                for index in range(existing, target_count):
+                    Container.create({
+                        "shipment_id": rec.id,
+                        "sequence": (index + 1) * 10,
+                        "name": f"{rec.name}-C{index + 1}",
+                    })
+            if rec.container_ids:
+                first = rec.container_ids.sorted("sequence")[:1]
+                if first:
+                    first = first[0]
+                    update_vals = {}
+                    if rec.container_no and first.container_no != rec.container_no:
+                        update_vals["container_no"] = rec.container_no
+                    if rec.seal_no and first.seal_no != rec.seal_no:
+                        update_vals["seal_no"] = rec.seal_no
+                    if update_vals:
+                        first.write(update_vals)
+                    header_vals = {}
+                    if not rec.container_no and first.container_no:
+                        header_vals["container_no"] = first.container_no
+                    if not rec.seal_no and first.seal_no:
+                        header_vals["seal_no"] = first.seal_no
+                    if rec.container_count != len(rec.container_ids):
+                        header_vals["container_count"] = len(rec.container_ids)
+                    if header_vals:
+                        rec.with_context(agx_skip_container_sync=True).write(header_vals)
+
+    def _quantity_field_name(self, model):
+        return "quantity" if "quantity" in model._fields else "qty_done"
 
     def _get_other_reserved_qty(self, lot_id, product_id, exclude_shipment_id=False, exclude_lot_line_id=False):
         domain = [
@@ -94,10 +150,97 @@ class AgxShipment(models.Model):
         )
         return max(physical_available - other_reserved, 0.0)
 
+    def _normalize_line_containers(self):
+        for rec in self:
+            fallback_container = rec.container_ids.sorted("sequence")[:1]
+            fallback_container = fallback_container[0] if fallback_container else False
+            if fallback_container:
+                for line in rec.line_ids.filtered(lambda l: not l.container_id):
+                    line.container_id = fallback_container.id
+
+    def _get_default_stock_location(self):
+        self.ensure_one()
+        return self.env["stock.location"].search([
+            ("company_id", "in", [False, self.company_id.id]),
+            ("usage", "=", "internal"),
+        ], limit=1)
+
+    def _get_finished_goods_location(self):
+        self.ensure_one()
+        return self.company_id.agx_finished_goods_location_id or self._get_default_stock_location()
+
+    def _get_customer_location(self):
+        self.ensure_one()
+        return self.env["stock.location"].search([
+            ("usage", "=", "customer"),
+            ("company_id", "in", [False, self.company_id.id]),
+        ], limit=1)
+
+    def _get_outgoing_picking_type(self):
+        self.ensure_one()
+        return self.company_id.agx_outgoing_picking_type_id or self.env["stock.picking.type"].search([
+            ("code", "=", "outgoing"),
+            ("company_id", "in", [False, self.company_id.id]),
+        ], limit=1, order="company_id desc,id")
+
+    def _validate_delivery_settings(self):
+        self.ensure_one()
+        source_location = self._get_finished_goods_location()
+        customer_location = self._get_customer_location()
+        outgoing_type = self._get_outgoing_picking_type()
+        if not source_location or not customer_location or not outgoing_type:
+            raise UserError(_("Please configure Finished Goods Location and Outgoing Delivery Type in Settings."))
+        return source_location, customer_location, outgoing_type
+
+    def _cancel_existing_delivery(self):
+        for rec in self:
+            picking = rec.delivery_picking_id
+            if picking and picking.state not in ("done", "cancel"):
+                moves = picking.move_ids.filtered(lambda m: m.state not in ("done", "cancel"))
+                if moves:
+                    moves._action_cancel()
+                picking.message_post(body=_("Delivery rebuilt from latest AGX reservation."))
+
+    def _build_delivery_picking(self):
+        Move = self.env["stock.move"]
+        for rec in self:
+            source_location, customer_location, outgoing_type = rec._validate_delivery_settings()
+            rec._cancel_existing_delivery()
+            picking = self.env["stock.picking"].create({
+                "picking_type_id": outgoing_type.id,
+                "location_id": source_location.id,
+                "location_dest_id": customer_location.id,
+                "partner_id": rec.customer_id.id if rec.customer_id else False,
+                "origin": rec.name,
+                "company_id": rec.company_id.id,
+                "agx_shipment_id": rec.id,
+            })
+            for line in rec.line_ids.filtered(lambda l: l.product_id and l.product_qty > 0):
+                Move.create({
+                    "name": f"{rec.name} / Delivery / {line.product_id.display_name}",
+                    "description_picking": f"{rec.name} / Delivery / {line.product_id.display_name}",
+                    "company_id": rec.company_id.id,
+                    "product_id": line.product_id.id,
+                    "product_uom_qty": line.product_qty,
+                    "product_uom": (line.uom_id or line.product_id.uom_id).id,
+                    "location_id": source_location.id,
+                    "location_dest_id": customer_location.id,
+                    "agx_shipment_id": rec.id,
+                    "agx_shipment_line_id": line.id,
+                    "agx_flow_type": "shipment",
+                    "origin": rec.name,
+                    "picking_id": picking.id,
+                })
+            picking.action_confirm()
+            picking.action_assign()
+            rec.delivery_picking_id = picking.id
+
     def action_reserve(self):
         Quant = self.env["stock.quant"]
         BatchOutput = self.env["agx.batch.output"]
         for rec in self:
+            rec._sync_container_setup()
+            rec._normalize_line_containers()
             allocations = []
             pending_reserved = {}
             for line in rec.line_ids:
@@ -149,11 +292,47 @@ class AgxShipment(models.Model):
             rec.lot_line_ids.unlink()
             if allocations:
                 rec.write({"lot_line_ids": allocations})
+            rec._build_delivery_picking()
             rec.state = "reserved"
         return True
 
     def action_ship(self):
-        self.write({"state": "shipped"})
+        MoveLine = self.env["stock.move.line"]
+        for rec in self:
+            if not rec.lot_line_ids:
+                raise UserError(_("Please reserve lots before shipping."))
+            if not rec.delivery_picking_id or rec.delivery_picking_id.state in ("cancel",):
+                rec._build_delivery_picking()
+            picking = rec.delivery_picking_id
+            picking.action_assign()
+            quantity_field = rec._quantity_field_name(MoveLine)
+            source_location = picking.location_id
+            dest_location = picking.location_dest_id
+            for move in picking.move_ids.filtered(lambda m: m.state not in ("done", "cancel")):
+                move_lines = move.move_line_ids
+                move_lines.unlink()
+                reserved_lines = rec.lot_line_ids.filtered(lambda l: l.shipment_line_id and l.shipment_line_id == move.agx_shipment_line_id)
+                if not reserved_lines:
+                    continue
+                move.product_uom_qty = sum(reserved_lines.mapped("reserved_qty"))
+                for lot_line in reserved_lines:
+                    vals = {
+                        "move_id": move.id,
+                        "product_id": move.product_id.id,
+                        "product_uom_id": move.product_uom.id,
+                        "location_id": source_location.id,
+                        "location_dest_id": dest_location.id,
+                        "lot_id": lot_line.lot_id.id,
+                    }
+                    vals[quantity_field] = lot_line.reserved_qty
+                    MoveLine.create(vals)
+            res = picking.with_context(skip_immediate=True, skip_backorder=True).button_validate()
+            if isinstance(res, dict):
+                pending_moves = picking.move_ids.filtered(lambda m: m.state not in ("done", "cancel"))
+                if pending_moves:
+                    pending_moves._action_done()
+            rec.state = "shipped"
+        return True
 
     def action_cancel(self):
         self.write({"state": "cancelled"})
@@ -174,7 +353,7 @@ class AgxShipment(models.Model):
             "order_line": [(0, 0, {
                 "product_id": product.id,
                 "name": f"{self.company_id.agx_so_line_prefix or 'Shipment'} {self.name}",
-                "product_uom_qty": self.container_count or 1,
+                "product_uom_qty": self.container_count or len(self.container_ids) or 1,
                 "price_unit": 0.0,
             })],
         })
@@ -194,6 +373,55 @@ class AgxShipment(models.Model):
             "target": "current",
         }
 
+    def action_view_delivery(self):
+        self.ensure_one()
+        if not self.delivery_picking_id:
+            return False
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Delivery"),
+            "res_model": "stock.picking",
+            "res_id": self.delivery_picking_id.id,
+            "view_mode": "form",
+            "target": "current",
+        }
+
+
+class AgxShipmentContainer(models.Model):
+    _name = "agx.shipment.container"
+    _description = "Shipment Container"
+    _order = "sequence, id"
+
+    sequence = fields.Integer(default=10)
+    shipment_id = fields.Many2one("agx.shipment", required=True, ondelete="cascade")
+    name = fields.Char()
+    container_no = fields.Char()
+    seal_no = fields.Char()
+    note = fields.Char()
+    line_ids = fields.One2many("agx.shipment.line", "container_id", string="Container Product Lines")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        for rec in records:
+            if not rec.name:
+                rec.name = f"{rec.shipment_id.name}-C{len(rec.shipment_id.container_ids)}"
+            if rec.shipment_id and rec.shipment_id.container_count != len(rec.shipment_id.container_ids):
+                rec.shipment_id.with_context(agx_skip_container_sync=True).write({"container_count": len(rec.shipment_id.container_ids)})
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        for rec in self:
+            first_container = rec.shipment_id.container_ids.sorted("sequence")[:1] if rec.shipment_id else False
+            if first_container and rec.id == first_container.id:
+                header_vals = {
+                    "container_no": rec.container_no,
+                    "seal_no": rec.seal_no,
+                }
+                rec.shipment_id.with_context(agx_skip_container_sync=True).write(header_vals)
+        return res
+
 
 class AgxShipmentLine(models.Model):
     _name = "agx.shipment.line"
@@ -202,6 +430,7 @@ class AgxShipmentLine(models.Model):
 
     sequence = fields.Integer(default=10)
     shipment_id = fields.Many2one("agx.shipment", required=True, ondelete="cascade")
+    container_id = fields.Many2one("agx.shipment.container", string="Container")
     company_id = fields.Many2one(related="shipment_id.company_id", store=True, readonly=True)
     currency_id = fields.Many2one(related="shipment_id.currency_id", store=True, readonly=True)
     product_id = fields.Many2one("product.product", required=True)
@@ -216,11 +445,29 @@ class AgxShipmentLine(models.Model):
     cost_per_carton = fields.Monetary(currency_field="currency_id", compute="_compute_allocated_costs", store=True)
     cost_per_qty = fields.Monetary(currency_field="currency_id", compute="_compute_allocated_costs", store=True)
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        for rec in records:
+            if not rec.container_id and rec.shipment_id.container_ids:
+                first_container = rec.shipment_id.container_ids.sorted("sequence")[:1]
+                if first_container:
+                    rec.container_id = first_container.id
+        return records
+
     @api.onchange("product_id")
     def _onchange_product_id(self):
         for rec in self:
             if rec.product_id:
                 rec.uom_id = rec.product_id.uom_id
+            if not rec.container_id and rec.shipment_id.container_ids:
+                rec.container_id = rec.shipment_id.container_ids.sorted("sequence")[:1]
+
+    @api.constrains("container_id", "shipment_id")
+    def _check_container_shipment(self):
+        for rec in self:
+            if rec.container_id and rec.container_id.shipment_id != rec.shipment_id:
+                raise ValidationError(_("The selected container must belong to the same shipment."))
 
     @api.depends(
         "shipment_id.cost_line_ids.effective_amount",
@@ -261,6 +508,7 @@ class AgxShipmentLotLine(models.Model):
     sequence = fields.Integer(default=10)
     shipment_id = fields.Many2one("agx.shipment", required=True, ondelete="cascade")
     shipment_line_id = fields.Many2one("agx.shipment.line")
+    container_id = fields.Many2one("agx.shipment.container", related="shipment_line_id.container_id", store=True, readonly=True)
     product_id = fields.Many2one("product.product", required=True)
     lot_id = fields.Many2one("stock.lot", required=True)
     batch_output_id = fields.Many2one("agx.batch.output")
@@ -291,7 +539,7 @@ class AgxShipmentCostLine(models.Model):
     shipment_id = fields.Many2one("agx.shipment", required=True, ondelete="cascade")
     company_id = fields.Many2one(related="shipment_id.company_id", store=True, readonly=True)
     currency_id = fields.Many2one(related="shipment_id.currency_id", store=True, readonly=True)
-    name = fields.Char(required=True)
+    name = fields.Char()
     cost_type_id = fields.Many2one("agx.shipment.cost.type", required=True)
     allocation_basis = fields.Selection([
         ("qty", "By Quantity"),

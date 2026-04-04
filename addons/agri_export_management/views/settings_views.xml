@@ -24,6 +24,8 @@
                         <setting string="Production Location"><field name="agx_production_location_id"/></setting>
                         <setting string="Finished Goods Location"><field name="agx_finished_goods_location_id"/></setting>
                         <setting string="Raw Material Location"><field name="agx_raw_material_location_id"/></setting>
+                        <setting string="Internal Transfer Type"><field name="agx_internal_picking_type_id" domain="[('code', '=', 'internal')]"/></setting>
+                        <setting string="Outgoing Delivery Type"><field name="agx_outgoing_picking_type_id" domain="[('code', '=', 'outgoing')]"/></setting>
                     </block>
                 </app>
             </xpath>

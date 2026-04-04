@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="view_agx_shipment_list" model="ir.ui.view"><field name="name">agx.shipment.list</field><field name="model">agx.shipment</field><field name="arch" type="xml"><list><field name="name"/><field name="shipment_date"/><field name="customer_id"/><field name="destination_id"/><field name="container_no"/><field name="total_qty"/><field name="total_logistics_cost"/><field name="revenue_amount"/><field name="gross_profit_amount"/><field name="gross_margin_pct"/><field name="state"/></list></field></record>
+    <record id="view_agx_shipment_list" model="ir.ui.view"><field name="name">agx.shipment.list</field><field name="model">agx.shipment</field><field name="arch" type="xml"><list><field name="name"/><field name="shipment_date"/><field name="customer_id"/><field name="destination_id"/><field name="container_count"/><field name="total_qty"/><field name="total_logistics_cost"/><field name="revenue_amount"/><field name="gross_profit_amount"/><field name="gross_margin_pct"/><field name="state"/></list></field></record>
     <record id="view_agx_shipment_form" model="ir.ui.view">
         <field name="name">agx.shipment.form</field>
         <field name="model">agx.shipment</field>
@@ -10,6 +10,7 @@
                     <button name="action_reserve" string="Reserve Lots" type="object" class="btn-primary" invisible="state != 'draft'"/>
                     <button name="action_create_sale_order" string="Create Sale Order" type="object" invisible="state not in ('draft','reserved') or sale_order_id"/>
                     <button name="action_view_sale_order" string="View Sale Order" type="object" invisible="not sale_order_id"/>
+                    <button name="action_view_delivery" string="View Delivery" type="object" invisible="not delivery_picking_id"/>
                     <button name="action_ship" string="Mark Shipped" type="object" invisible="state != 'reserved'"/>
                     <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,reserved,shipped,cancelled"/>
@@ -18,6 +19,9 @@
                     <div class="oe_button_box" name="button_box">
                         <button class="oe_stat_button" name="action_view_sale_order" type="object" icon="fa-shopping-cart" invisible="not sale_order_id">
                             <field name="sale_order_id" widget="statinfo" string="Sales Order"/>
+                        </button>
+                        <button class="oe_stat_button" name="action_view_delivery" type="object" icon="fa-truck" invisible="not delivery_picking_id">
+                            <field name="delivery_picking_id" widget="statinfo" string="Delivery"/>
                         </button>
                     </div>
                     <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
@@ -29,28 +33,38 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group>
-                            <field name="container_no"/>
-                            <field name="container_count"/>
-                            <field name="seal_no"/>
+                            <field name="container_count" readonly="1"/>
+                            <field name="container_no" readonly="1"/>
+                            <field name="seal_no" readonly="1"/>
                         </group>
                     </group>
                     <group>
                         <group>
                             <field name="total_qty" readonly="1"/>
                             <field name="total_reserved_qty" readonly="1"/>
-                            <field name="total_logistics_cost" readonly="1"/>
                         </group>
                         <group>
                             <field name="revenue_amount" readonly="1"/>
-                            <field name="gross_profit_amount" readonly="1"/>
                             <field name="gross_margin_pct" readonly="1"/>
                         </group>
                     </group>
                     <notebook>
+                        <page string="Containers">
+                            <field name="container_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="container_no"/>
+                                    <field name="seal_no"/>
+                                    <field name="note" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Products">
                             <field name="line_ids">
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
+                                    <field name="container_id" domain="[('shipment_id', '=', parent.id)]"/>
                                     <field name="product_id"/>
                                     <field name="grade_id"/>
                                     <field name="size_id"/>
@@ -59,15 +73,13 @@
                                     <field name="carton_qty"/>
                                     <field name="net_weight"/>
                                     <field name="gross_weight"/>
-                                    <field name="allocated_logistics_cost" readonly="1"/>
-                                    <field name="cost_per_carton" readonly="1"/>
-                                    <field name="cost_per_qty" readonly="1"/>
                                 </list>
                             </field>
                         </page>
                         <page string="Reserved Lots">
                             <field name="lot_line_ids" readonly="1">
                                 <list>
+                                    <field name="container_id"/>
                                     <field name="shipment_line_id"/>
                                     <field name="product_id"/>
                                     <field name="lot_id"/>
@@ -79,8 +91,14 @@
                         </page>
                         <page string="Logistics Costs">
                             <group>
-                                <group><field name="total_logistics_cost" readonly="1"/><field name="cost_per_container" readonly="1"/></group>
-                                <group><field name="revenue_amount" readonly="1"/><field name="gross_profit_amount" readonly="1"/><field name="gross_margin_pct" readonly="1"/></group>
+                                <group>
+                                    <field name="total_logistics_cost" readonly="1"/>
+                                    <field name="cost_per_container" readonly="1"/>
+                                </group>
+                                <group>
+                                    <field name="gross_profit_amount" readonly="1"/>
+                                    <field name="gross_margin_pct" readonly="1"/>
+                                </group>
                             </group>
                             <field name="cost_line_ids">
                                 <list editable="bottom">
@@ -96,6 +114,20 @@
                                     <field name="vendor_bill_line_id" optional="hide"/>
                                     <field name="landed_cost_id" optional="hide"/>
                                     <field name="note" optional="hide"/>
+                                </list>
+                            </field>
+                            <separator string="Allocation by Shipment Line"/>
+                            <field name="line_ids" readonly="1">
+                                <list>
+                                    <field name="container_id"/>
+                                    <field name="product_id"/>
+                                    <field name="grade_id"/>
+                                    <field name="size_id"/>
+                                    <field name="product_qty"/>
+                                    <field name="carton_qty"/>
+                                    <field name="allocated_logistics_cost" readonly="1"/>
+                                    <field name="cost_per_carton" readonly="1"/>
+                                    <field name="cost_per_qty" readonly="1"/>
                                 </list>
                             </field>
                         </page>

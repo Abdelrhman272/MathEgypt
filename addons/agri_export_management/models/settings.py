@@ -20,6 +20,8 @@ class ResCompany(models.Model):
     agx_production_location_id = fields.Many2one("stock.location", string="Production Location")
     agx_finished_goods_location_id = fields.Many2one("stock.location", string="Finished Goods Location")
     agx_raw_material_location_id = fields.Many2one("stock.location", string="Raw Material Location")
+    agx_internal_picking_type_id = fields.Many2one("stock.picking.type", string="Internal Transfer Type")
+    agx_outgoing_picking_type_id = fields.Many2one("stock.picking.type", string="Outgoing Delivery Type")
 
 
 class ResConfigSettings(models.TransientModel):
@@ -35,3 +37,5 @@ class ResConfigSettings(models.TransientModel):
     agx_production_location_id = fields.Many2one(related="company_id.agx_production_location_id", readonly=False)
     agx_finished_goods_location_id = fields.Many2one(related="company_id.agx_finished_goods_location_id", readonly=False)
     agx_raw_material_location_id = fields.Many2one(related="company_id.agx_raw_material_location_id", readonly=False)
+    agx_internal_picking_type_id = fields.Many2one(related="company_id.agx_internal_picking_type_id", readonly=False)
+    agx_outgoing_picking_type_id = fields.Many2one(related="company_id.agx_outgoing_picking_type_id", readonly=False)

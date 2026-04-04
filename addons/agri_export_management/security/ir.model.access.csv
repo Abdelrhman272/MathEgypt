@@ -18,3 +18,4 @@ access_agx_dashboard_user,agx.dashboard user,model_agx_dashboard,agri_export_man
 access_agx_reserve_lots_wizard_user,agx.reserve.lots.wizard user,model_agx_reserve_lots_wizard,agri_export_management.group_agx_user,1,1,1,1
 access_agx_import_costs_wizard_user,agx.import.costs.wizard user,model_agx_import_costs_wizard,agri_export_management.group_agx_user,1,1,1,1
 access_agx_traceability_wizard_user,agx.traceability.wizard user,model_agx_traceability_wizard,agri_export_management.group_agx_user,1,1,1,1
+access_agx_shipment_container_user,agx.shipment.container user,model_agx_shipment_container,agri_export_management.group_agx_user,1,1,1,1
