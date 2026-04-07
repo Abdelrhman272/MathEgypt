@@ -81,18 +81,8 @@ class AgxEvaluation(models.Model):
             raise UserError(_("Please select a vendor before creating a purchase order."))
         if self.po_id:
             return self.action_view_purchase_order()
-        legacy_eval_id = False
-        if "farm_evaluation_id" in self.env["purchase.order"]._fields and "farm.evaluation" in self.env:
-            first_line = self.line_ids.filtered(lambda l: l.product_id)[:1]
-            if first_line:
-                legacy_vals = {
-                    "vendor_id": self.partner_id.id,
-                    "raw_product_id": first_line.product_id.id,
-                    "total_expected_qty": self.farm_expected_qty or self.expected_total_qty or first_line.expected_qty or 0.0,
-                    "date": self.evaluation_date or fields.Date.context_today(self),
-                }
-                legacy_eval = self.env["farm.evaluation"].create(legacy_vals)
-                legacy_eval_id = legacy_eval.id
+        # Do not create or link legacy farm.evaluation records from older modules.
+        # agri_export_management must stay self-contained and use agx_evaluation_id only.
         order_lines = []
         for line in self.line_ids:
             if not line.product_id or not line.expected_qty:
@@ -115,8 +105,6 @@ class AgxEvaluation(models.Model):
             "agx_evaluation_id": self.id,
             "order_line": order_lines,
         }
-        if legacy_eval_id:
-            po_vals["farm_evaluation_id"] = legacy_eval_id
         po = self.env["purchase.order"].create(po_vals)
         self.write({"po_id": po.id, "state": "po_created"})
         return self.action_view_purchase_order()

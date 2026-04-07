@@ -38,6 +38,7 @@ class AgxBatch(models.Model):
     cost_basis_note = fields.Char(compute="_compute_costing", store=True)
 
     stock_move_ids = fields.One2many("stock.move", "agx_batch_id", string="Stock Moves", readonly=True)
+    stock_picking_ids = fields.One2many("stock.picking", "agx_batch_id", string="Stock Transfers", readonly=True)
     stock_move_count = fields.Integer(compute="_compute_stock_counts")
     stock_move_state = fields.Selection([
         ("none", "No Transfers"),
@@ -53,15 +54,16 @@ class AgxBatch(models.Model):
             rec.output_qty = sum(rec.output_line_ids.mapped("qty"))
             rec.variance_qty = rec.output_qty - rec.input_qty
 
-    @api.depends("evaluation_id")
+    @api.depends("evaluation_id", "stock_picking_ids.state", "stock_move_ids.state")
     def _compute_stock_counts(self):
         Picking = self.env["stock.picking"]
         for rec in self:
-            rec.stock_move_count = len(rec.stock_move_ids)
-            done_count = len(rec.stock_move_ids.filtered(lambda m: m.state == "done"))
-            if not rec.stock_move_ids:
+            pickings = rec.stock_picking_ids
+            rec.stock_move_count = len(pickings)
+            done_count = len(pickings.filtered(lambda p: p.state == "done"))
+            if not pickings:
                 rec.stock_move_state = "none"
-            elif done_count == len(rec.stock_move_ids):
+            elif done_count == len(pickings):
                 rec.stock_move_state = "done"
             else:
                 rec.stock_move_state = "partial"
@@ -181,8 +183,13 @@ class AgxBatch(models.Model):
         for rec in self:
             if not rec.input_line_ids:
                 rec._load_inputs_from_evaluation_receipts(onchange_mode=False)
+            if not rec.input_line_ids:
+                raise UserError(_("Please load or add at least one input line before marking the batch as done."))
+            if not rec.output_line_ids:
+                raise UserError(_("Please add at least one output line before marking the batch as done."))
             rec._ensure_output_lots()
-            rec._post_stock_moves()
+            rec._validate_stock_posting()
+            rec._post_stock_pickings()
             rec.state = "done"
         return True
 
@@ -215,6 +222,69 @@ class AgxBatch(models.Model):
             ("usage", "=", "production"),
         ], limit=1) or self._get_default_stock_location()
 
+    def _get_internal_picking_type(self):
+        self.ensure_one()
+        return self.company_id.agx_internal_picking_type_id or self.env["stock.picking.type"].search([
+            ("code", "=", "internal"),
+            ("company_id", "in", [False, self.company_id.id]),
+        ], limit=1, order="company_id desc,id")
+
+    def _quantity_field_name(self, model):
+        return "quantity" if "quantity" in model._fields else "qty_done"
+
+    def _get_line_available_qty(self, line):
+        self.ensure_one()
+        domain = [
+            ("company_id", "=", self.company_id.id),
+            ("product_id", "=", line.product_id.id),
+            ("location_id.usage", "=", "internal"),
+        ]
+        if line.lot_id:
+            domain.append(("lot_id", "=", line.lot_id.id))
+        quants = self.env["stock.quant"].search(domain)
+        available_qty = 0.0
+        for quant in quants:
+            available_qty += max((quant.quantity or 0.0) - (quant.reserved_quantity or 0.0), 0.0)
+        return available_qty
+
+    def _validate_stock_posting(self):
+        self.ensure_one()
+        production_location = self.company_id.agx_production_location_id or self._get_default_production_location()
+        finished_location = self.company_id.agx_finished_goods_location_id or self._get_default_stock_location()
+        internal_type = self._get_internal_picking_type()
+        if not production_location or not finished_location or not internal_type:
+            raise UserError(_("Please configure Production Location, Finished Goods Location, and Internal Transfer Type in Settings."))
+        if self.stock_picking_ids.filtered(lambda p: p.state == "done"):
+            raise UserError(_("This batch already has posted stock transfers. To avoid duplicate inventory movements, a done batch cannot be posted again."))
+        for line in self.input_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
+            available_qty = self._get_line_available_qty(line)
+            if available_qty < line.qty:
+                if line.lot_id:
+                    raise UserError(_("Not enough available quantity for product %(product)s in lot %(lot)s. Needed: %(needed)s, Available: %(available)s") % {
+                        "product": line.product_id.display_name,
+                        "lot": line.lot_id.display_name,
+                        "needed": line.qty,
+                        "available": available_qty,
+                    })
+                raise UserError(_("Not enough available quantity for product %(product)s. Needed: %(needed)s, Available: %(available)s") % {
+                    "product": line.product_id.display_name,
+                    "needed": line.qty,
+                    "available": available_qty,
+                })
+
+    def _prepare_move_line_vals(self, move, product, uom, location_id, location_dest_id, qty, lot_id=False):
+        vals = {
+            "move_id": move.id,
+            "product_id": product.id,
+            "product_uom_id": uom.id,
+            "location_id": location_id.id,
+            "location_dest_id": location_dest_id.id,
+        }
+        vals[self._quantity_field_name(self.env["stock.move.line"])] = qty
+        if lot_id:
+            vals["lot_id"] = lot_id.id
+        return vals
+
     def _input_source_location(self, line):
         self.ensure_one()
         quant = False
@@ -232,47 +302,90 @@ class AgxBatch(models.Model):
         dests = receipts.mapped("location_dest_id")
         return dests[:1] if dests else (self.company_id.agx_raw_material_location_id or self._get_default_stock_location())
 
-    def _post_stock_moves(self):
+    def _validate_picking(self, picking):
+        res = picking.with_context(skip_immediate=True, skip_backorder=True).button_validate()
+        if isinstance(res, dict):
+            pending_moves = picking.move_ids.filtered(lambda m: m.state not in ("done", "cancel"))
+            if pending_moves:
+                pending_moves._action_done()
+        return True
+
+    def _create_picking(self, picking_type, location_id, location_dest_id, origin):
+        return self.env["stock.picking"].create({
+            "picking_type_id": picking_type.id,
+            "location_id": location_id.id,
+            "location_dest_id": location_dest_id.id,
+            "origin": origin,
+            "company_id": self.company_id.id,
+            "agx_batch_id": self.id,
+        })
+
+    def _post_stock_pickings(self):
         Move = self.env["stock.move"]
         MoveLine = self.env["stock.move.line"]
+        all_created_moves = self.env["stock.move"]
         for rec in self:
-            if rec.stock_move_ids.filtered(lambda m: m.state == "done"):
-                continue
             production_location = rec.company_id.agx_production_location_id or rec._get_default_production_location()
             finished_location = rec.company_id.agx_finished_goods_location_id or rec._get_default_stock_location()
-            if not production_location or not finished_location:
-                raise UserError(_("Please configure Production and Finished Goods locations in Settings."))
-            created_moves = self.env["stock.move"]
+            internal_type = rec._get_internal_picking_type()
+            if not internal_type:
+                raise UserError(_("Please configure an internal transfer type in Settings."))
+
+            input_groups = defaultdict(list)
             for line in rec.input_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
                 source_location = rec._input_source_location(line)
-                move = Move.create({
-                    "description_picking": f"{rec.name} / Consume / {line.product_id.display_name}",
-                    "company_id": rec.company_id.id,
-                    "product_id": line.product_id.id,
-                    "product_uom_qty": line.qty,
-                    "product_uom": (line.uom_id or line.product_id.uom_id).id,
-                    "location_id": source_location.id,
-                    "location_dest_id": production_location.id,
-                    "agx_batch_id": rec.id,
-                    "agx_flow_type": "consume",
-                    "origin": rec.name,
-                })
-                move._action_confirm()
-                ml_vals = {
-                    "move_id": move.id,
-                    "product_id": line.product_id.id,
-                    "product_uom_id": (line.uom_id or line.product_id.uom_id).id,
-                    "location_id": source_location.id,
-                    "location_dest_id": production_location.id,
-                    "quantity": line.qty,
-                }
-                if line.lot_id:
-                    ml_vals["lot_id"] = line.lot_id.id
-                MoveLine.create(ml_vals)
-                move._action_done()
-                created_moves |= move
+                input_groups[source_location.id].append((source_location, line))
+
+            for source_location_id, grouped_lines in input_groups.items():
+                source_location = grouped_lines[0][0]
+                picking = rec._create_picking(
+                    picking_type=internal_type,
+                    location_id=source_location,
+                    location_dest_id=production_location,
+                    origin=f"{rec.name} / Consumption",
+                )
+                created_input_pairs = []
+                for _source_location, line in grouped_lines:
+                    move = Move.create({
+                        "name": f"{rec.name} / Consume / {line.product_id.display_name}",
+                        "description_picking": f"{rec.name} / Consume / {line.product_id.display_name}",
+                        "company_id": rec.company_id.id,
+                        "product_id": line.product_id.id,
+                        "product_uom_qty": line.qty,
+                        "product_uom": (line.uom_id or line.product_id.uom_id).id,
+                        "location_id": source_location.id,
+                        "location_dest_id": production_location.id,
+                        "agx_batch_id": rec.id,
+                        "agx_flow_type": "consume",
+                        "origin": rec.name,
+                        "picking_id": picking.id,
+                    })
+                    all_created_moves |= move
+                    created_input_pairs.append((move, line))
+                picking.action_confirm()
+                for move, line in created_input_pairs:
+                    move.move_line_ids.unlink()
+                    MoveLine.create(rec._prepare_move_line_vals(
+                        move=move,
+                        product=line.product_id,
+                        uom=(line.uom_id or line.product_id.uom_id),
+                        location_id=source_location,
+                        location_dest_id=production_location,
+                        qty=line.qty,
+                        lot_id=line.lot_id,
+                    ))
+                rec._validate_picking(picking)
+
+            output_picking = rec._create_picking(
+                picking_type=internal_type,
+                location_id=production_location,
+                location_dest_id=finished_location,
+                origin=f"{rec.name} / Output",
+            )
+            created_output_pairs = []
             for line in rec.output_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
                 move = Move.create({
+                    "name": f"{rec.name} / Output / {line.product_id.display_name}",
                     "description_picking": f"{rec.name} / Output / {line.product_id.display_name}",
                     "company_id": rec.company_id.id,
                     "product_id": line.product_id.id,
@@ -283,29 +396,31 @@ class AgxBatch(models.Model):
                     "agx_batch_id": rec.id,
                     "agx_flow_type": "output",
                     "origin": rec.name,
+                    "picking_id": output_picking.id,
                 })
-                move._action_confirm()
-                ml_vals = {
-                    "move_id": move.id,
-                    "product_id": line.product_id.id,
-                    "product_uom_id": (line.uom_id or line.product_id.uom_id).id,
-                    "location_id": production_location.id,
-                    "location_dest_id": finished_location.id,
-                    "quantity": line.qty,
-                }
-                if line.lot_id:
-                    ml_vals["lot_id"] = line.lot_id.id
-                MoveLine.create(ml_vals)
-                move._action_done()
-                created_moves |= move
-            return created_moves
+                all_created_moves |= move
+                created_output_pairs.append((move, line))
+            output_picking.action_confirm()
+            for move, line in created_output_pairs:
+                move.move_line_ids.unlink()
+                MoveLine.create(rec._prepare_move_line_vals(
+                    move=move,
+                    product=line.product_id,
+                    uom=(line.uom_id or line.product_id.uom_id),
+                    location_id=production_location,
+                    location_dest_id=finished_location,
+                    qty=line.qty,
+                    lot_id=line.lot_id,
+                ))
+            rec._validate_picking(output_picking)
+        return all_created_moves
 
     def action_view_stock_moves(self):
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
-            "name": _("Stock Moves"),
-            "res_model": "stock.move",
+            "name": _("Stock Transfers"),
+            "res_model": "stock.picking",
             "view_mode": "list,form",
             "domain": [("agx_batch_id", "=", self.id)],
             "target": "current",
