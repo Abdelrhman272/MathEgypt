@@ -116,43 +116,144 @@ class AgxShipment(models.Model):
     def _quantity_field_name(self, model):
         return "quantity" if "quantity" in model._fields else "qty_done"
 
-    def _lock_reservation_scope(self, product_ids):
+    def _lock_reservation_scope(self, candidate_quant_ids, lot_pairs):
         self.ensure_one()
-        product_ids = sorted(set(product_ids or []))
-        if not product_ids:
-            return
-        product_ids = tuple(product_ids)
+        candidate_quant_ids = tuple(sorted(set(candidate_quant_ids or [])))
+        lot_pairs = sorted(set(lot_pairs or []))
         self.env["stock.quant"].flush_model(["company_id", "product_id", "lot_id", "quantity", "reserved_quantity", "location_id"])
         self.env["agx.shipment.lot.line"].flush_model(["shipment_id", "product_id", "lot_id", "reserved_qty"])
         self.env.cr.execute("SELECT id FROM agx_shipment WHERE id = %s FOR UPDATE", (self.id,))
-        self.env.cr.execute(
-            """
-            SELECT sq.id
-              FROM stock_quant sq
-              JOIN stock_location sl ON sl.id = sq.location_id
-             WHERE sq.company_id = %s
-               AND sq.product_id IN %s
-               AND sq.lot_id IS NOT NULL
-               AND sq.quantity > 0
-               AND sl.usage = 'internal'
-             ORDER BY sq.product_id, sq.lot_id, sq.id
-             FOR UPDATE
-            """,
-            (self.company_id.id, product_ids),
-        )
-        self.env.cr.execute(
-            """
-            SELECT ll.id
-              FROM agx_shipment_lot_line ll
-              JOIN agx_shipment s ON s.id = ll.shipment_id
-             WHERE s.company_id = %s
-               AND ll.product_id IN %s
-               AND s.state != 'cancelled'
-             ORDER BY ll.product_id, ll.lot_id, ll.id
-             FOR UPDATE
-            """,
-            (self.company_id.id, product_ids),
-        )
+        if candidate_quant_ids:
+            self.env.cr.execute(
+                """
+                SELECT sq.id
+                  FROM stock_quant sq
+                 WHERE sq.id IN %s
+                 ORDER BY sq.id
+                 FOR UPDATE
+                """,
+                (candidate_quant_ids,),
+            )
+        if lot_pairs:
+            values_sql = ",".join(["(%s,%s)"] * len(lot_pairs))
+            pair_params = []
+            for product_id, lot_id in lot_pairs:
+                pair_params.extend([product_id, lot_id])
+            self.env.cr.execute(
+                f"""
+                SELECT ll.id
+                  FROM agx_shipment_lot_line ll
+                  JOIN agx_shipment s ON s.id = ll.shipment_id
+                  JOIN (VALUES {values_sql}) AS scope(product_id, lot_id)
+                    ON scope.product_id = ll.product_id
+                   AND scope.lot_id = ll.lot_id
+                 WHERE s.company_id = %s
+                   AND s.state != 'cancelled'
+                 ORDER BY ll.product_id, ll.lot_id, ll.id
+                 FOR UPDATE
+                """,
+                tuple(pair_params + [self.company_id.id]),
+            )
+
+    def _get_candidate_reservation_scope(self):
+        self.ensure_one()
+        Quant = self.env["stock.quant"]
+        BatchOutput = self.env["agx.batch.output"]
+        candidate_quant_ids = []
+        candidate_pairs = set()
+        pending_reserved = {}
+        for line in self.line_ids:
+            needed = line.product_qty
+            if needed <= 0:
+                continue
+            quants = Quant.search([
+                ("company_id", "=", self.company_id.id),
+                ("product_id", "=", line.product_id.id),
+                ("location_id.usage", "=", "internal"),
+                ("lot_id", "!=", False),
+                ("quantity", ">", 0),
+            ], order="in_date,id")
+            for quant in quants:
+                pair = (line.product_id.id, quant.lot_id.id)
+                effective_available = self._get_lot_effective_available_qty(
+                    lot_id=quant.lot_id.id,
+                    product_id=line.product_id.id,
+                    exclude_shipment_id=self.id,
+                ) - pending_reserved.get(pair, 0.0)
+                effective_available = max(effective_available, 0.0)
+                if effective_available <= 0:
+                    continue
+                output = BatchOutput.search([
+                    ("lot_id", "=", quant.lot_id.id),
+                    ("product_id", "=", line.product_id.id),
+                ], limit=1)
+                if line.grade_id and output and output.grade_id != line.grade_id:
+                    continue
+                if line.size_id and output and output.size_id != line.size_id:
+                    continue
+                take = min(needed, effective_available)
+                if take <= 0:
+                    continue
+                candidate_quant_ids.append(quant.id)
+                candidate_pairs.add(pair)
+                pending_reserved[pair] = pending_reserved.get(pair, 0.0) + take
+                needed -= take
+                if needed <= 0:
+                    break
+            if needed > 0:
+                raise UserError(_("Not enough available lots for product %s.") % line.product_id.display_name)
+        return sorted(set(candidate_quant_ids)), sorted(candidate_pairs)
+
+    def _compute_reservation_allocations_from_candidates(self, candidate_quant_ids):
+        self.ensure_one()
+        BatchOutput = self.env["agx.batch.output"]
+        allocations = []
+        pending_reserved = {}
+        candidate_quants = self.env["stock.quant"].search([("id", "in", candidate_quant_ids)], order="in_date,id")
+        quants_by_product = {}
+        for quant in candidate_quants:
+            quants_by_product.setdefault(quant.product_id.id, []).append(quant)
+        for line in self.line_ids:
+            needed = line.product_qty
+            if needed <= 0:
+                continue
+            quants = quants_by_product.get(line.product_id.id, [])
+            for quant in quants:
+                pair = (line.product_id.id, quant.lot_id.id)
+                effective_available = self._get_lot_effective_available_qty(
+                    lot_id=quant.lot_id.id,
+                    product_id=line.product_id.id,
+                    exclude_shipment_id=self.id,
+                ) - pending_reserved.get(pair, 0.0)
+                effective_available = max(effective_available, 0.0)
+                if effective_available <= 0:
+                    continue
+                output = BatchOutput.search([
+                    ("lot_id", "=", quant.lot_id.id),
+                    ("product_id", "=", line.product_id.id),
+                ], limit=1)
+                if line.grade_id and output and output.grade_id != line.grade_id:
+                    continue
+                if line.size_id and output and output.size_id != line.size_id:
+                    continue
+                take = min(needed, effective_available)
+                if take <= 0:
+                    continue
+                allocations.append((0, 0, {
+                    "shipment_line_id": line.id,
+                    "product_id": line.product_id.id,
+                    "lot_id": quant.lot_id.id,
+                    "batch_output_id": output.id if output else False,
+                    "available_qty": effective_available,
+                    "reserved_qty": take,
+                }))
+                pending_reserved[pair] = pending_reserved.get(pair, 0.0) + take
+                needed -= take
+                if needed <= 0:
+                    break
+            if needed > 0:
+                raise UserError(_("Not enough available lots for product %s.") % line.product_id.display_name)
+        return allocations
 
     def _lock_lot_reservation_scope(self, lot_id, product_id):
         self.ensure_one()
@@ -309,61 +410,12 @@ class AgxShipment(models.Model):
             rec.delivery_picking_id = picking.id
 
     def action_reserve(self):
-        Quant = self.env["stock.quant"]
-        BatchOutput = self.env["agx.batch.output"]
         for rec in self:
-            product_ids = rec.line_ids.filtered(lambda l: l.product_id and l.product_qty > 0).mapped("product_id").ids
-            rec._lock_reservation_scope(product_ids)
             rec._sync_container_setup()
             rec._normalize_line_containers()
-            allocations = []
-            pending_reserved = {}
-            for line in rec.line_ids:
-                needed = line.product_qty
-                if needed <= 0:
-                    continue
-                quants = Quant.search([
-                    ("company_id", "=", rec.company_id.id),
-                    ("product_id", "=", line.product_id.id),
-                    ("location_id.usage", "=", "internal"),
-                    ("lot_id", "!=", False),
-                    ("quantity", ">", 0),
-                ], order="in_date,id")
-                for quant in quants:
-                    reservation_key = (quant.lot_id.id, line.product_id.id)
-                    effective_available = rec._get_lot_effective_available_qty(
-                        lot_id=quant.lot_id.id,
-                        product_id=line.product_id.id,
-                        exclude_shipment_id=rec.id,
-                    ) - pending_reserved.get(reservation_key, 0.0)
-                    effective_available = max(effective_available, 0.0)
-                    if effective_available <= 0:
-                        continue
-                    output = BatchOutput.search([
-                        ("lot_id", "=", quant.lot_id.id),
-                        ("product_id", "=", line.product_id.id),
-                    ], limit=1)
-                    if line.grade_id and output and output.grade_id != line.grade_id:
-                        continue
-                    if line.size_id and output and output.size_id != line.size_id:
-                        continue
-                    take = min(needed, effective_available)
-                    if take <= 0:
-                        continue
-                    allocations.append((0, 0, {
-                        "shipment_line_id": line.id,
-                        "product_id": line.product_id.id,
-                        "lot_id": quant.lot_id.id,
-                        "batch_output_id": output.id if output else False,
-                        "available_qty": effective_available,
-                        "reserved_qty": take,
-                    }))
-                    pending_reserved[reservation_key] = pending_reserved.get(reservation_key, 0.0) + take
-                    needed -= take
-                    if needed <= 0:
-                        break
-                if needed > 0:
-                    raise UserError(_("Not enough available lots for product %s.") % line.product_id.display_name)
+            candidate_quant_ids, candidate_pairs = rec._get_candidate_reservation_scope()
+            rec._lock_reservation_scope(candidate_quant_ids, candidate_pairs)
+            allocations = rec._compute_reservation_allocations_from_candidates(candidate_quant_ids)
             rec.lot_line_ids.unlink()
             if allocations:
                 rec.write({"lot_line_ids": allocations})
