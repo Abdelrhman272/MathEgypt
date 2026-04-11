@@ -116,6 +116,79 @@ class AgxShipment(models.Model):
     def _quantity_field_name(self, model):
         return "quantity" if "quantity" in model._fields else "qty_done"
 
+    def _lock_reservation_scope(self, product_ids):
+        self.ensure_one()
+        product_ids = sorted(set(product_ids or []))
+        if not product_ids:
+            return
+        product_ids = tuple(product_ids)
+        self.env["stock.quant"].flush_model(["company_id", "product_id", "lot_id", "quantity", "reserved_quantity", "location_id"])
+        self.env["agx.shipment.lot.line"].flush_model(["shipment_id", "product_id", "lot_id", "reserved_qty"])
+        self.env.cr.execute("SELECT id FROM agx_shipment WHERE id = %s FOR UPDATE", (self.id,))
+        self.env.cr.execute(
+            """
+            SELECT sq.id
+              FROM stock_quant sq
+              JOIN stock_location sl ON sl.id = sq.location_id
+             WHERE sq.company_id = %s
+               AND sq.product_id IN %s
+               AND sq.lot_id IS NOT NULL
+               AND sq.quantity > 0
+               AND sl.usage = 'internal'
+             ORDER BY sq.product_id, sq.lot_id, sq.id
+             FOR UPDATE
+            """,
+            (self.company_id.id, product_ids),
+        )
+        self.env.cr.execute(
+            """
+            SELECT ll.id
+              FROM agx_shipment_lot_line ll
+              JOIN agx_shipment s ON s.id = ll.shipment_id
+             WHERE s.company_id = %s
+               AND ll.product_id IN %s
+               AND s.state != 'cancelled'
+             ORDER BY ll.product_id, ll.lot_id, ll.id
+             FOR UPDATE
+            """,
+            (self.company_id.id, product_ids),
+        )
+
+    def _lock_lot_reservation_scope(self, lot_id, product_id):
+        self.ensure_one()
+        if not lot_id or not product_id:
+            return
+        self.env["stock.quant"].flush_model(["company_id", "product_id", "lot_id", "quantity", "reserved_quantity", "location_id"])
+        self.env["agx.shipment.lot.line"].flush_model(["shipment_id", "product_id", "lot_id", "reserved_qty"])
+        self.env.cr.execute(
+            """
+            SELECT sq.id
+              FROM stock_quant sq
+              JOIN stock_location sl ON sl.id = sq.location_id
+             WHERE sq.company_id = %s
+               AND sq.product_id = %s
+               AND sq.lot_id = %s
+               AND sl.usage = 'internal'
+             ORDER BY sq.id
+             FOR UPDATE
+            """,
+            (self.company_id.id, product_id, lot_id),
+        )
+        self.env.cr.execute(
+            """
+            SELECT ll.id
+              FROM agx_shipment_lot_line ll
+              JOIN agx_shipment s ON s.id = ll.shipment_id
+             WHERE s.company_id = %s
+               AND ll.product_id = %s
+               AND ll.lot_id = %s
+               AND s.state != 'cancelled'
+             ORDER BY ll.id
+             FOR UPDATE
+            """,
+            (self.company_id.id, product_id, lot_id),
+        )
+
     def _get_other_reserved_qty(self, lot_id, product_id, exclude_shipment_id=False, exclude_lot_line_id=False):
         domain = [
             ("lot_id", "=", lot_id),
@@ -239,6 +312,8 @@ class AgxShipment(models.Model):
         Quant = self.env["stock.quant"]
         BatchOutput = self.env["agx.batch.output"]
         for rec in self:
+            product_ids = rec.line_ids.filtered(lambda l: l.product_id and l.product_qty > 0).mapped("product_id").ids
+            rec._lock_reservation_scope(product_ids)
             rec._sync_container_setup()
             rec._normalize_line_containers()
             allocations = []
@@ -521,6 +596,8 @@ class AgxShipmentLotLine(models.Model):
         for rec in self:
             if rec.reserved_qty <= 0:
                 raise ValidationError(_("Reserved quantity must be greater than zero."))
+            if rec.shipment_id:
+                rec.shipment_id._lock_lot_reservation_scope(lot_id=rec.lot_id.id, product_id=rec.product_id.id)
             effective_available = rec.shipment_id._get_lot_effective_available_qty(
                 lot_id=rec.lot_id.id,
                 product_id=rec.product_id.id,
