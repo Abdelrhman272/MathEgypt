@@ -56,7 +56,6 @@ class AgxBatch(models.Model):
 
     @api.depends("evaluation_id", "stock_picking_ids.state", "stock_move_ids.state")
     def _compute_stock_counts(self):
-        Picking = self.env["stock.picking"]
         for rec in self:
             pickings = rec.stock_picking_ids
             rec.stock_move_count = len(pickings)
@@ -67,11 +66,7 @@ class AgxBatch(models.Model):
                 rec.stock_move_state = "done"
             else:
                 rec.stock_move_state = "partial"
-            rec.receipt_count = Picking.search_count([
-                ("agx_evaluation_id", "=", rec.evaluation_id.id),
-                ("picking_type_id.code", "=", "incoming"),
-                ("state", "=", "done"),
-            ]) if rec.evaluation_id else 0
+            rec.receipt_count = len(rec._get_done_receipts()) if rec.evaluation_id else 0
 
     @api.depends("evaluation_id", "input_line_ids.qty", "input_line_ids.product_id", "input_line_ids.lot_id")
     def _compute_actual_costs(self):
@@ -137,12 +132,41 @@ class AgxBatch(models.Model):
         self.ensure_one()
         if not self.evaluation_id:
             return self.env["stock.picking"]
-        return self.env["stock.picking"].search([
-            ("agx_evaluation_id", "=", self.evaluation_id.id),
+        Picking = self.env["stock.picking"]
+        expected_dest = self.company_id.agx_raw_material_location_id or self._get_default_stock_location()
+
+        def _dest_domain():
+            if not expected_dest:
+                return []
+            return [("location_dest_id", "child_of", expected_dest.id)]
+
+        base_domain = [
+            ("company_id", "=", self.company_id.id),
             ("picking_type_id.code", "=", "incoming"),
             ("state", "=", "done"),
-            ("company_id", "=", self.company_id.id),
+        ]
+        linked_receipts = Picking.search(base_domain + [
+            ("agx_evaluation_id", "=", self.evaluation_id.id),
         ])
+        # Keep AGX linkage as first-class traceability source, but include
+        # relevant non-linked incoming receipts so physical stock remains visible.
+        product_ids = self.evaluation_id.line_ids.mapped("product_id").ids
+        fallback_domain = base_domain + [("agx_evaluation_id", "=", False)]
+        fallback_receipts = Picking.browse()
+        if self.evaluation_id.po_id:
+            # If a direct PO exists, fallback is strictly limited to that PO's receipts.
+            fallback_receipts |= Picking.search(
+                fallback_domain + [("purchase_id", "=", self.evaluation_id.po_id.id)] + _dest_domain()
+            )
+            return linked_receipts | fallback_receipts
+        if self.evaluation_id.partner_id and product_ids:
+            fallback_receipts |= Picking.search(
+                fallback_domain + [
+                    ("partner_id", "=", self.evaluation_id.partner_id.id),
+                    ("move_ids.product_id", "in", product_ids),
+                ] + _dest_domain()
+            )
+        return linked_receipts | fallback_receipts
 
     def _load_inputs_from_evaluation_receipts(self, onchange_mode=False):
         for rec in self:
@@ -428,12 +452,13 @@ class AgxBatch(models.Model):
 
     def action_view_receipts(self):
         self.ensure_one()
+        receipt_ids = self._get_done_receipts().ids
         return {
             "type": "ir.actions.act_window",
             "name": _("Incoming Receipts"),
             "res_model": "stock.picking",
             "view_mode": "list,form",
-            "domain": [("agx_evaluation_id", "=", self.evaluation_id.id), ("picking_type_id.code", "=", "incoming")],
+            "domain": [("id", "in", receipt_ids)] if receipt_ids else [("id", "=", 0)],
             "target": "current",
         }
 
