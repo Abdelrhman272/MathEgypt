@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime, time
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
@@ -159,12 +160,16 @@ class AgxBatch(models.Model):
                 fallback_domain + [("purchase_id", "=", self.evaluation_id.po_id.id)] + _dest_domain()
             )
             return linked_receipts | fallback_receipts
-        if self.evaluation_id.partner_id and product_ids:
+        if self.evaluation_id.partner_id and product_ids and expected_dest:
+            eval_date = self.evaluation_id.evaluation_date
+            date_domain = []
+            if eval_date:
+                date_domain = [("date_done", ">=", fields.Datetime.to_string(datetime.combine(eval_date, time.min)))]
             fallback_receipts |= Picking.search(
                 fallback_domain + [
                     ("partner_id", "=", self.evaluation_id.partner_id.id),
                     ("move_ids.product_id", "in", product_ids),
-                ] + _dest_domain()
+                ] + _dest_domain() + date_domain
             )
         return linked_receipts | fallback_receipts
 
@@ -258,11 +263,14 @@ class AgxBatch(models.Model):
 
     def _get_line_available_qty(self, line):
         self.ensure_one()
+        raw_location = self.company_id.agx_raw_material_location_id
         domain = [
             ("company_id", "=", self.company_id.id),
             ("product_id", "=", line.product_id.id),
             ("location_id.usage", "=", "internal"),
         ]
+        if raw_location:
+            domain.append(("location_id", "child_of", raw_location.id))
         if line.lot_id:
             domain.append(("lot_id", "=", line.lot_id.id))
         quants = self.env["stock.quant"].search(domain)
@@ -271,18 +279,66 @@ class AgxBatch(models.Model):
             available_qty += max((quant.quantity or 0.0) - (quant.reserved_quantity or 0.0), 0.0)
         return available_qty
 
+    def _get_stock_setup(self):
+        self.ensure_one()
+        production_location = self.company_id.agx_production_location_id
+        finished_location = self.company_id.agx_finished_goods_location_id
+        raw_location = self.company_id.agx_raw_material_location_id
+        internal_type = self.company_id.agx_internal_picking_type_id
+        missing = []
+        if not raw_location:
+            missing.append(_("Raw Material Location"))
+        if not production_location:
+            missing.append(_("Production Location"))
+        if not finished_location:
+            missing.append(_("Finished Goods Location"))
+        if not internal_type:
+            missing.append(_("Internal Transfer Type"))
+        if missing:
+            raise UserError(_("Please configure the following in Agricultural Export Settings: %s") % ", ".join(missing))
+        return {
+            "raw_location": raw_location,
+            "production_location": production_location,
+            "finished_location": finished_location,
+            "internal_type": internal_type,
+        }
+
+    def _get_line_source_allocations(self, line, raw_location):
+        self.ensure_one()
+        allocations = []
+        remaining = line.qty or 0.0
+        if remaining <= 0:
+            return allocations, 0.0
+        quant_domain = [
+            ("company_id", "=", self.company_id.id),
+            ("product_id", "=", line.product_id.id),
+            ("location_id.usage", "=", "internal"),
+            ("location_id", "child_of", raw_location.id),
+        ]
+        if line.lot_id:
+            quant_domain.append(("lot_id", "=", line.lot_id.id))
+        quants = self.env["stock.quant"].search(quant_domain, order="in_date,id")
+        for quant in quants:
+            available_qty = max((quant.quantity or 0.0) - (quant.reserved_quantity or 0.0), 0.0)
+            if available_qty <= 0:
+                continue
+            take_qty = min(remaining, available_qty)
+            allocations.append((quant.location_id, take_qty))
+            remaining -= take_qty
+            if remaining <= 0:
+                break
+        return allocations, max(remaining, 0.0)
+
     def _validate_stock_posting(self):
         self.ensure_one()
-        production_location = self.company_id.agx_production_location_id or self._get_default_production_location()
-        finished_location = self.company_id.agx_finished_goods_location_id or self._get_default_stock_location()
-        internal_type = self._get_internal_picking_type()
-        if not production_location or not finished_location or not internal_type:
-            raise UserError(_("Please configure Production Location, Finished Goods Location, and Internal Transfer Type in Settings."))
+        stock_setup = self._get_stock_setup()
+        raw_location = stock_setup["raw_location"]
         if self.stock_picking_ids.filtered(lambda p: p.state == "done"):
             raise UserError(_("This batch already has posted stock transfers. To avoid duplicate inventory movements, a done batch cannot be posted again."))
         for line in self.input_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
-            available_qty = self._get_line_available_qty(line)
-            if available_qty < line.qty:
+            allocations, remaining_qty = self._get_line_source_allocations(line, raw_location)
+            available_qty = sum(qty for _location, qty in allocations)
+            if remaining_qty > 0:
                 if line.lot_id:
                     raise UserError(_("Not enough available quantity for product %(product)s in lot %(lot)s. Needed: %(needed)s, Available: %(available)s") % {
                         "product": line.product_id.display_name,
@@ -349,16 +405,24 @@ class AgxBatch(models.Model):
         MoveLine = self.env["stock.move.line"]
         all_created_moves = self.env["stock.move"]
         for rec in self:
-            production_location = rec.company_id.agx_production_location_id or rec._get_default_production_location()
-            finished_location = rec.company_id.agx_finished_goods_location_id or rec._get_default_stock_location()
-            internal_type = rec._get_internal_picking_type()
-            if not internal_type:
-                raise UserError(_("Please configure an internal transfer type in Settings."))
+            stock_setup = rec._get_stock_setup()
+            raw_location = stock_setup["raw_location"]
+            production_location = stock_setup["production_location"]
+            finished_location = stock_setup["finished_location"]
+            internal_type = stock_setup["internal_type"]
 
             input_groups = defaultdict(list)
             for line in rec.input_line_ids.filtered(lambda l: l.product_id and l.qty > 0):
-                source_location = rec._input_source_location(line)
-                input_groups[source_location.id].append((source_location, line))
+                allocations, remaining_qty = rec._get_line_source_allocations(line, raw_location)
+                if remaining_qty > 0:
+                    raise UserError(_("Unable to allocate sufficient stock for %(product)s from Raw Material Location %(location)s. Needed: %(needed)s, Available: %(available)s") % {
+                        "product": line.product_id.display_name,
+                        "location": raw_location.display_name,
+                        "needed": line.qty,
+                        "available": line.qty - remaining_qty,
+                    })
+                for source_location, alloc_qty in allocations:
+                    input_groups[source_location.id].append((source_location, line, alloc_qty))
 
             for source_location_id, grouped_lines in input_groups.items():
                 source_location = grouped_lines[0][0]
@@ -369,13 +433,13 @@ class AgxBatch(models.Model):
                     origin=f"{rec.name} / Consumption",
                 )
                 created_input_pairs = []
-                for _source_location, line in grouped_lines:
+                for _source_location, line, alloc_qty in grouped_lines:
                     move = Move.create({
                         "name": f"{rec.name} / Consume / {line.product_id.display_name}",
                         "description_picking": f"{rec.name} / Consume / {line.product_id.display_name}",
                         "company_id": rec.company_id.id,
                         "product_id": line.product_id.id,
-                        "product_uom_qty": line.qty,
+                        "product_uom_qty": alloc_qty,
                         "product_uom": (line.uom_id or line.product_id.uom_id).id,
                         "location_id": source_location.id,
                         "location_dest_id": production_location.id,
@@ -385,9 +449,9 @@ class AgxBatch(models.Model):
                         "picking_id": picking.id,
                     })
                     all_created_moves |= move
-                    created_input_pairs.append((move, line))
+                    created_input_pairs.append((move, line, alloc_qty))
                 picking.action_confirm()
-                for move, line in created_input_pairs:
+                for move, line, alloc_qty in created_input_pairs:
                     move.move_line_ids.unlink()
                     MoveLine.create(rec._prepare_move_line_vals(
                         move=move,
@@ -395,7 +459,7 @@ class AgxBatch(models.Model):
                         uom=(line.uom_id or line.product_id.uom_id),
                         location_id=source_location,
                         location_dest_id=production_location,
-                        qty=line.qty,
+                        qty=alloc_qty,
                         lot_id=line.lot_id,
                     ))
                 rec._validate_picking(picking)
