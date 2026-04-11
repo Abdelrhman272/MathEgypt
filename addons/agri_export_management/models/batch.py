@@ -134,7 +134,7 @@ class AgxBatch(models.Model):
         if not self.evaluation_id:
             return self.env["stock.picking"]
         Picking = self.env["stock.picking"]
-        expected_dest = self.company_id.agx_raw_material_location_id or self._get_default_stock_location()
+        expected_dest = self.company_id.agx_raw_material_location_id
 
         def _dest_domain():
             if not expected_dest:

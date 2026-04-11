@@ -1,4 +1,5 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 
 
 class PurchaseOrder(models.Model):
@@ -43,6 +44,47 @@ class StockPicking(models.Model):
                 rec.agx_flow_type = "shipment"
             else:
                 rec.agx_flow_type = False
+
+    def _agx_has_evaluation_context(self):
+        self.ensure_one()
+        return bool(self.agx_evaluation_id or self.purchase_id.agx_evaluation_id)
+
+    def _agx_sync_incoming_raw_destination(self):
+        for rec in self.filtered(lambda p: p.picking_type_id.code == "incoming" and p.state not in ("done", "cancel")):
+            if not rec._agx_has_evaluation_context():
+                continue
+            raw_location = rec.company_id.agx_raw_material_location_id
+            if not raw_location:
+                continue
+            if rec.location_dest_id != raw_location:
+                rec.with_context(agx_skip_raw_sync=True).write({"location_dest_id": raw_location.id})
+            pending_moves = rec.move_ids.filtered(lambda m: m.state not in ("done", "cancel") and m.location_dest_id != raw_location)
+            if pending_moves:
+                pending_moves.write({"location_dest_id": raw_location.id})
+            pending_move_lines = rec.move_line_ids.filtered(lambda ml: ml.state not in ("done", "cancel") and ml.location_dest_id != raw_location)
+            if pending_move_lines:
+                pending_move_lines.write({"location_dest_id": raw_location.id})
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        pickings = super().create(vals_list)
+        pickings._agx_sync_incoming_raw_destination()
+        return pickings
+
+    def write(self, vals):
+        res = super().write(vals)
+        if not self.env.context.get("agx_skip_raw_sync"):
+            self._agx_sync_incoming_raw_destination()
+        return res
+
+    def button_validate(self):
+        for rec in self.filtered(lambda p: p.picking_type_id.code == "incoming"):
+            if not rec._agx_has_evaluation_context():
+                continue
+            if not rec.company_id.agx_raw_material_location_id:
+                raise UserError(_("Please configure Raw Material Location in Agricultural Export Settings before validating AGX incoming receipts."))
+        self._agx_sync_incoming_raw_destination()
+        return super().button_validate()
 
 
 class StockMove(models.Model):
