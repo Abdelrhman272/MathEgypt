@@ -159,6 +159,9 @@ class AgxShipment(models.Model):
         self.ensure_one()
         Quant = self.env["stock.quant"]
         BatchOutput = self.env["agx.batch.output"]
+        finished_location = self.company_id.agx_finished_goods_location_id
+        if not finished_location:
+            raise UserError(_("Please configure Finished Goods Location in Settings before reserving lots."))
         candidate_quant_ids = []
         candidate_pairs = set()
         pending_reserved = {}
@@ -170,6 +173,7 @@ class AgxShipment(models.Model):
                 ("company_id", "=", self.company_id.id),
                 ("product_id", "=", line.product_id.id),
                 ("location_id.usage", "=", "internal"),
+                ("location_id", "child_of", finished_location.id),
                 ("lot_id", "!=", False),
                 ("quantity", ">", 0),
             ], order="in_date,id")
@@ -294,7 +298,7 @@ class AgxShipment(models.Model):
         domain = [
             ("lot_id", "=", lot_id),
             ("product_id", "=", product_id),
-            ("shipment_id.state", "!=", "cancelled"),
+            ("shipment_id.state", "in", ["draft", "reserved"]),
         ]
         if exclude_shipment_id:
             domain.append(("shipment_id", "!=", exclude_shipment_id))
@@ -303,11 +307,15 @@ class AgxShipment(models.Model):
         return sum(self.env["agx.shipment.lot.line"].search(domain).mapped("reserved_qty"))
 
     def _get_lot_physical_available_qty(self, lot_id, product_id):
+        finished_location = self.company_id.agx_finished_goods_location_id
+        if not finished_location:
+            return 0.0
         quants = self.env["stock.quant"].search([
             ("company_id", "=", self.company_id.id),
             ("product_id", "=", product_id),
             ("lot_id", "=", lot_id),
             ("location_id.usage", "=", "internal"),
+            ("location_id", "child_of", finished_location.id),
         ])
         available_qty = 0.0
         for quant in quants:
@@ -341,7 +349,7 @@ class AgxShipment(models.Model):
 
     def _get_finished_goods_location(self):
         self.ensure_one()
-        return self.company_id.agx_finished_goods_location_id or self._get_default_stock_location()
+        return self.company_id.agx_finished_goods_location_id
 
     def _get_customer_location(self):
         self.ensure_one()
@@ -352,10 +360,7 @@ class AgxShipment(models.Model):
 
     def _get_outgoing_picking_type(self):
         self.ensure_one()
-        return self.company_id.agx_outgoing_picking_type_id or self.env["stock.picking.type"].search([
-            ("code", "=", "outgoing"),
-            ("company_id", "in", [False, self.company_id.id]),
-        ], limit=1, order="company_id desc,id")
+        return self.company_id.agx_outgoing_picking_type_id
 
     def _validate_delivery_settings(self):
         self.ensure_one()
@@ -411,6 +416,7 @@ class AgxShipment(models.Model):
 
     def action_reserve(self):
         for rec in self:
+            rec._validate_delivery_settings()
             rec._sync_container_setup()
             rec._normalize_line_containers()
             candidate_quant_ids, candidate_pairs = rec._get_candidate_reservation_scope()
@@ -428,6 +434,17 @@ class AgxShipment(models.Model):
         for rec in self:
             if not rec.lot_line_ids:
                 raise UserError(_("Please reserve lots before shipping."))
+            dangling_lot_lines = rec.lot_line_ids.filtered(lambda l: not l.shipment_line_id)
+            if dangling_lot_lines:
+                raise UserError(_("All reserved lots must be linked to shipment product lines before shipping."))
+            for line in rec.line_ids.filtered(lambda l: l.product_id and l.product_qty > 0):
+                reserved_qty = sum(rec.lot_line_ids.filtered(lambda l: l.shipment_line_id == line).mapped("reserved_qty"))
+                if reserved_qty < line.product_qty:
+                    raise UserError(_("Reserved quantity for product %(product)s is insufficient. Required: %(required)s, Reserved: %(reserved)s") % {
+                        "product": line.product_id.display_name,
+                        "required": line.product_qty,
+                        "reserved": reserved_qty,
+                    })
             if not rec.delivery_picking_id or rec.delivery_picking_id.state in ("cancel",):
                 rec._build_delivery_picking()
             picking = rec.delivery_picking_id
@@ -440,7 +457,7 @@ class AgxShipment(models.Model):
                 move_lines.unlink()
                 reserved_lines = rec.lot_line_ids.filtered(lambda l: l.shipment_line_id and l.shipment_line_id == move.agx_shipment_line_id)
                 if not reserved_lines:
-                    continue
+                    raise UserError(_("Missing reserved lots for delivery move %s.") % move.display_name)
                 move.product_uom_qty = sum(reserved_lines.mapped("reserved_qty"))
                 for lot_line in reserved_lines:
                     vals = {

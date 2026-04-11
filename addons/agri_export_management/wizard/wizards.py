@@ -10,6 +10,7 @@ class AgxReserveLotsWizard(models.TransientModel):
     _description = "Reserve Lots Wizard"
 
     shipment_id = fields.Many2one("agx.shipment", required=True)
+    shipment_line_id = fields.Many2one("agx.shipment.line", domain="[('shipment_id', '=', shipment_id)]")
     product_id = fields.Many2one("product.product")
     lot_id = fields.Many2one("stock.lot")
     available_qty = fields.Float(readonly=True)
@@ -19,6 +20,10 @@ class AgxReserveLotsWizard(models.TransientModel):
         self.ensure_one()
         if not self.shipment_id or not self.product_id or not self.lot_id:
             raise UserError(_("Please select a shipment, product, and lot before applying the reservation."))
+        if self.shipment_line_id and self.shipment_line_id.shipment_id != self.shipment_id:
+            raise UserError(_("Selected shipment line must belong to the selected shipment."))
+        if self.shipment_line_id and self.shipment_line_id.product_id != self.product_id:
+            raise UserError(_("Selected shipment line product must match the selected product."))
         effective_available = self.shipment_id._get_lot_effective_available_qty(
             lot_id=self.lot_id.id,
             product_id=self.product_id.id,
@@ -33,6 +38,7 @@ class AgxReserveLotsWizard(models.TransientModel):
         ], limit=1)
         self.env["agx.shipment.lot.line"].create({
             "shipment_id": self.shipment_id.id,
+            "shipment_line_id": self.shipment_line_id.id if self.shipment_line_id else False,
             "product_id": self.product_id.id,
             "lot_id": self.lot_id.id,
             "batch_output_id": batch_output.id if batch_output else False,
@@ -180,10 +186,19 @@ class AgxTraceabilityWizard(models.TransientModel):
         return "".join(parts)
 
     def _render_lot_block(self, lot):
-        batch_outputs = self.env["agx.batch.output"].search([("lot_id", "=", lot.id)])
-        consuming_batches = self.env["agx.batch.input"].search([("lot_id", "=", lot.id)]).mapped("batch_id")
-        shipment_lots = self.env["agx.shipment.lot.line"].search([("lot_id", "=", lot.id), ("shipment_id.state", "!=", "cancelled")])
-        quants = self.env["stock.quant"].search([("lot_id", "=", lot.id), ("location_id.usage", "=", "internal")])
+        company_id = self.env.company.id
+        batch_outputs = self.env["agx.batch.output"].search([("lot_id", "=", lot.id), ("company_id", "=", company_id)])
+        consuming_batches = self.env["agx.batch.input"].search([("lot_id", "=", lot.id), ("batch_id.company_id", "=", company_id)]).mapped("batch_id")
+        shipment_lots = self.env["agx.shipment.lot.line"].search([
+            ("lot_id", "=", lot.id),
+            ("shipment_id.state", "!=", "cancelled"),
+            ("shipment_id.company_id", "=", company_id),
+        ])
+        quants = self.env["stock.quant"].search([
+            ("lot_id", "=", lot.id),
+            ("location_id.usage", "=", "internal"),
+            ("company_id", "=", company_id),
+        ])
         on_hand_qty = sum(quants.mapped("quantity"))
 
         parts = [f"<h3>Lot: {self._fmt(lot.display_name)}</h3>"]
