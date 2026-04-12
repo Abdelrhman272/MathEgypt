@@ -551,9 +551,6 @@ class AgxShipment(models.Model):
             ):
                 Move.create(
                     {
-                        "name": "{} / Delivery / {}".format(
-                            rec.name, line.product_id.display_name
-                        ),
                         "description_picking": "{} / Delivery / {}".format(
                             rec.name, line.product_id.display_name
                         ),

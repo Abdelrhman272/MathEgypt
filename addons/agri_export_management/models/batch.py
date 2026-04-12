@@ -583,9 +583,6 @@ class AgxBatch(models.Model):
                 for _src, line in grouped_lines:
                     move = Move.create(
                         {
-                            "name": "{} / Consume / {}".format(
-                                rec.name, line.product_id.display_name
-                            ),
                             "description_picking": "{} / Consume / {}".format(
                                 rec.name, line.product_id.display_name
                             ),
@@ -635,9 +632,6 @@ class AgxBatch(models.Model):
             ):
                 move = Move.create(
                     {
-                        "name": "{} / Output / {}".format(
-                            rec.name, line.product_id.display_name
-                        ),
                         "description_picking": "{} / Output / {}".format(
                             rec.name, line.product_id.display_name
                         ),
