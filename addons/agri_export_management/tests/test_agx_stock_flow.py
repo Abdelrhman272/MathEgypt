@@ -1,10 +1,10 @@
 from odoo import fields
 from odoo.exceptions import UserError
-from odoo.tests import SavepointCase, tagged
+from odoo.tests import TransactionCase, tagged
 
 
 @tagged("post_install", "-at_install")
-class TestAgxStockFlow(SavepointCase):
+class TestAgxStockFlow(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -272,4 +272,3 @@ class TestAgxStockFlow(SavepointCase):
         })
         with self.assertRaises(UserError):
             shipment.action_ship()
-
