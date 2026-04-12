@@ -21,10 +21,10 @@
                         <setting string="Auto-generate Lot Numbers"><field name="agx_auto_generate_lot_numbers"/></setting>
                     </block>
                     <block title="Stock Integration Settings">
-                        <setting string="Production Location" help="Required for AGX batch posting. Use a production or internal location for this company."><field name="agx_production_location_id"/></setting>
-                        <setting string="Finished Goods Location" help="Required for AGX batch output destination. Must be an internal location in this company."><field name="agx_finished_goods_location_id"/></setting>
-                        <setting string="Raw Material Location" help="Required for AGX batch consumption source scope. Must be an internal location in this company."><field name="agx_raw_material_location_id"/></setting>
-                        <setting string="Internal Transfer Type" help="Required for AGX internal consumption/output moves."><field name="agx_internal_picking_type_id" domain="[('code', '=', 'internal')]"/></setting>
+                        <setting string="Production Location"><field name="agx_production_location_id"/></setting>
+                        <setting string="Finished Goods Location"><field name="agx_finished_goods_location_id"/></setting>
+                        <setting string="Raw Material Location"><field name="agx_raw_material_location_id"/></setting>
+                        <setting string="Internal Transfer Type"><field name="agx_internal_picking_type_id" domain="[('code', '=', 'internal')]"/></setting>
                         <setting string="Outgoing Delivery Type"><field name="agx_outgoing_picking_type_id" domain="[('code', '=', 'outgoing')]"/></setting>
                     </block>
                 </app>

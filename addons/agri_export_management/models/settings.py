@@ -1,5 +1,4 @@
-from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo import fields, models
 
 
 class ResCompany(models.Model):
@@ -23,41 +22,6 @@ class ResCompany(models.Model):
     agx_raw_material_location_id = fields.Many2one("stock.location", string="Raw Material Location")
     agx_internal_picking_type_id = fields.Many2one("stock.picking.type", string="Internal Transfer Type")
     agx_outgoing_picking_type_id = fields.Many2one("stock.picking.type", string="Outgoing Delivery Type")
-
-    @api.constrains(
-        "agx_production_location_id",
-        "agx_finished_goods_location_id",
-        "agx_raw_material_location_id",
-        "agx_internal_picking_type_id",
-        "agx_outgoing_picking_type_id",
-    )
-    def _check_agx_stock_configuration(self):
-        for rec in self:
-            if rec.agx_raw_material_location_id:
-                if rec.agx_raw_material_location_id.usage != "internal":
-                    raise ValidationError("Raw Material Location must be an internal location.")
-                if rec.agx_raw_material_location_id.company_id and rec.agx_raw_material_location_id.company_id != rec:
-                    raise ValidationError("Raw Material Location must belong to the same company.")
-            if rec.agx_finished_goods_location_id:
-                if rec.agx_finished_goods_location_id.usage != "internal":
-                    raise ValidationError("Finished Goods Location must be an internal location.")
-                if rec.agx_finished_goods_location_id.company_id and rec.agx_finished_goods_location_id.company_id != rec:
-                    raise ValidationError("Finished Goods Location must belong to the same company.")
-            if rec.agx_production_location_id:
-                if rec.agx_production_location_id.usage not in ("production", "internal"):
-                    raise ValidationError("Production Location must be a production or internal location.")
-                if rec.agx_production_location_id.company_id and rec.agx_production_location_id.company_id != rec:
-                    raise ValidationError("Production Location must belong to the same company.")
-            if rec.agx_internal_picking_type_id:
-                if rec.agx_internal_picking_type_id.code != "internal":
-                    raise ValidationError("Internal Transfer Type must be of code 'internal'.")
-                if rec.agx_internal_picking_type_id.company_id and rec.agx_internal_picking_type_id.company_id != rec:
-                    raise ValidationError("Internal Transfer Type must belong to the same company.")
-            if rec.agx_outgoing_picking_type_id:
-                if rec.agx_outgoing_picking_type_id.code != "outgoing":
-                    raise ValidationError("Outgoing Delivery Type must be of code 'outgoing'.")
-                if rec.agx_outgoing_picking_type_id.company_id and rec.agx_outgoing_picking_type_id.company_id != rec:
-                    raise ValidationError("Outgoing Delivery Type must belong to the same company.")
 
 
 class ResConfigSettings(models.TransientModel):
