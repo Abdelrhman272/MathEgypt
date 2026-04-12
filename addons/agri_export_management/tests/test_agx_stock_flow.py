@@ -6,6 +6,32 @@ from odoo.tests import TransactionCase, tagged
 @tagged("post_install", "-at_install")
 class TestAgxStockFlow(TransactionCase):
     @classmethod
+    def _stockable_type_vals(cls):
+        vals = {}
+        template_model = cls.env["product.template"]
+        if "type" in template_model._fields:
+            type_keys = [k for k, _label in template_model._fields["type"].selection]
+            if "product" in type_keys:
+                vals["type"] = "product"
+            elif "consu" in type_keys:
+                vals["type"] = "consu"
+            elif "goods" in type_keys:
+                vals["type"] = "goods"
+            elif type_keys:
+                vals["type"] = type_keys[0]
+        if "detailed_type" in template_model._fields:
+            dt_keys = [k for k, _label in template_model._fields["detailed_type"].selection]
+            if "product" in dt_keys:
+                vals["detailed_type"] = "product"
+            elif "consu" in dt_keys:
+                vals["detailed_type"] = "consu"
+            elif "goods" in dt_keys:
+                vals["detailed_type"] = "goods"
+            elif dt_keys:
+                vals["detailed_type"] = dt_keys[0]
+        return vals
+
+    @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.company
@@ -65,18 +91,19 @@ class TestAgxStockFlow(TransactionCase):
             "agx_auto_generate_lot_numbers": False,
         })
 
+        stockable_type_vals = cls._stockable_type_vals()
         cls.raw_product = cls.env["product.product"].create({
             "name": "AGX Raw Product",
-            "type": "product",
             "uom_id": cls.env.ref("uom.product_uom_kgm").id,
             "purchase_ok": True,
+            **stockable_type_vals,
         })
         cls.finished_product = cls.env["product.product"].create({
             "name": "AGX Finished Product",
-            "type": "product",
             "tracking": "lot",
             "uom_id": cls.env.ref("uom.product_uom_kgm").id,
             "purchase_ok": True,
+            **stockable_type_vals,
         })
 
     @classmethod
