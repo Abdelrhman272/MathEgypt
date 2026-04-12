@@ -69,7 +69,6 @@ class TestAgxStockFlow(TransactionCase):
             "name": "AGX Raw Product",
             "type": "product",
             "uom_id": cls.env.ref("uom.product_uom_kgm").id,
-            "uom_po_id": cls.env.ref("uom.product_uom_kgm").id,
             "purchase_ok": True,
         })
         cls.finished_product = cls.env["product.product"].create({
@@ -77,7 +76,6 @@ class TestAgxStockFlow(TransactionCase):
             "type": "product",
             "tracking": "lot",
             "uom_id": cls.env.ref("uom.product_uom_kgm").id,
-            "uom_po_id": cls.env.ref("uom.product_uom_kgm").id,
             "purchase_ok": True,
         })
 
