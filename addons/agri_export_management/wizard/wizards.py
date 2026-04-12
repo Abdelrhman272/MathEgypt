@@ -10,7 +10,7 @@ class AgxReserveLotsWizard(models.TransientModel):
     _description = "Reserve Lots Wizard"
 
     shipment_id = fields.Many2one("agx.shipment", required=True)
-    shipment_line_id = fields.Many2one("agx.shipment.line", domain="[('shipment_id', '=', shipment_id)]")
+    shipment_line_id = fields.Many2one("agx.shipment.line", required=True, domain="[('shipment_id', '=', shipment_id)]")
     product_id = fields.Many2one("product.product")
     lot_id = fields.Many2one("stock.lot")
     available_qty = fields.Float(readonly=True)
@@ -20,6 +20,8 @@ class AgxReserveLotsWizard(models.TransientModel):
         self.ensure_one()
         if not self.shipment_id or not self.product_id or not self.lot_id:
             raise UserError(_("Please select a shipment, product, and lot before applying the reservation."))
+        if not self.shipment_line_id:
+            raise UserError(_("Please select a shipment line before applying the reservation."))
         if self.shipment_line_id and self.shipment_line_id.shipment_id != self.shipment_id:
             raise UserError(_("Selected shipment line must belong to the selected shipment."))
         if self.shipment_line_id and self.shipment_line_id.product_id != self.product_id:

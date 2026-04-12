@@ -161,6 +161,9 @@ class AgxBatch(models.Model):
             )
             return linked_receipts | fallback_receipts
         if self.evaluation_id.partner_id and product_ids and expected_dest:
+            # No-PO fallback is intentionally conservative:
+            # vendor + evaluation products + expected raw destination + post-evaluation date.
+            # For deterministic traceability and costing, linking receipts to an AGX PO/evaluation is preferred.
             eval_date = self.evaluation_id.evaluation_date
             date_domain = []
             if eval_date:
