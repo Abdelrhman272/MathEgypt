@@ -119,6 +119,52 @@ class TestAgxStockFlow(TransactionCase):
             if pending_moves:
                 pending_moves._action_done()
 
+    @classmethod
+    def _po_line_vals(cls, product, qty, price_unit):
+        pol_model = cls.env["purchase.order.line"]
+        vals = {
+            "name": product.display_name,
+            "product_id": product.id,
+            "price_unit": price_unit,
+        }
+        if "product_qty" in pol_model._fields:
+            vals["product_qty"] = qty
+        elif "product_uom_qty" in pol_model._fields:
+            vals["product_uom_qty"] = qty
+        elif "quantity" in pol_model._fields:
+            vals["quantity"] = qty
+        if "product_uom" in pol_model._fields:
+            vals["product_uom"] = product.uom_id.id
+        elif "product_uom_id" in pol_model._fields:
+            vals["product_uom_id"] = product.uom_id.id
+        if "date_planned" in pol_model._fields:
+            vals["date_planned"] = fields.Datetime.now()
+        return vals
+
+    @classmethod
+    def _stock_move_vals(cls, product, qty, source_location_id, dest_location_id, picking_id):
+        move_model = cls.env["stock.move"]
+        vals = {
+            "company_id": cls.company.id,
+            "product_id": product.id,
+            "location_id": source_location_id,
+            "location_dest_id": dest_location_id,
+            "picking_id": picking_id,
+        }
+        if "name" in move_model._fields:
+            vals["name"] = f"IN {product.display_name}"
+        elif "description_picking" in move_model._fields:
+            vals["description_picking"] = f"IN {product.display_name}"
+        if "product_uom_qty" in move_model._fields:
+            vals["product_uom_qty"] = qty
+        elif "quantity" in move_model._fields:
+            vals["quantity"] = qty
+        if "product_uom" in move_model._fields:
+            vals["product_uom"] = product.uom_id.id
+        elif "product_uom_id" in move_model._fields:
+            vals["product_uom_id"] = product.uom_id.id
+        return vals
+
     def _create_done_incoming(self, product, qty, dest_location, partner=None, purchase=False, lot=False):
         partner = partner or self.partner_vendor
         picking = self.Picking.create({
@@ -129,16 +175,13 @@ class TestAgxStockFlow(TransactionCase):
             "location_dest_id": dest_location.id,
             "purchase_id": purchase.id if purchase else False,
         })
-        move = self.Move.create({
-            "name": f"IN {product.display_name}",
-            "company_id": self.company.id,
-            "product_id": product.id,
-            "product_uom_qty": qty,
-            "product_uom": product.uom_id.id,
-            "location_id": picking.location_id.id,
-            "location_dest_id": picking.location_dest_id.id,
-            "picking_id": picking.id,
-        })
+        move = self.Move.create(self._stock_move_vals(
+            product=product,
+            qty=qty,
+            source_location_id=picking.location_id.id,
+            dest_location_id=picking.location_dest_id.id,
+            picking_id=picking.id,
+        ))
         picking.action_confirm()
         ml_vals = {
             "move_id": move.id,
@@ -175,14 +218,7 @@ class TestAgxStockFlow(TransactionCase):
             "partner_id": self.partner_vendor.id,
             "company_id": self.company.id,
             "agx_evaluation_id": evaluation.id,
-            "order_line": [(0, 0, {
-                "name": self.raw_product.display_name,
-                "product_id": self.raw_product.id,
-                "product_qty": 5.0,
-                "product_uom": self.raw_product.uom_id.id,
-                "price_unit": 10.0,
-                "date_planned": fields.Datetime.now(),
-            })],
+            "order_line": [(0, 0, self._po_line_vals(self.raw_product, 5.0, 10.0))],
         })
         wrong_dest = self.finished_location
         picking = self.Picking.create({
@@ -193,16 +229,13 @@ class TestAgxStockFlow(TransactionCase):
             "location_id": self.incoming_type.default_location_src_id.id,
             "location_dest_id": wrong_dest.id,
         })
-        move = self.Move.create({
-            "name": self.raw_product.display_name,
-            "company_id": self.company.id,
-            "product_id": self.raw_product.id,
-            "product_uom_qty": 5.0,
-            "product_uom": self.raw_product.uom_id.id,
-            "location_id": picking.location_id.id,
-            "location_dest_id": wrong_dest.id,
-            "picking_id": picking.id,
-        })
+        move = self.Move.create(self._stock_move_vals(
+            product=self.raw_product,
+            qty=5.0,
+            source_location_id=picking.location_id.id,
+            dest_location_id=wrong_dest.id,
+            picking_id=picking.id,
+        ))
         self.MoveLine.create({
             "move_id": move.id,
             "product_id": self.raw_product.id,
