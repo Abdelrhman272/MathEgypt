@@ -25,7 +25,7 @@ class TestAgxStockFlow(TransactionCase):
             "company_id": cls.company.id,
         })
         cls.grade = cls.env["agx.grade"].create({"name": "G1"})
-        cls.size = cls.env["agx.size"].create({"number": 50})
+        cls.size = cls.env["agx.size"].create({"name": "50", "number": 50})
 
         cls.raw_location = cls.env["stock.location"].create({
             "name": "AGX Raw",
