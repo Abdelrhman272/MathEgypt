@@ -35,3 +35,6 @@ access_agx_import_costs_wizard_user,agx.import.costs.wizard user,model_agx_impor
 access_agx_traceability_wizard_user,agx.traceability.wizard user,model_agx_traceability_wizard,agri_export_management.group_agx_user,1,1,1,1
 access_agx_shipment_container_user,agx.shipment.container user,model_agx_shipment_container,agri_export_management.group_agx_user,1,1,1,0
 access_agx_shipment_container_manager,agx.shipment.container manager,model_agx_shipment_container,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_season_user,agx.season user,model_agx_season,agri_export_management.group_agx_user,1,1,1,0
+access_agx_season_manager,agx.season manager,model_agx_season,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_init_product_attributes_wizard_user,agx.init.product.attributes.wizard user,model_agx_init_product_attributes_wizard,agri_export_management.group_agx_admin,1,1,1,1

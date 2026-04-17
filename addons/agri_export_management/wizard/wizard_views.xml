@@ -1,13 +1,105 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="view_agx_reserve_lots_wizard_form" model="ir.ui.view"><field name="name">agx.reserve.lots.wizard.form</field><field name="model">agx.reserve.lots.wizard</field><field name="arch" type="xml"><form string="Reserve Lots"><group><field name="shipment_id"/><field name="product_id"/><field name="lot_id"/><field name="available_qty"/><field name="reserve_qty"/></group><footer><button name="action_apply" string="Apply" type="object" class="btn-primary"/><button string="Cancel" special="cancel"/></footer></form></field></record>
-    <record id="view_agx_import_costs_wizard_form" model="ir.ui.view"><field name="name">agx.import.costs.wizard.form</field><field name="model">agx.import.costs.wizard</field><field name="arch" type="xml"><form string="Import Shipment Costs"><group><field name="shipment_id"/><field name="vendor_bill_id"/><field name="landed_cost_id"/></group><footer><button name="action_apply" string="Apply" type="object" class="btn-primary"/><button string="Cancel" special="cancel"/></footer></form></field></record>
-    <record id="view_agx_traceability_wizard_form" model="ir.ui.view"><field name="name">agx.traceability.wizard.form</field><field name="model">agx.traceability.wizard</field><field name="arch" type="xml"><form string="Traceability"><group><field name="shipment_id"/><field name="batch_id"/><field name="lot_id"/></group><group><field name="result_html" widget="html" readonly="1"/></group><footer><button name="action_generate" string="Generate" type="object" class="btn-primary"/><button string="Close" special="cancel"/></footer></form></field></record>
-    <record id="action_agx_traceability_wizard" model="ir.actions.act_window">
-        <field name="name">Traceability</field>
-        <field name="res_model">agx.traceability.wizard</field>
+
+    <!-- Reserve Lots Wizard -->
+    <record id="view_agx_reserve_lots_wizard" model="ir.ui.view">
+        <field name="name">agx.reserve.lots.wizard.form</field>
+        <field name="model">agx.reserve.lots.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reserve Lot">
+                <group>
+                    <field name="shipment_id" readonly="1"/>
+                    <field name="product_id"/>
+                    <field name="lot_id" domain="[('product_id','=',product_id)]"/>
+                    <field name="available_qty" readonly="1"/>
+                    <field name="reserve_qty"/>
+                </group>
+                <footer>
+                    <button name="action_apply" string="Apply" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Import Costs Wizard -->
+    <record id="view_agx_import_costs_wizard" model="ir.ui.view">
+        <field name="name">agx.import.costs.wizard.form</field>
+        <field name="model">agx.import.costs.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Import Shipment Costs">
+                <group>
+                    <field name="shipment_id" readonly="1"/>
+                    <field name="vendor_bill_id"/>
+                    <field name="landed_cost_id"/>
+                </group>
+                <footer>
+                    <button name="action_apply" string="Import" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Traceability Wizard -->
+    <record id="view_agx_traceability_wizard" model="ir.ui.view">
+        <field name="name">agx.traceability.wizard.form</field>
+        <field name="model">agx.traceability.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Traceability Report">
+                <group>
+                    <field name="shipment_id"/>
+                    <field name="batch_id"/>
+                    <field name="lot_id"/>
+                </group>
+                <footer>
+                    <button name="action_generate" string="Generate Report"
+                            type="object" class="btn-primary"/>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+                <group invisible="not result_html">
+                    <field name="result_html" nolabel="1" colspan="2"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <!-- Initialize Product Attributes Wizard -->
+    <record id="view_agx_init_product_attributes_wizard" model="ir.ui.view">
+        <field name="name">agx.init.product.attributes.wizard.form</field>
+        <field name="model">agx.init.product.attributes.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Initialize Product Attributes">
+                <group string="Attribute Names">
+                    <field name="grade_attribute_name"/>
+                    <field name="size_attribute_name"/>
+                </group>
+                <group string="Finished-Goods Products (Optional)"
+                       help="Select product templates to add Grade and Size attributes to. Leave empty to only link master data.">
+                    <field name="product_template_ids" widget="many2many_tags"
+                           domain="[('type','=','consu')]" nolabel="1" colspan="2"/>
+                </group>
+                <group string="Result" invisible="not summary">
+                    <field name="summary" nolabel="1" colspan="2"/>
+                </group>
+                <footer>
+                    <button name="action_apply" string="Initialize" type="object"
+                            class="btn-primary"/>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_agx_init_product_attributes_wizard" model="ir.actions.act_window">
+        <field name="name">Initialize Product Attributes</field>
+        <field name="res_model">agx.init.product.attributes.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>
-    <menuitem id="menu_agx_traceability" name="Traceability" parent="agri_export_management.menu_agx_analytics" action="action_agx_traceability_wizard" sequence="30"/>
+    <menuitem id="menu_agx_init_product_attributes" name="Initialize Product Attributes"
+              parent="menu_agx_configuration"
+              action="action_agx_init_product_attributes_wizard"
+              sequence="30"/>
+
 </odoo>

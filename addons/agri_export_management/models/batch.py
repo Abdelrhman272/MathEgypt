@@ -1,3 +1,53 @@
+# -*- coding: utf-8 -*-
+"""
+batch.py — Production Batch Models
+====================================
+A batch represents one production run: raw produce goes in (inputs),
+processed/packed cartons come out (outputs).
+
+Stock movement flow (triggered by ``action_done``)
+---------------------------------------------------
+  1. CONSUME picking  (internal):
+       Raw Material Location → Production Location
+       One picking per distinct source location to keep the transfer log clean.
+
+  2. OUTPUT picking  (internal):
+       Production Location → Finished Goods Location
+       One picking covering all output lines.
+
+  3. (Optional) COLD STORAGE picking  (internal):
+       Finished Goods Location → Cold Storage Location
+       Triggered separately via ``action_move_to_cold_storage`` after Done.
+
+Important: the Production Location MUST have ``usage = 'production'``
+in Odoo's stock.location configuration.  Odoo then treats it as a
+virtual location that auto-zeros — raw material consumed there does NOT
+accumulate as residual stock.
+
+Product Variant integration
+---------------------------
+Output lines carry ``product_id`` (a ``product.product`` — the variant),
+``grade_id``, and ``size_id``.  When variants are properly configured
+(see Initialize Product Attributes wizard), the variant IS the grade+size
+combination, so stock reports show e.g. 'Orange / Grade A / Size 40'
+separately.  The grade_id / size_id fields remain for filtering and
+backward compatibility.
+
+Costing
+-------
+Raw material cost is derived from PO prices via the linked evaluation's
+incoming receipts.  If no receipts are found, ``standard_price`` is used
+as a fallback.  Operation cost and other costs are entered manually.
+Cost per output unit is allocated proportionally by relative sales value
+(sales_price × qty) across output lines — standard absorption costing.
+
+Season / Analytic
+-----------------
+The batch carries ``season_id``; the linked season's analytic account
+is stamped on the output picking so Odoo's analytic reports include
+production costs in the season P&L automatically.
+"""
+
 from collections import defaultdict
 
 from odoo import _, api, fields, models
@@ -5,20 +55,57 @@ from odoo.exceptions import UserError
 
 
 class AgxBatch(models.Model):
+    """Production batch — one packing/processing run."""
+
     _name = "agx.batch"
     _description = "Production Batch"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "batch_date desc, id desc"
 
-    name = fields.Char(default=lambda self: _("New"), copy=False, readonly=True)
-    batch_date = fields.Date(default=fields.Date.context_today, tracking=True)
+    # ------------------------------------------------------------------
+    # Identity
+    # ------------------------------------------------------------------
+    name = fields.Char(
+        default=lambda self: _("New"),
+        copy=False,
+        readonly=True,
+        help="Auto-generated from the AGX Batch sequence.",
+    )
+    batch_date = fields.Date(
+        default=fields.Date.context_today, tracking=True
+    )
     company_id = fields.Many2one(
         "res.company",
         required=True,
         default=lambda self: self.env.company,
         index=True,
     )
-    evaluation_id = fields.Many2one("agx.evaluation", tracking=True)
+    currency_id = fields.Many2one(
+        "res.currency",
+        related="company_id.currency_id",
+        store=True,
+        readonly=True,
+    )
+
+    # ------------------------------------------------------------------
+    # References
+    # ------------------------------------------------------------------
+    evaluation_id = fields.Many2one(
+        "agx.evaluation",
+        tracking=True,
+        help="Farm evaluation this batch is processing produce from.",
+    )
+    season_id = fields.Many2one(
+        "agx.season",
+        string="Season",
+        tracking=True,
+        index=True,
+        help="Populated from the evaluation's season; can be set directly.",
+    )
+
+    # ------------------------------------------------------------------
+    # State
+    # ------------------------------------------------------------------
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -29,63 +116,106 @@ class AgxBatch(models.Model):
         default="draft",
         tracking=True,
     )
+
+    # ------------------------------------------------------------------
+    # Input / Output lines
+    # ------------------------------------------------------------------
     input_line_ids = fields.One2many(
         "agx.batch.input", "batch_id", string="Inputs", copy=True
     )
     output_line_ids = fields.One2many(
         "agx.batch.output", "batch_id", string="Outputs", copy=True
     )
-    input_qty = fields.Float(compute="_compute_qty_totals", store=True)
-    output_qty = fields.Float(compute="_compute_qty_totals", store=True)
-    variance_qty = fields.Float(compute="_compute_qty_totals", store=True)
-    currency_id = fields.Many2one(
-        "res.currency",
-        related="company_id.currency_id",
+
+    # ------------------------------------------------------------------
+    # Quantity totals
+    # ------------------------------------------------------------------
+    input_qty = fields.Float(
+        compute="_compute_qty_totals",
         store=True,
-        readonly=True,
+        help="Total raw material quantity consumed.",
+    )
+    output_qty = fields.Float(
+        compute="_compute_qty_totals",
+        store=True,
+        help="Total finished-goods quantity produced.",
+    )
+    variance_qty = fields.Float(
+        compute="_compute_qty_totals",
+        store=True,
+        help="output_qty − input_qty (positive = gain, negative = loss).",
     )
 
+    # ------------------------------------------------------------------
+    # Costing fields
+    # ------------------------------------------------------------------
     manual_raw_material_cost = fields.Monetary(
-        currency_field="currency_id", default=0.0
+        currency_field="currency_id",
+        default=0.0,
+        help="Manual override for raw material cost when no PO/receipt is linked.",
     )
     manual_operation_cost = fields.Monetary(
-        currency_field="currency_id", default=0.0
+        currency_field="currency_id",
+        default=0.0,
+        help="Labour, electricity, and other direct production costs.",
     )
-    manual_other_cost = fields.Monetary(currency_field="currency_id", default=0.0)
+    manual_other_cost = fields.Monetary(
+        currency_field="currency_id",
+        default=0.0,
+        help="Packing materials, fuel, or any other indirect costs.",
+    )
     actual_raw_material_cost = fields.Monetary(
         currency_field="currency_id",
         compute="_compute_actual_costs",
         store=True,
+        help="Computed from PO prices via linked evaluation receipts.",
     )
     actual_operation_cost = fields.Monetary(
         currency_field="currency_id",
         compute="_compute_actual_costs",
         store=True,
+        help="Reserved for future automated operation cost sourcing.",
     )
     effective_allocable_cost = fields.Monetary(
         currency_field="currency_id",
         compute="_compute_costing",
         store=True,
+        help="Total cost to be spread across output lines.",
     )
     total_relative_sales_value = fields.Monetary(
         currency_field="currency_id",
         compute="_compute_costing",
         store=True,
+        help="Sum of (qty × sales_price_unit) across all output lines.",
     )
     costing_status = fields.Selection(
         [("manual", "Manual"), ("actual", "Actual")],
         compute="_compute_costing",
         store=True,
+        help="'Actual' when PO-derived costs are available; 'Manual' otherwise.",
     )
-    cost_basis_note = fields.Char(compute="_compute_costing", store=True)
+    cost_basis_note = fields.Char(
+        compute="_compute_costing",
+        store=True,
+        help="Human-readable explanation of which cost source is active.",
+    )
 
-    # FIX: One2many works because agx_batch_id on stock.picking is now a plain
-    # stored field (not a pure compute), so the inverse FK exists in the DB.
+    # ------------------------------------------------------------------
+    # Stock move links
+    # ------------------------------------------------------------------
     stock_move_ids = fields.One2many(
-        "stock.move", "agx_batch_id", string="Stock Moves", readonly=True
+        "stock.move",
+        "agx_batch_id",
+        string="Stock Moves",
+        readonly=True,
+        help="All stock moves generated when this batch was posted.",
     )
     stock_picking_ids = fields.One2many(
-        "stock.picking", "agx_batch_id", string="Stock Transfers", readonly=True
+        "stock.picking",
+        "agx_batch_id",
+        string="Stock Transfers",
+        readonly=True,
+        help="All stock transfers generated by this batch.",
     )
     stock_move_count = fields.Integer(compute="_compute_stock_counts")
     stock_move_state = fields.Selection(
@@ -98,6 +228,9 @@ class AgxBatch(models.Model):
     )
     receipt_count = fields.Integer(compute="_compute_stock_counts")
 
+    # ------------------------------------------------------------------
+    # Computed: qty totals
+    # ------------------------------------------------------------------
     @api.depends("input_line_ids.qty", "output_line_ids.qty")
     def _compute_qty_totals(self):
         for rec in self:
@@ -105,7 +238,14 @@ class AgxBatch(models.Model):
             rec.output_qty = sum(rec.output_line_ids.mapped("qty"))
             rec.variance_qty = rec.output_qty - rec.input_qty
 
-    @api.depends("evaluation_id", "stock_picking_ids.state", "stock_move_ids.state")
+    # ------------------------------------------------------------------
+    # Computed: stock counts
+    # ------------------------------------------------------------------
+    @api.depends(
+        "evaluation_id",
+        "stock_picking_ids.state",
+        "stock_move_ids.state",
+    )
     def _compute_stock_counts(self):
         Picking = self.env["stock.picking"]
         for rec in self:
@@ -130,6 +270,9 @@ class AgxBatch(models.Model):
                 else 0
             )
 
+    # ------------------------------------------------------------------
+    # Computed: actual costs from PO receipts
+    # ------------------------------------------------------------------
     @api.depends(
         "evaluation_id",
         "input_line_ids.qty",
@@ -137,15 +280,22 @@ class AgxBatch(models.Model):
         "input_line_ids.lot_id",
     )
     def _compute_actual_costs(self):
+        """Derive raw material cost from PO prices on linked receipts.
+
+        For each input line we search done incoming receipts linked to
+        the evaluation, match moves by product (and lot if specified),
+        and price the consumed qty at the PO line price.  Any unmatched
+        qty falls back to ``standard_price``.
+        """
+        qty_field = (
+            "quantity"
+            if "quantity" in self.env["stock.move.line"]._fields
+            else "qty_done"
+        )
         for rec in self:
             raw_cost = 0.0
             if rec.evaluation_id:
                 pickings = rec._get_done_receipts()
-                qty_field = (
-                    "quantity"
-                    if "quantity" in self.env["stock.move.line"]._fields
-                    else "qty_done"
-                )
                 for line in rec.input_line_ids:
                     remaining = line.qty or 0.0
                     if not remaining:
@@ -160,6 +310,7 @@ class AgxBatch(models.Model):
                             if hasattr(move, "quantity")
                             else move.product_uom_qty
                         )
+                        # Refine qty to specific lot if requested
                         if line.lot_id and move.move_line_ids:
                             lot_lines = move.move_line_ids.filtered(
                                 lambda ml: ml.lot_id == line.lot_id
@@ -178,16 +329,24 @@ class AgxBatch(models.Model):
                         remaining -= take_qty
                         if remaining <= 0:
                             break
+                    # Fallback to standard price for any unmatched qty
                     if remaining > 0:
-                        raw_cost += remaining * (line.product_id.standard_price or 0.0)
+                        raw_cost += remaining * (
+                            line.product_id.standard_price or 0.0
+                        )
             else:
+                # No evaluation linked — use standard price directly
                 raw_cost = sum(
                     (line.qty or 0.0) * (line.product_id.standard_price or 0.0)
                     for line in rec.input_line_ids
                 )
             rec.actual_raw_material_cost = raw_cost
+            # Operation cost automated sourcing not yet implemented
             rec.actual_operation_cost = 0.0
 
+    # ------------------------------------------------------------------
+    # Computed: costing summary
+    # ------------------------------------------------------------------
     @api.depends(
         "manual_raw_material_cost",
         "manual_operation_cost",
@@ -197,19 +356,28 @@ class AgxBatch(models.Model):
         "output_line_ids.sales_value",
     )
     def _compute_costing(self):
+        """Determine effective allocable cost and costing status.
+
+        Prefers actual costs (from PO receipts) over manual costs.
+        manual_other_cost (packing materials etc.) is always added on top.
+        """
         for rec in self:
             use_actual = bool(
                 rec.actual_raw_material_cost or rec.actual_operation_cost
             )
             raw_cost = (
-                rec.actual_raw_material_cost if use_actual
+                rec.actual_raw_material_cost
+                if use_actual
                 else rec.manual_raw_material_cost
             )
             op_cost = (
-                rec.actual_operation_cost if use_actual
+                rec.actual_operation_cost
+                if use_actual
                 else rec.manual_operation_cost
             )
-            rec.effective_allocable_cost = raw_cost + op_cost + rec.manual_other_cost
+            rec.effective_allocable_cost = (
+                raw_cost + op_cost + rec.manual_other_cost
+            )
             rec.total_relative_sales_value = sum(
                 rec.output_line_ids.mapped("sales_value")
             )
@@ -217,26 +385,46 @@ class AgxBatch(models.Model):
             if use_actual and rec.evaluation_id:
                 rec.cost_basis_note = _(
                     "Based on done incoming receipts linked to the selected "
-                    "evaluation, with fallback to product cost when needed."
+                    "evaluation, with fallback to product standard price."
                 )
             else:
                 rec.cost_basis_note = _("Based on manual fallback costs.")
 
+    # ------------------------------------------------------------------
+    # ORM overrides
+    # ------------------------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
+        """Auto-assign sequence and inherit season from evaluation."""
         for vals in vals_list:
             if vals.get("name", _("New")) == _("New"):
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("agx.batch") or _("New")
+                    self.env["ir.sequence"].next_by_code("agx.batch")
+                    or _("New")
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        # Inherit season from evaluation if not explicitly set
+        for rec in records:
+            if not rec.season_id and rec.evaluation_id and rec.evaluation_id.season_id:
+                rec.season_id = rec.evaluation_id.season_id
+        return records
 
+    # ------------------------------------------------------------------
+    # Onchange
+    # ------------------------------------------------------------------
     @api.onchange("evaluation_id")
     def _onchange_evaluation_id(self):
+        """Load inputs from done receipts and inherit season."""
         for rec in self:
+            if rec.evaluation_id and rec.evaluation_id.season_id:
+                rec.season_id = rec.evaluation_id.season_id
             rec._load_inputs_from_evaluation_receipts(onchange_mode=True)
 
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
     def _get_done_receipts(self):
+        """Return done incoming pickings linked to this batch's evaluation."""
         self.ensure_one()
         if not self.evaluation_id:
             return self.env["stock.picking"]
@@ -250,6 +438,11 @@ class AgxBatch(models.Model):
         )
 
     def _load_inputs_from_evaluation_receipts(self, onchange_mode=False):
+        """Populate input lines from done incoming receipts.
+
+        Groups move lines by (product, lot, uom) so each unique
+        lot gets its own input line for accurate cost tracking.
+        """
         qty_field = (
             "quantity"
             if "quantity" in self.env["stock.move.line"]._fields
@@ -263,15 +456,23 @@ class AgxBatch(models.Model):
                 if onchange_mode:
                     rec.input_line_ids = [(5, 0, 0)]
                 continue
+
+            # Group by (product_id, lot_id, uom_id)
             grouped = defaultdict(
-                lambda: {"qty": 0.0, "product_id": False, "lot_id": False, "uom_id": False}
+                lambda: {
+                    "qty": 0.0,
+                    "product_id": False,
+                    "lot_id": False,
+                    "uom_id": False,
+                }
             )
             for picking in pickings:
                 if picking.move_line_ids:
                     for ml in picking.move_line_ids.filtered(
                         lambda l: l.product_id
                         and (
-                            getattr(l, "quantity", 0.0) or getattr(l, "qty_done", 0.0)
+                            getattr(l, "quantity", 0.0)
+                            or getattr(l, "qty_done", 0.0)
                         )
                     ):
                         qty = getattr(ml, qty_field, 0.0)
@@ -287,9 +488,12 @@ class AgxBatch(models.Model):
                         )
                         grouped[key]["qty"] += qty
                         grouped[key]["product_id"] = ml.product_id.id
-                        grouped[key]["lot_id"] = ml.lot_id.id if ml.lot_id else False
+                        grouped[key]["lot_id"] = (
+                            ml.lot_id.id if ml.lot_id else False
+                        )
                         grouped[key]["uom_id"] = uom_id
                 else:
+                    # Fallback to move level if no detailed move lines
                     for move in picking.move_ids.filtered(
                         lambda m: m.product_id and m.state == "done"
                     ):
@@ -308,15 +512,29 @@ class AgxBatch(models.Model):
                         grouped[key]["product_id"] = move.product_id.id
                         grouped[key]["lot_id"] = False
                         grouped[key]["uom_id"] = uom_id
+
             commands = [(5, 0, 0)]
             for vals in grouped.values():
                 commands.append((0, 0, vals))
             rec.input_line_ids = commands
 
+    # ------------------------------------------------------------------
+    # State transitions
+    # ------------------------------------------------------------------
     def action_start(self):
         self.write({"state": "in_progress"})
 
     def action_done(self):
+        """Validate the batch and post stock movements.
+
+        Steps:
+          1. Load inputs from receipts if lines are empty.
+          2. Validate at least one input and one output exist.
+          3. Auto-generate lot numbers for unlotted outputs (if configured).
+          4. Check sufficient stock is available for all inputs.
+          5. Post consume + output stock pickings.
+          6. Mark batch as Done.
+        """
         for rec in self:
             if not rec.input_line_ids:
                 rec._load_inputs_from_evaluation_receipts(onchange_mode=False)
@@ -343,7 +561,82 @@ class AgxBatch(models.Model):
     def action_cancel(self):
         self.write({"state": "cancelled"})
 
+    def action_move_to_cold_storage(self):
+        """Create an internal transfer from Finished Goods → Cold Storage.
+
+        Only available after the batch is Done and the company has a
+        cold storage location configured.
+        """
+        for rec in self:
+            cold_loc = rec.company_id.agx_cold_storage_location_id
+            if not cold_loc:
+                raise UserError(
+                    _(
+                        "No Cold Storage Location configured. "
+                        "Please set it in Agricultural Export Settings."
+                    )
+                )
+            finished_loc = (
+                rec.company_id.agx_finished_goods_location_id
+                or rec._get_default_stock_location()
+            )
+            internal_type = rec._get_internal_picking_type()
+            if not internal_type:
+                raise UserError(
+                    _("Please configure an internal transfer type in Settings.")
+                )
+            picking = rec._create_picking(
+                picking_type=internal_type,
+                location_id=finished_loc,
+                location_dest_id=cold_loc,
+                origin="{} / Cold Storage".format(rec.name),
+                flow_type="batch_output",
+            )
+            Move = self.env["stock.move"]
+            MoveLine = self.env["stock.move.line"]
+            for line in rec.output_line_ids.filtered(
+                lambda l: l.product_id and l.qty > 0
+            ):
+                move = Move.create(
+                    {
+                        "description_picking": "{} / ColdStore / {}".format(
+                            rec.name, line.product_id.display_name
+                        ),
+                        "company_id": rec.company_id.id,
+                        "product_id": line.product_id.id,
+                        "product_uom_qty": line.qty,
+                        "product_uom": (
+                            line.uom_id or line.product_id.uom_id
+                        ).id,
+                        "location_id": finished_loc.id,
+                        "location_dest_id": cold_loc.id,
+                        "agx_batch_id": rec.id,
+                        "agx_flow_type": "output",
+                        "origin": rec.name,
+                        "picking_id": picking.id,
+                    }
+                )
+                picking.action_confirm()
+                move.move_line_ids.unlink()
+                MoveLine.create(
+                    rec._prepare_move_line_vals(
+                        move=move,
+                        product=line.product_id,
+                        uom=(line.uom_id or line.product_id.uom_id),
+                        location_id=finished_loc,
+                        location_dest_id=cold_loc,
+                        qty=line.qty,
+                        lot_id=line.lot_id,
+                    )
+                )
+            rec._validate_picking(picking)
+        return True
+
+    # ------------------------------------------------------------------
+    # Stock helpers
+    # ------------------------------------------------------------------
     def _ensure_output_lots(self):
+        """Auto-generate lot numbers for output lines missing one."""
         for rec in self:
             if not rec.company_id.agx_auto_generate_lot_numbers:
                 continue
@@ -354,7 +647,7 @@ class AgxBatch(models.Model):
                     "stock.lot.serial"
                 ) or "{}-{}".format(
                     rec.name,
-                    line.product_id.default_code or line.product_id.id,
+                    line.product_id.default_code or str(line.product_id.id),
                 )
                 line.lot_id = self.env["stock.lot"].create(
                     {
@@ -365,8 +658,8 @@ class AgxBatch(models.Model):
                 ).id
 
     def _get_default_stock_location(self):
+        """Return first internal location for this company (deterministic)."""
         self.ensure_one()
-        # FIX: add explicit order so the result is deterministic
         return self.env["stock.location"].search(
             [
                 ("company_id", "in", [False, self.company_id.id]),
@@ -377,6 +670,7 @@ class AgxBatch(models.Model):
         )
 
     def _get_default_production_location(self):
+        """Return the production-usage location, falling back to internal."""
         self.ensure_one()
         return (
             self.env["stock.location"].search(
@@ -391,6 +685,7 @@ class AgxBatch(models.Model):
         )
 
     def _get_internal_picking_type(self):
+        """Return the configured internal picking type."""
         self.ensure_one()
         return self.company_id.agx_internal_picking_type_id or self.env[
             "stock.picking.type"
@@ -400,13 +695,15 @@ class AgxBatch(models.Model):
                 ("company_id", "in", [False, self.company_id.id]),
             ],
             limit=1,
-            order="company_id desc,id",
+            order="company_id desc, id",
         )
 
     def _quantity_field_name(self, model):
+        """Detect the correct quantity field name for the Odoo version."""
         return "quantity" if "quantity" in model._fields else "qty_done"
 
     def _get_line_available_qty(self, line):
+        """Return available (unreserved) qty for an input line."""
         self.ensure_one()
         domain = [
             ("company_id", "=", self.company_id.id),
@@ -422,6 +719,13 @@ class AgxBatch(models.Model):
         )
 
     def _validate_stock_posting(self):
+        """Pre-flight checks before posting stock movements.
+
+        Raises UserError if:
+        - Required locations or picking types are not configured.
+        - This batch already has posted transfers (prevents duplicates).
+        - Insufficient stock for any input line.
+        """
         self.ensure_one()
         production_location = (
             self.company_id.agx_production_location_id
@@ -435,51 +739,54 @@ class AgxBatch(models.Model):
         if not production_location or not finished_location or not internal_type:
             raise UserError(
                 _(
-                    "Please configure Production Location, Finished Goods Location, "
-                    "and Internal Transfer Type in Settings."
+                    "Please configure Production Location, Finished Goods "
+                    "Location, and Internal Transfer Type in Settings."
                 )
             )
+        # Guard against accidental re-posting
         if self.stock_picking_ids.filtered(lambda p: p.state == "done"):
             raise UserError(
                 _(
                     "This batch already has posted stock transfers. "
-                    "To avoid duplicate inventory movements, "
-                    "a done batch cannot be posted again."
+                    "A done batch cannot be posted again to avoid "
+                    "duplicate inventory movements."
                 )
             )
+        # Stock availability check
         for line in self.input_line_ids.filtered(
             lambda l: l.product_id and l.qty > 0
         ):
-            available_qty = self._get_line_available_qty(line)
-            if available_qty < line.qty:
+            available = self._get_line_available_qty(line)
+            if available < line.qty:
                 if line.lot_id:
                     raise UserError(
                         _(
-                            "Not enough available quantity for product %(product)s "
-                            "in lot %(lot)s. Needed: %(needed)s, Available: %(available)s"
+                            "Not enough stock for %(product)s / Lot %(lot)s. "
+                            "Needed: %(needed)s, Available: %(available)s"
                         )
                         % {
                             "product": line.product_id.display_name,
                             "lot": line.lot_id.display_name,
                             "needed": line.qty,
-                            "available": available_qty,
+                            "available": available,
                         }
                     )
                 raise UserError(
                     _(
-                        "Not enough available quantity for product %(product)s. "
+                        "Not enough stock for %(product)s. "
                         "Needed: %(needed)s, Available: %(available)s"
                     )
                     % {
                         "product": line.product_id.display_name,
                         "needed": line.qty,
-                        "available": available_qty,
+                        "available": available,
                     }
                 )
 
     def _prepare_move_line_vals(
         self, move, product, uom, location_id, location_dest_id, qty, lot_id=False
     ):
+        """Build stock.move.line create values for a single lot/qty pair."""
         vals = {
             "move_id": move.id,
             "product_id": product.id,
@@ -493,8 +800,15 @@ class AgxBatch(models.Model):
         return vals
 
     def _input_source_location(self, line):
+        """Determine the best source location for an input line.
+
+        Priority:
+          1. The actual quant location for the specific lot (most accurate).
+          2. The destination of done receipts linked to the evaluation.
+          3. The configured raw material location.
+          4. First internal location (last resort).
+        """
         self.ensure_one()
-        quant = False
         if line.lot_id:
             quant = self.env["stock.quant"].search(
                 [
@@ -506,8 +820,8 @@ class AgxBatch(models.Model):
                 ],
                 limit=1,
             )
-        if quant:
-            return quant.location_id
+            if quant:
+                return quant.location_id
         receipts = self._get_done_receipts()
         dests = receipts.mapped("location_dest_id")
         return dests[:1] if dests else (
@@ -516,20 +830,28 @@ class AgxBatch(models.Model):
         )
 
     def _validate_picking(self, picking):
+        """Validate a picking; force-done any remaining moves if needed."""
         res = picking.with_context(
             skip_immediate=True, skip_backorder=True
         ).button_validate()
         if isinstance(res, dict):
-            pending_moves = picking.move_ids.filtered(
+            pending = picking.move_ids.filtered(
                 lambda m: m.state not in ("done", "cancel")
             )
-            if pending_moves:
-                pending_moves._action_done()
+            if pending:
+                pending._action_done()
         return True
 
-    def _create_picking(self, picking_type, location_id, location_dest_id, origin, flow_type=False):
-        # FIX: set agx_flow_type directly on creation so it is stored immediately
-        # instead of relying on a compute that fires before moves exist.
+    def _create_picking(
+        self, picking_type, location_id, location_dest_id, origin, flow_type=False
+    ):
+        """Create a stock.picking with AGX context fields.
+
+        ``flow_type`` is written directly at creation time so that the
+        agx_flow_type field is correctly set before any move lines exist.
+        Not setting it here would leave the field False because the
+        compute fires before moves are created.
+        """
         vals = {
             "picking_type_id": picking_type.id,
             "location_id": location_id.id,
@@ -540,12 +862,28 @@ class AgxBatch(models.Model):
         }
         if flow_type:
             vals["agx_flow_type"] = flow_type
+        # Stamp analytic account from season for cost reporting
+        if self.season_id and self.season_id.analytic_account_id:
+            vals["analytic_account_id"] = (
+                self.season_id.analytic_account_id.id
+            )
         return self.env["stock.picking"].create(vals)
 
     def _post_stock_pickings(self):
+        """Create and validate consume + output stock pickings.
+
+        Consume pickings: one per distinct source location (groups input
+        lines by their actual stock location to avoid cross-location moves).
+
+        Output picking: one picking from production → finished goods
+        covering all output lines.
+
+        Returns all created stock.move records.
+        """
         Move = self.env["stock.move"]
         MoveLine = self.env["stock.move.line"]
         all_created_moves = self.env["stock.move"]
+
         for rec in self:
             production_location = (
                 rec.company_id.agx_production_location_id
@@ -561,25 +899,26 @@ class AgxBatch(models.Model):
                     _("Please configure an internal transfer type in Settings.")
                 )
 
-            # Group input lines by source location to minimise pickings
+            # ----------------------------------------------------------
+            # STEP 1: Consume moves — raw → production
+            # ----------------------------------------------------------
             input_groups = defaultdict(list)
             for line in rec.input_line_ids.filtered(
                 lambda l: l.product_id and l.qty > 0
             ):
-                source_location = rec._input_source_location(line)
-                input_groups[source_location.id].append((source_location, line))
+                source = rec._input_source_location(line)
+                input_groups[source.id].append((source, line))
 
-            for _source_location_id, grouped_lines in input_groups.items():
+            for _src_id, grouped_lines in input_groups.items():
                 source_location = grouped_lines[0][0]
                 picking = rec._create_picking(
                     picking_type=internal_type,
                     location_id=source_location,
                     location_dest_id=production_location,
                     origin="{} / Consumption".format(rec.name),
-                    # FIX: set flow_type at creation time
                     flow_type="batch_consume",
                 )
-                created_input_pairs = []
+                pairs = []
                 for _src, line in grouped_lines:
                     move = Move.create(
                         {
@@ -601,9 +940,10 @@ class AgxBatch(models.Model):
                         }
                     )
                     all_created_moves |= move
-                    created_input_pairs.append((move, line))
+                    pairs.append((move, line))
+
                 picking.action_confirm()
-                for move, line in created_input_pairs:
+                for move, line in pairs:
                     move.move_line_ids.unlink()
                     MoveLine.create(
                         rec._prepare_move_line_vals(
@@ -618,15 +958,17 @@ class AgxBatch(models.Model):
                     )
                 rec._validate_picking(picking)
 
+            # ----------------------------------------------------------
+            # STEP 2: Output move — production → finished goods
+            # ----------------------------------------------------------
             output_picking = rec._create_picking(
                 picking_type=internal_type,
                 location_id=production_location,
                 location_dest_id=finished_location,
                 origin="{} / Output".format(rec.name),
-                # FIX: set flow_type at creation time
                 flow_type="batch_output",
             )
-            created_output_pairs = []
+            out_pairs = []
             for line in rec.output_line_ids.filtered(
                 lambda l: l.product_id and l.qty > 0
             ):
@@ -650,9 +992,10 @@ class AgxBatch(models.Model):
                     }
                 )
                 all_created_moves |= move
-                created_output_pairs.append((move, line))
+                out_pairs.append((move, line))
+
             output_picking.action_confirm()
-            for move, line in created_output_pairs:
+            for move, line in out_pairs:
                 move.move_line_ids.unlink()
                 MoveLine.create(
                     rec._prepare_move_line_vals(
@@ -666,8 +1009,12 @@ class AgxBatch(models.Model):
                     )
                 )
             rec._validate_picking(output_picking)
+
         return all_created_moves
 
+    # ------------------------------------------------------------------
+    # Navigation actions
+    # ------------------------------------------------------------------
     def action_view_stock_moves(self):
         self.ensure_one()
         return {
@@ -676,7 +1023,6 @@ class AgxBatch(models.Model):
             "res_model": "stock.picking",
             "view_mode": "list,form",
             "domain": [("agx_batch_id", "=", self.id)],
-            "target": "current",
         }
 
     def action_view_receipts(self):
@@ -690,11 +1036,19 @@ class AgxBatch(models.Model):
                 ("agx_evaluation_id", "=", self.evaluation_id.id),
                 ("picking_type_id.code", "=", "incoming"),
             ],
-            "target": "current",
         }
 
 
+# ---------------------------------------------------------------------------
+# Batch Input Line
+# ---------------------------------------------------------------------------
 class AgxBatchInput(models.Model):
+    """One line of raw material input consumed in a batch.
+
+    Lot tracking is critical here: the lot links back to the supplier
+    receipt and drives the actual cost calculation in ``_compute_actual_costs``.
+    """
+
     _name = "agx.batch.input"
     _description = "Batch Input"
     _order = "sequence, id"
@@ -702,7 +1056,10 @@ class AgxBatchInput(models.Model):
     sequence = fields.Integer(default=10)
     batch_id = fields.Many2one("agx.batch", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", required=True)
-    lot_id = fields.Many2one("stock.lot")
+    lot_id = fields.Many2one(
+        "stock.lot",
+        help="Specific supplier lot; used for cost derivation and traceability.",
+    )
     qty = fields.Float(required=True, default=1.0)
     uom_id = fields.Many2one("uom.uom")
     note = fields.Char()
@@ -714,7 +1071,23 @@ class AgxBatchInput(models.Model):
                 rec.uom_id = rec.product_id.uom_id
 
 
+# ---------------------------------------------------------------------------
+# Batch Output Line
+# ---------------------------------------------------------------------------
 class AgxBatchOutput(models.Model):
+    """One line of finished-goods output produced in a batch.
+
+    Each output line represents one Grade + Size combination.
+    When product variants are configured, ``product_id`` IS the variant
+    (e.g. 'Orange / Grade A / Size 40') and grade_id / size_id are
+    populated automatically from the variant's attribute values.
+
+    Cost allocation uses relative sales value:
+      allocated_cost = (batch.effective_allocable_cost)
+                       × (this_line.sales_value / total_sales_value)
+      cost_per_unit  = allocated_cost / qty
+    """
+
     _name = "agx.batch.output"
     _description = "Batch Output"
     _order = "sequence, id"
@@ -727,38 +1100,98 @@ class AgxBatchOutput(models.Model):
     currency_id = fields.Many2one(
         related="batch_id.currency_id", store=True, readonly=True
     )
-    product_id = fields.Many2one("product.product", required=True)
-    lot_id = fields.Many2one("stock.lot", string="Output Lot")
-    grade_id = fields.Many2one("agx.grade")
-    size_id = fields.Many2one("agx.size")
-    qty = fields.Float(required=True, default=1.0)
+
+    # ------------------------------------------------------------------
+    # Product / Grade / Size
+    # ------------------------------------------------------------------
+    product_id = fields.Many2one(
+        "product.product",
+        required=True,
+        help=(
+            "Use a product variant (e.g. 'Orange / Grade A / Size 40') "
+            "so that this output is tracked as a distinct SKU in stock."
+        ),
+    )
+    lot_id = fields.Many2one(
+        "stock.lot",
+        string="Output Lot",
+        help="Lot number for this output carton group.",
+    )
+    grade_id = fields.Many2one(
+        "agx.grade",
+        help="Quality grade — populated from variant or selected manually.",
+    )
+    size_id = fields.Many2one(
+        "agx.size",
+        help="Carton size — populated from variant or selected manually.",
+    )
+    qty = fields.Float(required=True, default=1.0, help="Number of cartons.")
     uom_id = fields.Many2one("uom.uom")
-    sales_price_unit = fields.Monetary(currency_field="currency_id", default=0.0)
+
+    # ------------------------------------------------------------------
+    # Pricing / costing
+    # ------------------------------------------------------------------
+    sales_price_unit = fields.Monetary(
+        currency_field="currency_id",
+        default=0.0,
+        help="Expected selling price per unit (used for cost allocation ratio).",
+    )
     sales_value = fields.Monetary(
         currency_field="currency_id",
         compute="_compute_cost_share",
         store=True,
+        help="qty × sales_price_unit.",
     )
     relative_sales_ratio = fields.Float(
-        compute="_compute_cost_share", store=True, digits=(16, 6)
+        compute="_compute_cost_share",
+        store=True,
+        digits=(16, 6),
+        help="This line's share of total batch sales value.",
     )
     allocated_cost = fields.Monetary(
         currency_field="currency_id",
         compute="_compute_cost_share",
         store=True,
+        help="Batch total cost × relative_sales_ratio.",
     )
     cost_per_unit = fields.Monetary(
         currency_field="currency_id",
         compute="_compute_cost_share",
         store=True,
+        help="allocated_cost ÷ qty.",
     )
 
+    # ------------------------------------------------------------------
+    # Onchange
+    # ------------------------------------------------------------------
     @api.onchange("product_id")
     def _onchange_product_id(self):
+        """Default UoM and auto-fill grade/size from variant attributes."""
         for rec in self:
-            if rec.product_id:
-                rec.uom_id = rec.product_id.uom_id
+            if not rec.product_id:
+                continue
+            rec.uom_id = rec.product_id.uom_id
+            # Try to derive grade and size from the product variant's
+            # attribute values, matching against agx.grade / agx.size records
+            # that have their attribute_value_id configured.
+            for ptav in rec.product_id.product_template_attribute_value_ids:
+                av = ptav.product_attribute_value_id
+                # Match grade
+                grade = self.env["agx.grade"].search(
+                    [("attribute_value_id", "=", av.id)], limit=1
+                )
+                if grade:
+                    rec.grade_id = grade
+                # Match size
+                size = self.env["agx.size"].search(
+                    [("attribute_value_id", "=", av.id)], limit=1
+                )
+                if size:
+                    rec.size_id = size
 
+    # ------------------------------------------------------------------
+    # Computed
+    # ------------------------------------------------------------------
     @api.depends(
         "qty",
         "sales_price_unit",
@@ -766,11 +1199,12 @@ class AgxBatchOutput(models.Model):
         "batch_id.total_relative_sales_value",
     )
     def _compute_cost_share(self):
+        """Allocate batch cost to this line proportionally by sales value."""
         for rec in self:
             rec.sales_value = (rec.qty or 0.0) * (rec.sales_price_unit or 0.0)
-            total_sales = rec.batch_id.total_relative_sales_value or 0.0
+            total = rec.batch_id.total_relative_sales_value or 0.0
             rec.relative_sales_ratio = (
-                (rec.sales_value / total_sales) if total_sales else 0.0
+                (rec.sales_value / total) if total else 0.0
             )
             rec.allocated_cost = (
                 rec.batch_id.effective_allocable_cost or 0.0

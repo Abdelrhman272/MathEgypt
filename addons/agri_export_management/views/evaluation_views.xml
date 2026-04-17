@@ -1,58 +1,179 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+
+    <!-- ================================================================
+         FARM EVALUATION — List
+    ================================================================ -->
     <record id="view_agx_evaluation_list" model="ir.ui.view">
         <field name="name">agx.evaluation.list</field>
         <field name="model">agx.evaluation</field>
         <field name="arch" type="xml">
-            <list>
+            <list decoration-info="state == 'draft'"
+                  decoration-success="state == 'approved'"
+                  decoration-warning="state == 'po_created'"
+                  decoration-muted="state in ('closed','cancelled')">
                 <field name="name"/>
                 <field name="evaluation_date"/>
                 <field name="farm_id"/>
-                <field name="partner_id"/>
-                <field name="expected_total_qty"/>
-                <field name="actual_total_qty"/>
-                <field name="achievement_pct"/>
-                <field name="state"/>
+                <field name="partner_id" optional="show"/>
+                <field name="season_id" optional="show"/>
+                <field name="farm_expected_qty" string="Expected Qty"/>
+                <field name="actual_total_qty" string="Actual Qty"/>
+                <field name="achievement_pct" string="Achievement %"/>
+                <field name="estimated_purchase_value" string="Est. Value"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-success="state == 'approved'"
+                       decoration-warning="state == 'po_created'"
+                       decoration-muted="state in ('closed','cancelled')"/>
             </list>
         </field>
     </record>
+
+    <!-- ================================================================
+         FARM EVALUATION — Kanban
+    ================================================================ -->
+    <record id="view_agx_evaluation_kanban" model="ir.ui.view">
+        <field name="name">agx.evaluation.kanban</field>
+        <field name="model">agx.evaluation</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="farm_id"/>
+                <field name="partner_id"/>
+                <field name="season_id"/>
+                <field name="farm_expected_qty"/>
+                <field name="actual_total_qty"/>
+                <field name="achievement_pct"/>
+                <field name="state"/>
+                <field name="batch_count"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click">
+                            <div class="fw-bold fs-5" t-esc="record.name.value"/>
+                            <div class="text-muted small" t-esc="record.farm_id.value"/>
+                            <div t-if="record.season_id.value" class="text-muted small">
+                                🌿 <t t-esc="record.season_id.value"/>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-6 text-center">
+                                    <div class="fw-bold" t-esc="record.farm_expected_qty.value"/>
+                                    <div class="small text-muted">Expected</div>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <div class="fw-bold"
+                                         t-attf-class="#{record.achievement_pct.raw_value >= 90 ? 'text-success' : 'text-danger'}"
+                                         t-esc="record.actual_total_qty.value"/>
+                                    <div class="small text-muted">Actual</div>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <div class="progress" style="height:6px;">
+                                    <div class="progress-bar"
+                                         t-attf-class="#{record.achievement_pct.raw_value >= 90 ? 'bg-success' : 'bg-warning'}"
+                                         t-attf-style="width:#{Math.min(record.achievement_pct.raw_value,100)}%;"/>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    <t t-esc="record.achievement_pct.value"/>% achieved
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         FARM EVALUATION — Search
+    ================================================================ -->
+    <record id="view_agx_evaluation_search" model="ir.ui.view">
+        <field name="name">agx.evaluation.search</field>
+        <field name="model">agx.evaluation</field>
+        <field name="arch" type="xml">
+            <search string="Search Evaluations">
+                <field name="name" string="Reference"/>
+                <field name="farm_id"/>
+                <field name="partner_id"/>
+                <field name="season_id"/>
+                <field name="crop_id"/>
+                <separator/>
+                <filter string="Draft"     name="draft"     domain="[('state','=','draft')]"/>
+                <filter string="Approved"  name="approved"  domain="[('state','=','approved')]"/>
+                <filter string="PO Created" name="po_created" domain="[('state','=','po_created')]"/>
+                <filter string="Closed"    name="closed"    domain="[('state','=','closed')]"/>
+                <separator/>
+                <filter string="This Month" name="this_month"
+                        domain="[('evaluation_date','&gt;=', (context_today()).strftime('%Y-%m-01'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Farm"    name="gb_farm"    context="{'group_by':'farm_id'}"/>
+                    <filter string="Season"  name="gb_season"  context="{'group_by':'season_id'}"/>
+                    <filter string="State"   name="gb_state"   context="{'group_by':'state'}"/>
+                    <filter string="Crop"    name="gb_crop"    context="{'group_by':'crop_id'}"/>
+                    <filter string="Month"   name="gb_month"   context="{'group_by':'evaluation_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         FARM EVALUATION — Form
+    ================================================================ -->
     <record id="view_agx_evaluation_form" model="ir.ui.view">
         <field name="name">agx.evaluation.form</field>
         <field name="model">agx.evaluation</field>
         <field name="arch" type="xml">
             <form string="Farm Evaluation">
                 <header>
-                    <button name="action_approve" string="Approve" type="object" class="btn-primary" invisible="state != 'draft'"/>
-                    <button name="action_create_purchase_order" string="Create Purchase Order" type="object" invisible="state != 'approved' or po_id"/>
-                    <button name="action_reset_draft" string="Reset to Draft" type="object" invisible="state == 'draft'"/>
-                    <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,approved,po_created,closed,cancelled"/>
+                    <button name="action_approve" string="Approve"
+                            type="object" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_create_purchase_order"
+                            string="Create Purchase Order"
+                            type="object"
+                            invisible="state != 'approved' or po_id"/>
+                    <button name="action_reset_draft" string="Reset to Draft"
+                            type="object" invisible="state == 'draft'"/>
+                    <button name="action_cancel" string="Cancel"
+                            type="object" invisible="state == 'cancelled'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,approved,po_created,closed,cancelled"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button class="oe_stat_button" name="action_view_purchase_order" type="object" icon="fa-shopping-cart" invisible="not po_id">
+                        <button class="oe_stat_button" name="action_view_purchase_order"
+                                type="object" icon="fa-shopping-cart"
+                                invisible="not po_id">
                             <field name="po_count" widget="statinfo" string="Purchase Order"/>
                         </button>
-                        <button class="oe_stat_button" name="action_view_receipts" type="object" icon="fa-truck" invisible="receipt_count == 0">
+                        <button class="oe_stat_button" name="action_view_receipts"
+                                type="object" icon="fa-truck"
+                                invisible="receipt_count == 0">
                             <field name="receipt_count" widget="statinfo" string="Receipts"/>
                         </button>
-                        <button class="oe_stat_button" name="action_view_batches" type="object" icon="fa-industry" invisible="batch_count == 0">
+                        <button class="oe_stat_button" name="action_view_batches"
+                                type="object" icon="fa-industry"
+                                invisible="batch_count == 0">
                             <field name="batch_count" widget="statinfo" string="Batches"/>
                         </button>
                     </div>
-                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
                     <group>
                         <group>
                             <field name="evaluation_date"/>
                             <field name="farm_id"/>
                             <field name="partner_id"/>
                             <field name="crop_id"/>
+                            <field name="season_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group>
-                            <field name="company_id" groups="base.group_multi_company"/>
                             <field name="farm_expected_qty"/>
                             <field name="expected_total_qty" readonly="1"/>
                             <field name="actual_total_qty" readonly="1"/>
+                            <field name="variance_qty" readonly="1"/>
                             <field name="achievement_pct" readonly="1"/>
                             <field name="estimated_purchase_value" readonly="1"/>
                         </group>
@@ -65,27 +186,53 @@
                                     <field name="product_id"/>
                                     <field name="grade_id"/>
                                     <field name="size_id"/>
-                                    <field name="expected_ratio"/>
+                                    <field name="expected_ratio" string="Expected %"/>
                                     <field name="expected_qty" readonly="1"/>
                                     <field name="actual_qty" readonly="1"/>
-                                    <field name="variance_qty" readonly="1"/>
-                                    <field name="achievement_pct" readonly="1"/>
+                                    <field name="variance_qty" readonly="1"
+                                           decoration-danger="variance_qty &lt; 0"
+                                           decoration-success="variance_qty &gt;= 0"/>
+                                    <field name="achievement_pct" readonly="1"
+                                           string="Ach. %"
+                                           decoration-danger="achievement_pct &lt; 80"
+                                           decoration-warning="achievement_pct &lt; 90"
+                                           decoration-success="achievement_pct &gt;= 90"/>
                                     <field name="uom_id"/>
                                     <field name="estimated_unit_price"/>
-                                    <field name="note"/>
+                                    <field name="note" optional="hide"/>
                                 </list>
                             </field>
                         </page>
-                        <page string="Notes"><field name="note"/></page>
+                        <page string="Notes">
+                            <field name="note"/>
+                        </page>
                     </notebook>
                 </sheet>
                 <chatter/>
             </form>
         </field>
     </record>
-    <record id="action_agx_evaluation" model="ir.actions.act_window"><field name="name">Farm Evaluations</field><field name="res_model">agx.evaluation</field><field name="view_mode">list,form</field></record>
-    <menuitem id="menu_agx_evaluation" name="Farm Evaluations" parent="menu_agx_procurement" action="action_agx_evaluation" sequence="10"/>
 
-    <record id="action_agx_incoming_receipts" model="ir.actions.act_window"><field name="name">Incoming Receipts</field><field name="res_model">stock.picking</field><field name="view_mode">list,form</field><field name="domain">[("picking_type_id.code", "=", "incoming"), ("agx_evaluation_id", "!=", False)]</field></record>
-    <menuitem id="menu_agx_incoming_receipts" name="Incoming Receipts" parent="menu_agx_operations" action="action_agx_incoming_receipts" sequence="10"/>
+    <!-- Actions + Menu -->
+    <record id="action_agx_evaluation" model="ir.actions.act_window">
+        <field name="name">Farm Evaluations</field>
+        <field name="res_model">agx.evaluation</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="view_agx_evaluation_search"/>
+    </record>
+
+    <menuitem id="menu_agx_evaluation" name="Farm Evaluations"
+              parent="menu_agx_procurement"
+              action="action_agx_evaluation" sequence="10"/>
+
+    <record id="action_agx_incoming_receipts" model="ir.actions.act_window">
+        <field name="name">Incoming Receipts</field>
+        <field name="res_model">stock.picking</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[("picking_type_id.code","=","incoming"),("agx_evaluation_id","!=",False)]</field>
+    </record>
+    <menuitem id="menu_agx_incoming_receipts" name="Incoming Receipts"
+              parent="menu_agx_operations"
+              action="action_agx_incoming_receipts" sequence="10"/>
+
 </odoo>

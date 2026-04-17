@@ -1,55 +1,265 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="view_agx_shipment_list" model="ir.ui.view"><field name="name">agx.shipment.list</field><field name="model">agx.shipment</field><field name="arch" type="xml"><list><field name="name"/><field name="shipment_date"/><field name="customer_id"/><field name="destination_id"/><field name="container_count"/><field name="total_qty"/><field name="total_logistics_cost"/><field name="revenue_amount"/><field name="gross_profit_amount"/><field name="gross_margin_pct"/><field name="state"/></list></field></record>
+
+    <!-- ================================================================
+         SHIPMENT — List (with profitability color coding)
+    ================================================================ -->
+    <record id="view_agx_shipment_list" model="ir.ui.view">
+        <field name="name">agx.shipment.list</field>
+        <field name="model">agx.shipment</field>
+        <field name="arch" type="xml">
+            <list decoration-info="state == 'draft'"
+                  decoration-warning="state == 'reserved'"
+                  decoration-success="state == 'shipped'"
+                  decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="shipment_date"/>
+                <field name="customer_id"/>
+                <field name="destination_id"/>
+                <field name="season_id" optional="show"/>
+                <field name="container_count" string="Containers"/>
+                <field name="total_qty" string="Qty"/>
+                <field name="total_logistics_cost" string="Log. Cost"/>
+                <field name="revenue_amount" string="Revenue"/>
+                <field name="gross_profit_amount" string="Gross Profit"
+                       decoration-danger="gross_profit_amount &lt; 0"
+                       decoration-success="gross_profit_amount &gt;= 0"/>
+                <field name="gross_margin_pct" string="Margin %"
+                       decoration-danger="gross_margin_pct &lt; 0"
+                       decoration-warning="gross_margin_pct &lt; 20"
+                       decoration-success="gross_margin_pct &gt;= 20"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-warning="state == 'reserved'"
+                       decoration-success="state == 'shipped'"
+                       decoration-muted="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         SHIPMENT — Kanban (pipeline view)
+    ================================================================ -->
+    <record id="view_agx_shipment_kanban" model="ir.ui.view">
+        <field name="name">agx.shipment.kanban</field>
+        <field name="model">agx.shipment</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="shipment_date"/>
+                <field name="customer_id"/>
+                <field name="destination_id"/>
+                <field name="season_id"/>
+                <field name="container_count"/>
+                <field name="total_qty"/>
+                <field name="total_logistics_cost"/>
+                <field name="revenue_amount"/>
+                <field name="gross_profit_amount"/>
+                <field name="gross_margin_pct"/>
+                <field name="state"/>
+                <field name="etd"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click">
+                            <div class="d-flex justify-content-between">
+                                <div class="fw-bold" t-esc="record.name.value"/>
+                                <div class="small text-muted"
+                                     t-esc="record.shipment_date.value"/>
+                            </div>
+                            <div class="text-muted small mt-1">
+                                👤 <t t-esc="record.customer_id.value"/>
+                            </div>
+                            <div t-if="record.destination_id.value" class="text-muted small">
+                                🚢 <t t-esc="record.destination_id.value"/>
+                            </div>
+                            <div t-if="record.etd.value" class="text-muted small">
+                                📅 ETD: <t t-esc="record.etd.value"/>
+                            </div>
+                            <div class="row mt-2 text-center">
+                                <div class="col-6">
+                                    <div class="fw-bold text-primary"
+                                         t-esc="record.container_count.value"/>
+                                    <div class="small text-muted">Containers</div>
+                                </div>
+                                <div class="col-6">
+                                    <div t-attf-class="fw-bold #{record.gross_margin_pct.raw_value >= 20 ? 'text-success' : record.gross_margin_pct.raw_value >= 0 ? 'text-warning' : 'text-danger'}">
+                                        <t t-esc="record.gross_margin_pct.value"/>%
+                                    </div>
+                                    <div class="small text-muted">Margin</div>
+                                </div>
+                            </div>
+                            <div t-if="record.season_id.value" class="mt-1 small text-muted">
+                                🌿 <t t-esc="record.season_id.value"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         SHIPMENT — Search
+    ================================================================ -->
+    <record id="view_agx_shipment_search" model="ir.ui.view">
+        <field name="name">agx.shipment.search</field>
+        <field name="model">agx.shipment</field>
+        <field name="arch" type="xml">
+            <search string="Search Shipments">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="destination_id"/>
+                <field name="season_id"/>
+                <field name="bl_number" string="B/L Number"/>
+                <separator/>
+                <filter string="Draft"    name="draft"    domain="[('state','=','draft')]"/>
+                <filter string="Reserved" name="reserved" domain="[('state','=','reserved')]"/>
+                <filter string="Shipped"  name="shipped"  domain="[('state','=','shipped')]"/>
+                <separator/>
+                <filter string="Profitable (Margin ≥ 20%)" name="profitable"
+                        domain="[('gross_margin_pct','&gt;=',20)]"/>
+                <filter string="At Risk (Margin &lt; 0%)" name="at_risk"
+                        domain="[('gross_margin_pct','&lt;',0)]"/>
+                <separator/>
+                <filter string="This Month" name="this_month"
+                        domain="[('shipment_date','&gt;=',(context_today()).strftime('%Y-%m-01'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Season"      name="gb_season"  context="{'group_by':'season_id'}"/>
+                    <filter string="Customer"    name="gb_customer" context="{'group_by':'customer_id'}"/>
+                    <filter string="Destination" name="gb_dest"    context="{'group_by':'destination_id'}"/>
+                    <filter string="State"       name="gb_state"   context="{'group_by':'state'}"/>
+                    <filter string="Month"       name="gb_month"   context="{'group_by':'shipment_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         SHIPMENT — Graph
+    ================================================================ -->
+    <record id="view_agx_shipment_graph" model="ir.ui.view">
+        <field name="name">agx.shipment.graph</field>
+        <field name="model">agx.shipment</field>
+        <field name="arch" type="xml">
+            <graph string="Shipment Profitability" type="bar">
+                <field name="season_id" type="row"/>
+                <field name="destination_id" type="col"/>
+                <field name="revenue_amount" type="measure"/>
+                <field name="total_logistics_cost" type="measure"/>
+                <field name="gross_profit_amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         SHIPMENT — Pivot
+    ================================================================ -->
+    <record id="view_agx_shipment_pivot" model="ir.ui.view">
+        <field name="name">agx.shipment.pivot</field>
+        <field name="model">agx.shipment</field>
+        <field name="arch" type="xml">
+            <pivot string="Shipment Analysis">
+                <field name="season_id" type="row"/>
+                <field name="destination_id" type="row"/>
+                <field name="total_qty" type="measure"/>
+                <field name="total_logistics_cost" type="measure"/>
+                <field name="revenue_amount" type="measure"/>
+                <field name="gross_profit_amount" type="measure"/>
+                <field name="gross_margin_pct" type="measure"/>
+                <field name="container_count" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         SHIPMENT — Form
+    ================================================================ -->
     <record id="view_agx_shipment_form" model="ir.ui.view">
         <field name="name">agx.shipment.form</field>
         <field name="model">agx.shipment</field>
         <field name="arch" type="xml">
-            <form string="Shipment">
+            <form string="Export Shipment">
                 <header>
-                    <button name="action_reserve" string="Reserve Lots" type="object" class="btn-primary" invisible="state != 'draft'"/>
-                    <button name="action_create_sale_order" string="Create Sale Order" type="object" invisible="state not in ('draft','reserved') or sale_order_id"/>
-                    <button name="action_view_sale_order" string="View Sale Order" type="object" invisible="not sale_order_id"/>
-                    <button name="action_view_delivery" string="View Delivery" type="object" invisible="not delivery_picking_id"/>
-                    <button name="action_ship" string="Mark Shipped" type="object" invisible="state != 'reserved'"/>
-                    <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,reserved,shipped,cancelled"/>
+                    <button name="action_reserve" string="Reserve Lots"
+                            type="object" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_create_sale_order"
+                            string="Create Sale Order"
+                            type="object"
+                            invisible="state not in ('draft','reserved') or sale_order_id"/>
+                    <button name="action_view_sale_order" string="View Sale Order"
+                            type="object" invisible="not sale_order_id"/>
+                    <button name="action_view_delivery" string="View Delivery"
+                            type="object" invisible="not delivery_picking_id"/>
+                    <button name="action_ship" string="Mark Shipped"
+                            type="object" class="btn-primary"
+                            invisible="state != 'reserved'"/>
+                    <button name="action_cancel" string="Cancel"
+                            type="object"
+                            invisible="state in ('cancelled','shipped')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,reserved,shipped,cancelled"/>
                 </header>
                 <sheet>
+                    <!-- Smart buttons -->
                     <div class="oe_button_box" name="button_box">
-                        <button class="oe_stat_button" name="action_view_sale_order" type="object" icon="fa-shopping-cart" invisible="not sale_order_id">
+                        <button class="oe_stat_button" name="action_view_sale_order"
+                                type="object" icon="fa-shopping-cart"
+                                invisible="not sale_order_id">
                             <field name="sale_order_id" widget="statinfo" string="Sales Order"/>
                         </button>
-                        <button class="oe_stat_button" name="action_view_delivery" type="object" icon="fa-truck" invisible="not delivery_picking_id">
+                        <button class="oe_stat_button" name="action_view_delivery"
+                                type="object" icon="fa-truck"
+                                invisible="not delivery_picking_id">
                             <field name="delivery_picking_id" widget="statinfo" string="Delivery"/>
                         </button>
                     </div>
-                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+
+                    <!-- Main fields -->
                     <group>
-                        <group>
+                        <group string="Shipment Info">
                             <field name="shipment_date"/>
                             <field name="customer_id"/>
                             <field name="destination_id"/>
+                            <field name="season_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
-                        <group>
-                            <field name="container_count" readonly="1"/>
+                        <group string="Container Info">
+                            <field name="container_count"/>
                             <field name="container_no" readonly="1"/>
                             <field name="seal_no" readonly="1"/>
                         </group>
                     </group>
                     <group>
-                        <group>
+                        <group string="Freight Details">
+                            <field name="vessel_name"/>
+                            <field name="voyage_no"/>
+                            <field name="etd"/>
+                            <field name="eta"/>
+                            <field name="bl_number"/>
+                        </group>
+                        <group string="Profitability">
                             <field name="total_qty" readonly="1"/>
                             <field name="total_reserved_qty" readonly="1"/>
-                        </group>
-                        <group>
                             <field name="revenue_amount" readonly="1"/>
-                            <field name="gross_margin_pct" readonly="1"/>
+                            <field name="total_logistics_cost" readonly="1"/>
+                            <field name="gross_profit_amount" readonly="1"
+                                   decoration-danger="gross_profit_amount &lt; 0"/>
+                            <field name="gross_margin_pct" readonly="1"
+                                  
+                                   decoration-danger="gross_margin_pct &lt; 0"
+                                   decoration-warning="gross_margin_pct &lt; 20"
+                                   decoration-success="gross_margin_pct &gt;= 20"/>
                         </group>
                     </group>
+
                     <notebook>
-                        <page string="Containers">
+                        <!-- Containers tab -->
+                        <page string="Containers" name="containers">
                             <field name="container_ids">
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
@@ -60,11 +270,14 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Products">
+
+                        <!-- Products tab -->
+                        <page string="Products" name="products">
                             <field name="line_ids">
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
-                                    <field name="container_id" domain="[('shipment_id', '=', parent.id)]"/>
+                                    <field name="container_id"
+                                           domain="[('shipment_id','=',parent.id)]"/>
                                     <field name="product_id"/>
                                     <field name="grade_id"/>
                                     <field name="size_id"/>
@@ -76,7 +289,9 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Reserved Lots">
+
+                        <!-- Reserved Lots tab -->
+                        <page string="Reserved Lots" name="lots">
                             <field name="lot_line_ids" readonly="1">
                                 <list>
                                     <field name="container_id"/>
@@ -84,12 +299,15 @@
                                     <field name="product_id"/>
                                     <field name="lot_id"/>
                                     <field name="batch_output_id"/>
-                                    <field name="available_qty"/>
+                                    <field name="available_qty" optional="show"/>
                                     <field name="reserved_qty"/>
+                                    <field name="note" optional="hide"/>
                                 </list>
                             </field>
                         </page>
-                        <page string="Logistics Costs">
+
+                        <!-- Logistics Costs tab -->
+                        <page string="Logistics Costs" name="costs">
                             <group>
                                 <group>
                                     <field name="total_logistics_cost" readonly="1"/>
@@ -97,7 +315,8 @@
                                 </group>
                                 <group>
                                     <field name="gross_profit_amount" readonly="1"/>
-                                    <field name="gross_margin_pct" readonly="1"/>
+                                    <field name="gross_margin_pct" readonly="1"
+                                          />
                                 </group>
                             </group>
                             <field name="cost_line_ids">
@@ -116,7 +335,7 @@
                                     <field name="note" optional="hide"/>
                                 </list>
                             </field>
-                            <separator string="Allocation by Shipment Line"/>
+                            <separator string="Allocated Cost per Product Line"/>
                             <field name="line_ids" readonly="1">
                                 <list>
                                     <field name="container_id"/>
@@ -131,16 +350,37 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Notes"><field name="note"/></page>
+
+                        <!-- Notes -->
+                        <page string="Notes" name="notes">
+                            <field name="note"/>
+                        </page>
                     </notebook>
                 </sheet>
                 <chatter/>
             </form>
         </field>
     </record>
-    <record id="action_agx_shipment" model="ir.actions.act_window"><field name="name">Shipments</field><field name="res_model">agx.shipment</field><field name="view_mode">list,form</field></record>
-    <menuitem id="menu_agx_shipment" name="Shipments" parent="menu_agx_operations" action="action_agx_shipment" sequence="30"/>
 
-    <record id="action_agx_shipment_profitability" model="ir.actions.act_window"><field name="name">Shipment Profitability Analysis</field><field name="res_model">agx.shipment</field><field name="view_mode">graph,pivot</field></record>
-    <menuitem id="menu_agx_shipment_profitability" name="Shipment Profitability Analysis" parent="menu_agx_analytics" action="action_agx_shipment_profitability" sequence="10"/>
+    <!-- Actions + Menus -->
+    <record id="action_agx_shipment" model="ir.actions.act_window">
+        <field name="name">Export Shipments</field>
+        <field name="res_model">agx.shipment</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="view_agx_shipment_search"/>
+    </record>
+    <menuitem id="menu_agx_shipment" name="Export Shipments"
+              parent="menu_agx_operations"
+              action="action_agx_shipment" sequence="30"/>
+
+    <record id="action_agx_shipment_profitability" model="ir.actions.act_window">
+        <field name="name">Shipment Profitability Analysis</field>
+        <field name="res_model">agx.shipment</field>
+        <field name="view_mode">graph,pivot</field>
+        <field name="search_view_id" ref="view_agx_shipment_search"/>
+    </record>
+    <menuitem id="menu_agx_shipment_profitability" name="Shipment Profitability"
+              parent="menu_agx_analytics"
+              action="action_agx_shipment_profitability" sequence="10"/>
+
 </odoo>

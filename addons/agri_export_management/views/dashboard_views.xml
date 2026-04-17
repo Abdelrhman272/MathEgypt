@@ -6,37 +6,100 @@
         <field name="arch" type="xml">
             <form string="Agricultural Export Dashboard" create="0" edit="1" delete="0">
                 <header>
-                    <button name="action_open_profitability" string="Open Profitability Analysis" type="object"/>
+                    <button name="action_open_profitability" string="Profitability Analysis"
+                            type="object" class="btn-secondary"/>
                 </header>
                 <sheet>
                     <div class="oe_title"><h1>Agricultural Export Dashboard</h1></div>
+
+                    <!-- Stat buttons -->
                     <div class="oe_button_box" name="button_box">
-                        <button class="oe_stat_button" type="object" name="action_open_evaluations" icon="fa-leaf">
-                            <field name="open_evaluations_count" widget="statinfo" string="Open Evaluations"/>
+                        <button class="oe_stat_button" type="object"
+                                name="action_open_evaluations" icon="fa-leaf">
+                            <field name="open_evaluations_count" widget="statinfo"
+                                   string="Open Evaluations"/>
                         </button>
-                        <button class="oe_stat_button" type="object" name="action_open_incoming_receipts" icon="fa-truck">
-                            <field name="pending_incoming_receipts_count" widget="statinfo" string="Pending Incoming Receipts"/>
+                        <button class="oe_stat_button" type="object"
+                                name="action_open_incoming_receipts" icon="fa-truck">
+                            <field name="pending_incoming_receipts_count" widget="statinfo"
+                                   string="Pending Receipts"/>
                         </button>
-                        <button class="oe_stat_button" type="object" name="action_open_batches" icon="fa-industry">
-                            <field name="active_batches_count" widget="statinfo" string="Active Batches"/>
+                        <button class="oe_stat_button" type="object"
+                                name="action_open_batches" icon="fa-industry">
+                            <field name="active_batches_count" widget="statinfo"
+                                   string="Active Batches"/>
                         </button>
-                        <button class="oe_stat_button" type="object" name="action_open_shipments" icon="fa-ship">
-                            <field name="pending_shipments_count" widget="statinfo" string="Pending Shipments"/>
+                        <button class="oe_stat_button" type="object"
+                                name="action_open_shipments" icon="fa-ship">
+                            <field name="pending_shipments_count" widget="statinfo"
+                                   string="Pending Shipments"/>
                         </button>
                     </div>
+
+                    <!-- Filters -->
                     <group>
-                        <group><field name="company_id" options="{'no_create': True}"/></group>
-                        <group><field name="date_from"/><field name="date_to"/></group>
+                        <group>
+                            <field name="company_id" options="{'no_create': True}"/>
+                            <field name="season_id"
+                                   help="Filter all metrics by season. Overrides date filter."/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
                     </group>
+
                     <separator string="Operations Overview"/>
                     <group col="4">
-                        <group string="Evaluations"><field name="open_evaluations_count" readonly="1"/><field name="approved_evaluations_count" readonly="1"/><field name="pending_purchases_count" readonly="1"/></group>
-                        <group string="Operations"><field name="pending_incoming_receipts_count" readonly="1"/><field name="active_batches_count" readonly="1"/><field name="pending_shipments_count" readonly="1"/><field name="shipped_shipments_count" readonly="1"/></group>
-                        <group string="Reservations"><field name="reserved_lots_qty" readonly="1"/></group>
-                        <group string="Business Highlights"><field name="top_destination_name" readonly="1"/><field name="top_customer_name" readonly="1"/><field name="highest_cost_shipment_name" readonly="1"/><field name="highest_margin_shipment_name" readonly="1"/></group>
+                        <group string="Evaluations">
+                            <field name="open_evaluations_count" readonly="1"/>
+                            <field name="approved_evaluations_count" readonly="1"/>
+                            <field name="pending_purchases_count" readonly="1"/>
+                        </group>
+                        <group string="Operations">
+                            <field name="pending_incoming_receipts_count" readonly="1"/>
+                            <field name="active_batches_count" readonly="1"/>
+                            <field name="pending_shipments_count" readonly="1"/>
+                            <field name="shipped_shipments_count" readonly="1"/>
+                        </group>
+                        <group string="Reservations">
+                            <field name="reserved_lots_qty" readonly="1"/>
+                        </group>
+                        <group string="Highlights">
+                            <field name="top_destination_name" readonly="1"/>
+                            <field name="top_customer_name" readonly="1"/>
+                            <field name="highest_cost_shipment_name" readonly="1"/>
+                            <field name="highest_margin_shipment_name" readonly="1"/>
+                        </group>
                     </group>
+
                     <separator string="Profitability Snapshot"/>
-                    <group col="4"><group><field name="logistics_cost_period" readonly="1"/></group><group><field name="revenue_period" readonly="1"/></group><group><field name="gross_profit_period" readonly="1"/></group><group><field name="margin_pct_period" readonly="1"/></group></group>
+                    <group col="4">
+                        <group><field name="logistics_cost_period" readonly="1"/></group>
+                        <group><field name="revenue_period" readonly="1"/></group>
+                        <group><field name="gross_profit_period" readonly="1"/></group>
+                        <group><field name="margin_pct_period" readonly="1"/></group>
+                    </group>
+
+                    <!-- Season metrics — only shown when season_id is set -->
+                    <separator string="Season Performance" invisible="not season_id"/>
+                    <group col="3" invisible="not season_id">
+                        <group>
+                            <field name="season_total_input_qty" readonly="1"
+                                   string="Total Input Qty"/>
+                            <field name="season_total_output_qty" readonly="1"
+                                   string="Total Output Qty"/>
+                            <field name="season_yield_pct" readonly="1"
+                                   string="Yield %"/>
+                        </group>
+                        <group>
+                            <field name="season_total_revenue" readonly="1"/>
+                            <field name="season_gross_profit" readonly="1"/>
+                            <field name="season_margin_pct" readonly="1"
+                                   string="Season Margin %"/>
+                        </group>
+                    </group>
+
                 </sheet>
             </form>
         </field>
@@ -49,5 +112,6 @@
         <field name="code">action = env['agx.dashboard'].action_open_dashboard()</field>
     </record>
 
-    <menuitem id="menu_agx_dashboard" name="Dashboard" parent="menu_agx_root" action="action_agx_dashboard_server" sequence="1"/>
+    <menuitem id="menu_agx_dashboard" name="Dashboard" parent="menu_agx_root"
+              action="action_agx_dashboard_server" sequence="1"/>
 </odoo>

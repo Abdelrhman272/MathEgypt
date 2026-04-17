@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+
+    <!-- ================================================================
+         REPORT ACTIONS
+    ================================================================ -->
     <record id="action_report_agx_shipment" model="ir.actions.report">
-        <field name="name">Shipment Summary</field>
+        <field name="name">Shipment Packing List</field>
         <field name="model">agx.shipment</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">agri_export_management.report_agx_shipment_summary</field>
@@ -9,8 +13,9 @@
         <field name="binding_model_id" ref="model_agx_shipment"/>
         <field name="binding_type">report</field>
     </record>
+
     <record id="action_report_agx_evaluation" model="ir.actions.report">
-        <field name="name">Farm Evaluation</field>
+        <field name="name">Farm Evaluation Report</field>
         <field name="model">agx.evaluation</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">agri_export_management.report_agx_evaluation</field>
@@ -18,10 +23,405 @@
         <field name="binding_model_id" ref="model_agx_evaluation"/>
         <field name="binding_type">report</field>
     </record>
+
+    <!-- ================================================================
+         SHIPMENT PACKING LIST
+         Professional export document showing containers, products,
+         lots, weights, and logistics cost summary.
+    ================================================================ -->
     <template id="report_agx_shipment_summary">
-        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout"><div class="page"><h2>Shipment Summary</h2><p><strong>Shipment:</strong> <span t-esc="o.name"/></p><p><strong>Customer:</strong> <span t-esc="o.customer_id.display_name"/></p><p><strong>Destination:</strong> <span t-esc="o.destination_id.display_name"/></p><p><strong>Total Logistics Cost:</strong> <span t-esc="o.total_logistics_cost"/></p><p><strong>Revenue:</strong> <span t-esc="o.revenue_amount"/></p><p><strong>Gross Profit:</strong> <span t-esc="o.gross_profit_amount"/></p></div></t></t></t>
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+
+                        <!-- Header -->
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <h2 style="color:#1a5276;">Shipment Packing List</h2>
+                                <h3 t-esc="o.name"/>
+                                <p class="text-muted" style="font-size:11px;">
+                                    Date: <t t-esc="o.shipment_date"/>
+                                    <t t-if="o.season_id">
+                                        &amp;nbsp;|&amp;nbsp; Season: <t t-esc="o.season_id.name"/>
+                                    </t>
+                                </p>
+                            </div>
+                            <div class="col-6 text-right">
+                                <table class="table table-sm table-borderless" style="font-size:11px;">
+                                    <tr>
+                                        <td><strong>Customer:</strong></td>
+                                        <td t-esc="o.customer_id.display_name or '-'"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Destination:</strong></td>
+                                        <td>
+                                            <t t-esc="o.destination_id.name or '-'"/>
+                                            <t t-if="o.destination_id.port_name">
+                                                (<t t-esc="o.destination_id.port_name"/>)
+                                            </t>
+                                        </td>
+                                    </tr>
+                                    <tr t-if="o.vessel_name">
+                                        <td><strong>Vessel:</strong></td>
+                                        <td t-esc="o.vessel_name"/>
+                                    </tr>
+                                    <tr t-if="o.voyage_no">
+                                        <td><strong>Voyage:</strong></td>
+                                        <td t-esc="o.voyage_no"/>
+                                    </tr>
+                                    <tr t-if="o.etd">
+                                        <td><strong>ETD:</strong></td>
+                                        <td t-esc="o.etd"/>
+                                    </tr>
+                                    <tr t-if="o.eta">
+                                        <td><strong>ETA:</strong></td>
+                                        <td t-esc="o.eta"/>
+                                    </tr>
+                                    <tr t-if="o.bl_number">
+                                        <td><strong>B/L No:</strong></td>
+                                        <td t-esc="o.bl_number"/>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Containers summary -->
+                        <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
+                            Containers
+                        </h4>
+                        <table class="table table-sm table-bordered" style="font-size:11px;">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Container No</th>
+                                    <th>Seal No</th>
+                                    <th>Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="o.container_ids" t-as="c">
+                                    <td t-esc="c.sequence // 10"/>
+                                    <td t-esc="c.container_no or '-'"/>
+                                    <td t-esc="c.seal_no or '-'"/>
+                                    <td t-esc="c.note or ''"/>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Product lines -->
+                        <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px; margin-top:16px;">
+                            Products
+                        </h4>
+                        <table class="table table-sm table-bordered" style="font-size:11px;">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Container</th>
+                                    <th>Product</th>
+                                    <th>Grade</th>
+                                    <th>Size</th>
+                                    <th class="text-right">Qty</th>
+                                    <th class="text-right">Cartons</th>
+                                    <th class="text-right">Net Wt (kg)</th>
+                                    <th class="text-right">Gross Wt (kg)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="o.line_ids" t-as="l">
+                                    <td t-esc="l.container_id.name or '-'"/>
+                                    <td t-esc="l.product_id.display_name"/>
+                                    <td t-esc="l.grade_id.name or '-'"/>
+                                    <td t-esc="l.size_id.name or '-'"/>
+                                    <td class="text-right">
+                                        <t t-esc="'%.0f' % l.product_qty"/>
+                                        <t t-esc="l.uom_id.name or ''"/>
+                                    </td>
+                                    <td class="text-right" t-esc="'%.0f' % l.carton_qty"/>
+                                    <td class="text-right" t-esc="'%.2f' % l.net_weight"/>
+                                    <td class="text-right" t-esc="'%.2f' % l.gross_weight"/>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr style="font-weight:bold; background:#eaf4fb;">
+                                    <td colspan="4">Total</td>
+                                    <td class="text-right" t-esc="'%.0f' % o.total_qty"/>
+                                    <td class="text-right"
+                                        t-esc="'%.0f' % sum(o.line_ids.mapped('carton_qty'))"/>
+                                    <td class="text-right"
+                                        t-esc="'%.2f' % sum(o.line_ids.mapped('net_weight'))"/>
+                                    <td class="text-right"
+                                        t-esc="'%.2f' % sum(o.line_ids.mapped('gross_weight'))"/>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <!-- Reserved Lots -->
+                        <t t-if="o.lot_line_ids">
+                            <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px; margin-top:16px;">
+                                Reserved Lots
+                            </h4>
+                            <table class="table table-sm table-bordered" style="font-size:10px;">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Container</th>
+                                        <th>Product</th>
+                                        <th>Lot</th>
+                                        <th>Grade</th>
+                                        <th>Size</th>
+                                        <th class="text-right">Reserved Qty</th>
+                                        <th>Batch</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="o.lot_line_ids" t-as="ll">
+                                        <td t-esc="ll.container_id.name or '-'"/>
+                                        <td t-esc="ll.product_id.display_name"/>
+                                        <td t-esc="ll.lot_id.name"/>
+                                        <td t-esc="ll.batch_output_id.grade_id.name if ll.batch_output_id else '-'"/>
+                                        <td t-esc="ll.batch_output_id.size_id.name if ll.batch_output_id else '-'"/>
+                                        <td class="text-right" t-esc="'%.0f' % ll.reserved_qty"/>
+                                        <td t-esc="ll.batch_output_id.batch_id.name if ll.batch_output_id else '-'"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <!-- Logistics Costs + Profitability -->
+                        <div class="row mt-3">
+                            <div class="col-7">
+                                <t t-if="o.cost_line_ids">
+                                    <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
+                                        Logistics Costs
+                                    </h4>
+                                    <table class="table table-sm table-bordered" style="font-size:11px;">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Cost Type</th>
+                                                <th>Basis</th>
+                                                <th>Source</th>
+                                                <th class="text-right">Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-foreach="o.cost_line_ids" t-as="cl">
+                                                <td t-esc="cl.cost_type_id.name"/>
+                                                <td t-esc="cl.allocation_basis"/>
+                                                <td t-esc="cl.cost_source"/>
+                                                <td class="text-right"
+                                                    t-esc="'%.2f' % cl.effective_amount"/>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style="font-weight:bold;">
+                                                <td colspan="3">Total Logistics Cost</td>
+                                                <td class="text-right"
+                                                    t-esc="'%.2f' % o.total_logistics_cost"/>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </t>
+                            </div>
+                            <div class="col-5">
+                                <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
+                                    Profitability
+                                </h4>
+                                <table class="table table-sm" style="font-size:11px;">
+                                    <tr>
+                                        <td>Revenue (ex. tax)</td>
+                                        <td class="text-right">
+                                            <t t-esc="o.currency_id.symbol"/>
+                                            <t t-esc="'%.2f' % o.revenue_amount"/>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Logistics Cost</td>
+                                        <td class="text-right" style="color:#c0392b;">
+                                            (<t t-esc="o.currency_id.symbol"/>
+                                            <t t-esc="'%.2f' % o.total_logistics_cost"/>)
+                                        </td>
+                                    </tr>
+                                    <tr style="font-weight:bold; border-top:2px solid #1a5276;">
+                                        <td>Gross Profit</td>
+                                        <td class="text-right"
+                                            t-attf-style="color:{{ '#27ae60' if o.gross_profit_amount >= 0 else '#c0392b' }}">
+                                            <t t-esc="o.currency_id.symbol"/>
+                                            <t t-esc="'%.2f' % o.gross_profit_amount"/>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Gross Margin</td>
+                                        <td class="text-right"
+                                            t-attf-style="color:{{ '#27ae60' if o.gross_margin_pct >= 0 else '#c0392b' }}">
+                                            <t t-esc="'%.1f' % o.gross_margin_pct"/>%
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Cost / Container</td>
+                                        <td class="text-right">
+                                            <t t-esc="o.currency_id.symbol"/>
+                                            <t t-esc="'%.2f' % o.cost_per_container"/>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Signatures -->
+                        <div class="row mt-5" style="font-size:11px;">
+                            <div class="col-4 text-center">
+                                <div style="border-top:1px solid #333; padding-top:4px;">
+                                    Prepared By
+                                </div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div style="border-top:1px solid #333; padding-top:4px;">
+                                    Approved By
+                                </div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div style="border-top:1px solid #333; padding-top:4px;">
+                                    Date
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </t>
+            </t>
+        </t>
     </template>
+
+    <!-- ================================================================
+         FARM EVALUATION REPORT
+         Shows expected vs. actual yield by grade/size with achievement%.
+    ================================================================ -->
     <template id="report_agx_evaluation">
-        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout"><div class="page"><h2>Farm Evaluation</h2><p><strong>Evaluation:</strong> <span t-esc="o.name"/></p><p><strong>Farm:</strong> <span t-esc="o.farm_id.display_name"/></p><p><strong>Vendor:</strong> <span t-esc="o.partner_id.display_name"/></p><p><strong>Expected Qty:</strong> <span t-esc="o.expected_total_qty"/></p><p><strong>Actual Qty:</strong> <span t-esc="o.actual_total_qty"/></p><p><strong>Achievement %:</strong> <span t-esc="o.achievement_pct"/></p><table class="table table-sm table-bordered"><thead><tr><th>Product</th><th>Grade</th><th>Size</th><th>Expected</th><th>Actual</th><th>Variance</th></tr></thead><tbody><tr t-foreach="o.line_ids" t-as="l"><td t-esc="l.product_id.display_name"/><td t-esc="l.grade_id.display_name or ''"/><td t-esc="l.size_id.display_name or ''"/><td t-esc="l.expected_qty"/><td t-esc="l.actual_qty"/><td t-esc="l.variance_qty"/></tr></tbody></table></div></t></t></t>
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+
+                        <!-- Header -->
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <h2 style="color:#1a5276;">Farm Evaluation</h2>
+                                <h3 t-esc="o.name"/>
+                            </div>
+                            <div class="col-6 text-right">
+                                <table class="table table-sm table-borderless" style="font-size:11px;">
+                                    <tr>
+                                        <td><strong>Date:</strong></td>
+                                        <td t-esc="o.evaluation_date"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Farm:</strong></td>
+                                        <td t-esc="o.farm_id.display_name"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Vendor:</strong></td>
+                                        <td t-esc="o.partner_id.display_name or '-'"/>
+                                    </tr>
+                                    <tr t-if="o.crop_id">
+                                        <td><strong>Crop:</strong></td>
+                                        <td t-esc="o.crop_id.name"/>
+                                    </tr>
+                                    <tr t-if="o.season_id">
+                                        <td><strong>Season:</strong></td>
+                                        <td t-esc="o.season_id.name"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Status:</strong></td>
+                                        <td t-esc="o.state"/>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Summary KPIs -->
+                        <div class="row mb-4" style="background:#eaf4fb; padding:10px; border-radius:4px;">
+                            <div class="col-3 text-center">
+                                <div style="font-size:20px; font-weight:bold; color:#1a5276;"
+                                     t-esc="'%.0f' % o.farm_expected_qty"/>
+                                <div style="font-size:10px; color:#555;">Farm Expected Qty</div>
+                            </div>
+                            <div class="col-3 text-center">
+                                <div style="font-size:20px; font-weight:bold; color:#1a5276;"
+                                     t-esc="'%.0f' % o.expected_total_qty"/>
+                                <div style="font-size:10px; color:#555;">Lines Expected Qty</div>
+                            </div>
+                            <div class="col-3 text-center">
+                                <div style="font-size:20px; font-weight:bold;"
+                                     t-attf-style="color:{{ '#27ae60' if o.actual_total_qty >= o.expected_total_qty else '#c0392b' }}"
+                                     t-esc="'%.0f' % o.actual_total_qty"/>
+                                <div style="font-size:10px; color:#555;">Actual Output Qty</div>
+                            </div>
+                            <div class="col-3 text-center">
+                                <div style="font-size:20px; font-weight:bold;"
+                                     t-attf-style="color:{{ '#27ae60' if o.achievement_pct >= 90 else '#c0392b' }}"
+                                     t-esc="'%.1f' % o.achievement_pct + '%'"/>
+                                <div style="font-size:10px; color:#555;">Achievement %</div>
+                            </div>
+                        </div>
+
+                        <!-- Lines -->
+                        <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
+                            Grade / Size Breakdown
+                        </h4>
+                        <table class="table table-sm table-bordered" style="font-size:11px;">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Grade</th>
+                                    <th>Size</th>
+                                    <th class="text-right">Expected %</th>
+                                    <th class="text-right">Expected Qty</th>
+                                    <th class="text-right">Actual Qty</th>
+                                    <th class="text-right">Variance</th>
+                                    <th class="text-right">Achievement %</th>
+                                    <th class="text-right">Est. Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="o.line_ids" t-as="l">
+                                    <td t-esc="l.product_id.display_name"/>
+                                    <td t-esc="l.grade_id.name or '-'"/>
+                                    <td t-esc="l.size_id.name or '-'"/>
+                                    <td class="text-right" t-esc="'%.1f' % l.expected_ratio"/>
+                                    <td class="text-right" t-esc="'%.0f' % l.expected_qty"/>
+                                    <td class="text-right" t-esc="'%.0f' % l.actual_qty"/>
+                                    <td class="text-right"
+                                        t-attf-style="color:{{ '#27ae60' if l.variance_qty >= 0 else '#c0392b' }}"
+                                        t-esc="'%.0f' % l.variance_qty"/>
+                                    <td class="text-right"
+                                        t-attf-style="color:{{ '#27ae60' if l.achievement_pct >= 90 else '#c0392b' }}"
+                                        t-esc="'%.1f' % l.achievement_pct + '%'"/>
+                                    <td class="text-right" t-esc="'%.2f' % l.estimated_unit_price"/>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr style="font-weight:bold; background:#eaf4fb;">
+                                    <td colspan="4">Total</td>
+                                    <td class="text-right" t-esc="'%.0f' % o.expected_total_qty"/>
+                                    <td class="text-right" t-esc="'%.0f' % o.actual_total_qty"/>
+                                    <td class="text-right" t-esc="'%.0f' % o.variance_qty"/>
+                                    <td class="text-right" t-esc="'%.1f' % o.achievement_pct + '%'"/>
+                                    <td class="text-right"
+                                        t-esc="'%.2f' % o.estimated_purchase_value"/>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <t t-if="o.note">
+                            <h4 style="color:#1a5276; border-bottom:1px solid #aaa; padding-bottom:4px; margin-top:16px;">
+                                Notes
+                            </h4>
+                            <div t-raw="o.note"/>
+                        </t>
+
+                    </div>
+                </t>
+            </t>
+        </t>
     </template>
+
 </odoo>
