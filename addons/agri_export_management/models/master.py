@@ -295,41 +295,40 @@ class AgxSeason(models.Model):
 
         Finds or creates a plan named 'AGX Seasons'.
         Returns False for Odoo versions without analytic plans.
+
+        Note: account.analytic.plan in Odoo 19 has no company_id field —
+        plans are global (not company-specific).
         """
         Plan = self.env.get("account.analytic.plan")
         if Plan is None:
             return False
-        plan = Plan.search(
-            [
-                ("name", "=", "AGX Seasons"),
-                "|",
-                ("company_id", "=", self.company_id.id),
-                ("company_id", "=", False),
-            ],
-            limit=1,
-        )
+        # Odoo 19: account.analytic.plan has no company_id — search by name only
+        plan = Plan.search([("name", "=", "AGX Seasons")], limit=1)
         if not plan:
-            plan = Plan.create(
-                {
-                    "name": "AGX Seasons",
-                    "company_id": self.company_id.id,
-                }
-            )
+            plan = Plan.create({"name": "AGX Seasons"})
         return plan.id
 
     def _ensure_analytic_account(self):
-        """Create an analytic account for this season if none exists yet."""
+        """Create an analytic account for this season if none exists yet.
+
+        Handles both Odoo 17/18 (with plan_id required) and Odoo 19
+        (plan_id optional, company_id may or may not exist on the model).
+        """
         self.ensure_one()
         if self.analytic_account_id:
             return
-        create_vals = {
-            "name": self._analytic_account_name(),
-            "company_id": self.company_id.id,
-        }
+        create_vals = {"name": self._analytic_account_name()}
+
+        # Add company_id only if the field exists on account.analytic.account
+        AnalyticAccount = self.env["account.analytic.account"]
+        if "company_id" in AnalyticAccount._fields:
+            create_vals["company_id"] = self.company_id.id
+
         plan_id = self._get_default_analytic_plan()
         if plan_id:
             create_vals["plan_id"] = plan_id
-        account = self.env["account.analytic.account"].create(create_vals)
+
+        account = AnalyticAccount.create(create_vals)
         self.sudo().analytic_account_id = account.id
 
     @api.depends("name")
