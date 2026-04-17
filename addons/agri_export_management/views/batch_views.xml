@@ -117,7 +117,7 @@
                 <separator/>
                 <filter string="Manual Costing" name="manual" domain="[('costing_status','=','manual')]"/>
                 <filter string="Actual Costing" name="actual" domain="[('costing_status','=','actual')]"/>
-                <group expand="0" string="Group By">
+                <group string="Group By">
                     <filter string="Season"     name="gb_season"  context="{'group_by':'season_id'}"/>
                     <filter string="Evaluation" name="gb_eval"    context="{'group_by':'evaluation_id'}"/>
                     <filter string="State"      name="gb_state"   context="{'group_by':'state'}"/>

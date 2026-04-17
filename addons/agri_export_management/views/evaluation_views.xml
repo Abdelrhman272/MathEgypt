@@ -104,8 +104,8 @@
                 <filter string="Closed"    name="closed"    domain="[('state','=','closed')]"/>
                 <separator/>
                 <filter string="This Month" name="this_month"
-                        domain="[('evaluation_date','&gt;=', (context_today()).strftime('%Y-%m-01'))]"/>
-                <group expand="0" string="Group By">
+                        domain="[('evaluation_date', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
+                <group string="Group By">
                     <filter string="Farm"    name="gb_farm"    context="{'group_by':'farm_id'}"/>
                     <filter string="Season"  name="gb_season"  context="{'group_by':'season_id'}"/>
                     <filter string="State"   name="gb_state"   context="{'group_by':'state'}"/>
