@@ -145,7 +145,6 @@ class AgxSize(models.Model):
     _order = "sequence, number, id"
 
     name = fields.Char(
-        required=True,
         compute="_compute_name",
         store=True,
         help="Auto-computed from size number (e.g. '36', '40').",
