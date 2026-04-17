@@ -105,31 +105,25 @@
         <field name="name">agx.shipment.search</field>
         <field name="model">agx.shipment</field>
         <field name="arch" type="xml">
-            <search string="Search Shipments">
+                        <search string="Search Shipments">
                 <field name="name"/>
                 <field name="customer_id"/>
                 <field name="destination_id"/>
                 <field name="season_id"/>
                 <field name="bl_number" string="B/L Number"/>
-                <separator/>
                 <filter string="Draft"    name="draft"    domain="[('state','=','draft')]"/>
                 <filter string="Reserved" name="reserved" domain="[('state','=','reserved')]"/>
                 <filter string="Shipped"  name="shipped"  domain="[('state','=','shipped')]"/>
                 <separator/>
-                <filter string="Profitable (Margin ≥ 20%)" name="profitable"
+                <filter string="Profitable (Margin &gt;= 20%%)" name="profitable"
                         domain="[('gross_margin_pct','&gt;=',20)]"/>
-                <filter string="At Risk (Margin &lt; 0%)" name="at_risk"
+                <filter string="At Risk (Margin &lt; 0%%)" name="at_risk"
                         domain="[('gross_margin_pct','&lt;',0)]"/>
                 <separator/>
-                <filter string="This Month" name="this_month"
-                        domain="[('shipment_date', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
-                <group string="Group By">
-                    <filter string="Season"      name="gb_season"  context="{'group_by':'season_id'}"/>
-                    <filter string="Customer"    name="gb_customer" context="{'group_by':'customer_id'}"/>
-                    <filter string="Destination" name="gb_dest"    context="{'group_by':'destination_id'}"/>
-                    <filter string="State"       name="gb_state"   context="{'group_by':'state'}"/>
-                    <filter string="Month"       name="gb_month"   context="{'group_by':'shipment_date:month'}"/>
-                </group>
+                <filter string="By Season"      name="gb_season"  context="{'group_by':'season_id'}"/>
+                <filter string="By Customer"    name="gb_customer" context="{'group_by':'customer_id'}"/>
+                <filter string="By Destination" name="gb_dest"    context="{'group_by':'destination_id'}"/>
+                <filter string="By State"       name="gb_state"   context="{'group_by':'state'}"/>
             </search>
         </field>
     </record>

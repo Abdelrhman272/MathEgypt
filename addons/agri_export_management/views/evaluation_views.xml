@@ -97,21 +97,15 @@
                 <field name="partner_id"/>
                 <field name="season_id"/>
                 <field name="crop_id"/>
-                <separator/>
-                <filter string="Draft"     name="draft"     domain="[('state','=','draft')]"/>
-                <filter string="Approved"  name="approved"  domain="[('state','=','approved')]"/>
+                <filter string="Draft"      name="draft"      domain="[('state','=','draft')]"/>
+                <filter string="Approved"   name="approved"   domain="[('state','=','approved')]"/>
                 <filter string="PO Created" name="po_created" domain="[('state','=','po_created')]"/>
-                <filter string="Closed"    name="closed"    domain="[('state','=','closed')]"/>
+                <filter string="Closed"     name="closed"     domain="[('state','=','closed')]"/>
                 <separator/>
-                <filter string="This Month" name="this_month"
-                        domain="[('evaluation_date', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
-                <group string="Group By">
-                    <filter string="Farm"    name="gb_farm"    context="{'group_by':'farm_id'}"/>
-                    <filter string="Season"  name="gb_season"  context="{'group_by':'season_id'}"/>
-                    <filter string="State"   name="gb_state"   context="{'group_by':'state'}"/>
-                    <filter string="Crop"    name="gb_crop"    context="{'group_by':'crop_id'}"/>
-                    <filter string="Month"   name="gb_month"   context="{'group_by':'evaluation_date:month'}"/>
-                </group>
+                <filter string="Farm"    name="gb_farm"    context="{'group_by':'farm_id'}"/>
+                <filter string="Season"  name="gb_season"  context="{'group_by':'season_id'}"/>
+                <filter string="State"   name="gb_state"   context="{'group_by':'state'}"/>
+                <filter string="Crop"    name="gb_crop"    context="{'group_by':'crop_id'}"/>
             </search>
         </field>
     </record>

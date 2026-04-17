@@ -110,19 +110,16 @@
                 <field name="name"/>
                 <field name="evaluation_id"/>
                 <field name="season_id"/>
-                <separator/>
                 <filter string="Draft"       name="draft"       domain="[('state','=','draft')]"/>
                 <filter string="In Progress" name="in_progress" domain="[('state','=','in_progress')]"/>
                 <filter string="Done"        name="done"        domain="[('state','=','done')]"/>
                 <separator/>
                 <filter string="Manual Costing" name="manual" domain="[('costing_status','=','manual')]"/>
                 <filter string="Actual Costing" name="actual" domain="[('costing_status','=','actual')]"/>
-                <group string="Group By">
-                    <filter string="Season"     name="gb_season"  context="{'group_by':'season_id'}"/>
-                    <filter string="Evaluation" name="gb_eval"    context="{'group_by':'evaluation_id'}"/>
-                    <filter string="State"      name="gb_state"   context="{'group_by':'state'}"/>
-                    <filter string="Month"      name="gb_month"   context="{'group_by':'batch_date:month'}"/>
-                </group>
+                <separator/>
+                <filter string="By Season"     name="gb_season"  context="{'group_by':'season_id'}"/>
+                <filter string="By Evaluation" name="gb_eval"    context="{'group_by':'evaluation_id'}"/>
+                <filter string="By State"      name="gb_state"   context="{'group_by':'state'}"/>
             </search>
         </field>
     </record>
