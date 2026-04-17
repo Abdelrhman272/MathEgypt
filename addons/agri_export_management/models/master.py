@@ -150,6 +150,18 @@ class AgxSize(models.Model):
         help="Auto-computed from size number (e.g. '36', '40').",
     )
     number = fields.Integer(required=True, help="Number of fruit per carton.")
+
+    def init(self):
+        """Remove NOT NULL constraint on name column if it exists.
+
+        In Odoo 19, computed+store fields are written AFTER the INSERT,
+        so the DB column must allow NULL temporarily during create().
+        This runs once at module install/update.
+        """
+        self.env.cr.execute("""
+            ALTER TABLE agx_size
+            ALTER COLUMN name DROP NOT NULL
+        """)
     code = fields.Char()
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)

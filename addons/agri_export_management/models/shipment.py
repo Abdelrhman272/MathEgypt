@@ -800,11 +800,8 @@ class AgxShipment(models.Model):
                 "agx_shipment_id": rec.id,
                 "agx_flow_type": "shipment",
             }
-            # Stamp season analytic account for P&L posting
-            if rec.season_id and rec.season_id.analytic_account_id:
-                picking_vals["analytic_account_id"] = (
-                    rec.season_id.analytic_account_id.id
-                )
+            # Note: stock.picking has no analytic_account_id header field in Odoo 19.
+            # Analytic posting happens via account.move lines on the invoice.
             picking = self.env["stock.picking"].create(picking_vals)
 
             for line in rec.line_ids.filtered(
@@ -964,33 +961,29 @@ class AgxShipment(models.Model):
             raise UserError(
                 _("Please configure a container service product in Settings.")
             )
+        # Odoo 19: analytic_distribution goes on SO line, not header
+        so_line_vals = {
+            "product_id": product.id,
+            "name": "{} {}".format(
+                self.company_id.agx_so_line_prefix or "Shipment",
+                self.name,
+            ),
+            "product_uom_qty": (
+                self.container_count or len(self.container_ids) or 1
+            ),
+            "price_unit": 0.0,
+        }
+        # Stamp season analytic account on the revenue line
+        if self.season_id and self.season_id.analytic_account_id:
+            analytic_id = str(self.season_id.analytic_account_id.id)
+            so_line_vals["analytic_distribution"] = {analytic_id: 100}
+
         so_vals = {
             "partner_id": self.customer_id.id,
             "company_id": self.company_id.id,
             "origin": self.name,
-            "order_line": [
-                (
-                    0,
-                    0,
-                    {
-                        "product_id": product.id,
-                        "name": "{} {}".format(
-                            self.company_id.agx_so_line_prefix or "Shipment",
-                            self.name,
-                        ),
-                        "product_uom_qty": (
-                            self.container_count or len(self.container_ids) or 1
-                        ),
-                        "price_unit": 0.0,
-                    },
-                )
-            ],
+            "order_line": [(0, 0, so_line_vals)],
         }
-        # Link analytic account from season for revenue tracking
-        if self.season_id and self.season_id.analytic_account_id:
-            so_vals["analytic_account_id"] = (
-                self.season_id.analytic_account_id.id
-            )
         so = self.env["sale.order"].create(so_vals)
         self.sale_order_id = so.id
         return self.action_view_sale_order()

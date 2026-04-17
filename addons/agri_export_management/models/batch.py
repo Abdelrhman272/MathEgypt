@@ -862,11 +862,7 @@ class AgxBatch(models.Model):
         }
         if flow_type:
             vals["agx_flow_type"] = flow_type
-        # Stamp analytic account from season for cost reporting
-        if self.season_id and self.season_id.analytic_account_id:
-            vals["analytic_account_id"] = (
-                self.season_id.analytic_account_id.id
-            )
+        # Note: stock.picking has no analytic_account_id header field in Odoo 19.
         return self.env["stock.picking"].create(vals)
 
     def _post_stock_pickings(self):

@@ -295,11 +295,8 @@ class AgxEvaluation(models.Model):
             "order_line": order_lines,
         }
 
-        # Link season analytic account to PO if available
-        if self.season_id and self.season_id.analytic_account_id:
-            po_vals["analytic_account_id"] = (
-                self.season_id.analytic_account_id.id
-            )
+        # Note: analytic_account_id is not on purchase.order header in Odoo 19.
+        # Analytic distribution is handled at the order line level instead.
 
         po = self.env["purchase.order"].create(po_vals)
         self.write({"po_id": po.id, "state": "po_created"})
