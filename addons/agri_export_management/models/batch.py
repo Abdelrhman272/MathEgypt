@@ -1132,6 +1132,21 @@ class AgxBatch(models.Model):
             "domain": [("agx_batch_id", "=", self.id)],
         }
 
+    def action_view_qc_inspections(self):
+        """Open QC inspections linked to this batch."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "QC Inspections",
+            "res_model": "agx.qc.inspection",
+            "view_mode": "list,form",
+            "domain": [("batch_id", "=", self.id)],
+            "context": {
+                "default_batch_id": self.id,
+                "default_inspection_type": "in_process",
+            },
+        }
+
     def action_view_receipts(self):
         self.ensure_one()
         return {

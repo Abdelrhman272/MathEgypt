@@ -49,7 +49,7 @@ and configure the four stock locations and two picking types.
 Run Configuration → Initialize Product Attributes to link Grade/Size
 to product variants automatically.
     """,
-    "version": "19.0.6.0.0",
+    "version": "19.0.7.0.0",
     "category": "Inventory/Inventory",
     "author": "NextGen Systems",
     "website": "",

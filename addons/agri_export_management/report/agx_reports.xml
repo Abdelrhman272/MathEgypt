@@ -404,83 +404,23 @@
                             </table>
                         </t>
 
-                        <!-- Logistics Costs + Profitability -->
+                        <!-- Shipment Summary (customer-facing — no internal costs) -->
                         <div class="row mt-3">
-                            <div class="col-7">
-                                <t t-if="o.cost_line_ids">
-                                    <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
-                                        Logistics Costs
-                                    </h4>
-                                    <table class="table table-sm table-bordered" style="font-size:11px;">
-                                        <thead class="thead-light">
-                                            <tr>
-                                                <th>Cost Type</th>
-                                                <th>Basis</th>
-                                                <th>Source</th>
-                                                <th class="text-right">Amount</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr t-foreach="o.cost_line_ids" t-as="cl">
-                                                <td t-esc="cl.cost_type_id.name"/>
-                                                <td t-esc="cl.allocation_basis"/>
-                                                <td t-esc="cl.cost_source"/>
-                                                <td class="text-right"
-                                                    t-esc="'%.2f' % cl.effective_amount"/>
-                                            </tr>
-                                        </tbody>
-                                        <tfoot>
-                                            <tr style="font-weight:bold;">
-                                                <td colspan="3">Total Logistics Cost</td>
-                                                <td class="text-right"
-                                                    t-esc="'%.2f' % o.total_logistics_cost"/>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </t>
-                            </div>
-                            <div class="col-5">
-                                <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
-                                    Profitability
-                                </h4>
-                                <table class="table table-sm" style="font-size:11px;">
+                            <div class="col-12">
+                                <table class="table table-sm table-borderless" style="font-size:11px;">
                                     <tr>
-                                        <td>Revenue (ex. tax)</td>
-                                        <td class="text-right">
-                                            <t t-esc="o.currency_id.symbol"/>
-                                            <t t-esc="'%.2f' % o.revenue_amount"/>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Logistics Cost</td>
-                                        <td class="text-right" style="color:#c0392b;">
-                                            (<t t-esc="o.currency_id.symbol"/>
-                                            <t t-esc="'%.2f' % o.total_logistics_cost"/>)
-                                        </td>
-                                    </tr>
-                                    <tr style="font-weight:bold; border-top:2px solid #1a5276;">
-                                        <td>Gross Profit</td>
-                                        <td class="text-right"
-                                            t-attf-style="color:{{ '#27ae60' if o.gross_profit_amount >= 0 else '#c0392b' }}">
-                                            <t t-esc="o.currency_id.symbol"/>
-                                            <t t-esc="'%.2f' % o.gross_profit_amount"/>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Gross Margin</td>
-                                        <td class="text-right"
-                                            t-attf-style="color:{{ '#27ae60' if o.gross_margin_pct >= 0 else '#c0392b' }}">
-                                            <t t-esc="'%.1f' % o.gross_margin_pct"/>%
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Cost / Container</td>
-                                        <td class="text-right">
-                                            <t t-esc="o.currency_id.symbol"/>
-                                            <t t-esc="'%.2f' % o.cost_per_container"/>
-                                        </td>
+                                        <td><strong>Total Containers:</strong></td>
+                                        <td t-esc="o.container_count"/>
+                                        <td><strong>Total Qty:</strong></td>
+                                        <td t-esc="'%.0f' % o.total_qty"/>
+                                        <td><strong>Season:</strong></td>
+                                        <td t-esc="o.season_id.name if o.season_id else '-'"/>
                                     </tr>
                                 </table>
+                                <p style="font-size:9px; color:#888; margin-top:8px;">
+                                    For internal profitability analysis, use
+                                    Shipments → Shipment Profitability Analysis.
+                                </p>
                             </div>
                         </div>
 
