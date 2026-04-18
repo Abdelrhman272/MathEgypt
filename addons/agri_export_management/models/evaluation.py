@@ -161,11 +161,21 @@ class AgxEvaluation(models.Model):
         ),
     )
     intercompany_demanded_qty = fields.Float(
-        related="intercompany_so_id.amount_untaxed",
+        compute="_compute_intercompany_qty",
+        store=True,
         string="IC Ordered Value",
-        readonly=True,
+        digits=(16, 2),
         help="Untaxed value of the linked intercompany Sales Order.",
     )
+
+    @api.depends("intercompany_so_id", "intercompany_so_id.amount_untaxed")
+    def _compute_intercompany_qty(self):
+        for rec in self:
+            rec.intercompany_demanded_qty = (
+                rec.intercompany_so_id.amount_untaxed
+                if rec.intercompany_so_id
+                else 0.0
+            )
 
     note = fields.Html()
 
