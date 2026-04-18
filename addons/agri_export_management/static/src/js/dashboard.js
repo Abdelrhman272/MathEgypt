@@ -13,7 +13,6 @@
 import { Component, useState, onMounted, onWillUnmount } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
-import { formatMonetary } from "@web/views/fields/formatters";
 
 class AgxDashboard extends Component {
     static template = "agri_export_management.AgxDashboard";
@@ -327,7 +326,6 @@ class AgxDashboard extends Component {
     }
 }
 
-AgxDashboard.template = "agri_export_management.AgxDashboard";
 registry.category("actions").add("agx_dashboard_action", AgxDashboard);
 
 export { AgxDashboard };

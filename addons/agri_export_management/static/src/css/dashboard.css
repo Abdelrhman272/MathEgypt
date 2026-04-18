@@ -1,6 +1,7 @@
 /* AGX Agricultural Export Dashboard — Styles */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+/* Google Fonts - load separately if needed */
+/* @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap'); */
 
 :root {
     --agx-bg:      #0D1B2A;
@@ -16,8 +17,8 @@
     --agx-white:   #F8FAFC;
     --agx-silver:  #CBD5E1;
     --agx-mist:    #64748B;
-    --agx-font:    'DM Sans', sans-serif;
-    --agx-mono:    'DM Mono', monospace;
+    --agx-font:    'DM Sans', 'Segoe UI', Arial, sans-serif;
+    --agx-mono:    'DM Mono', 'Courier New', monospace;
     --agx-radius:  10px;
     --agx-shadow:  0 4px 24px rgba(0,0,0,0.4);
 }

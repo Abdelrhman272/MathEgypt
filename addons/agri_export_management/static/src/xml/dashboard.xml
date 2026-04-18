@@ -6,7 +6,7 @@
   <!-- ── Toolbar ──────────────────────────────────────────────── -->
   <div class="agx-toolbar">
     <div class="agx-toolbar-left">
-      <span class="agx-logo">🌿</span>
+      <span class="agx-logo"><i class="fa fa-leaf"/></span>
       <h1 class="agx-title">Agricultural Export</h1>
       <span class="agx-subtitle">Dashboard</span>
     </div>
@@ -22,11 +22,11 @@
       <t t-if="!state.season_id">
         <input class="agx-input" type="date" t-att-value="state.date_from"
                t-on-change="(e) => { state.date_from = e.target.value; onDateChange(); }"/>
-        <span class="agx-sep">→</span>
+        <span class="agx-sep"><i class="fa fa-arrow-right"/></span>
         <input class="agx-input" type="date" t-att-value="state.date_to"
                t-on-change="(e) => { state.date_to = e.target.value; onDateChange(); }"/>
       </t>
-      <button class="agx-btn-refresh" t-on-click="onRefresh">↻ Refresh</button>
+      <button class="agx-btn-refresh" t-on-click="onRefresh"><i class="fa fa-refresh"/> Refresh</button>
     </div>
   </div>
 
@@ -44,7 +44,7 @@
     <div class="agx-kpi-row">
 
       <div class="agx-kpi agx-kpi-green" t-on-click="onShippedClick">
-        <div class="agx-kpi-icon">💰</div>
+        <div class="agx-kpi-icon"><i class="fa fa-usd fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value">
             <t t-esc="Number(state.data.kpis.revenue).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
@@ -54,7 +54,7 @@
       </div>
 
       <div class="agx-kpi agx-kpi-red">
-        <div class="agx-kpi-icon">🚢</div>
+        <div class="agx-kpi-icon"><i class="fa fa-ship fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value">
             <t t-esc="Number(state.data.kpis.logistics_cost).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
@@ -64,7 +64,7 @@
       </div>
 
       <div t-attf-class="agx-kpi #{state.data.kpis.gross_profit >= 0 ? 'agx-kpi-blue' : 'agx-kpi-red'}">
-        <div class="agx-kpi-icon">📈</div>
+        <div class="agx-kpi-icon"><i class="fa fa-line-chart fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value">
             <t t-esc="Number(state.data.kpis.gross_profit).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
@@ -74,7 +74,7 @@
       </div>
 
       <div t-attf-class="agx-kpi #{state.data.kpis.margin_pct >= 20 ? 'agx-kpi-green' : state.data.kpis.margin_pct >= 0 ? 'agx-kpi-amber' : 'agx-kpi-red'}">
-        <div class="agx-kpi-icon">🎯</div>
+        <div class="agx-kpi-icon"><i class="fa fa-crosshairs fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.margin_pct"/>%</div>
           <div class="agx-kpi-label">Gross Margin</div>
@@ -82,7 +82,7 @@
       </div>
 
       <div class="agx-kpi agx-kpi-teal" t-on-click="onShippedClick">
-        <div class="agx-kpi-icon">✅</div>
+        <div class="agx-kpi-icon"><i class="fa fa-check fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.shipped_count"/></div>
           <div class="agx-kpi-label">Shipped</div>
@@ -90,7 +90,7 @@
       </div>
 
       <div class="agx-kpi agx-kpi-amber" t-on-click="onShipmentsClick">
-        <div class="agx-kpi-icon">⏳</div>
+        <div class="agx-kpi-icon"><i class="fa fa-hourglass-half fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.pending_count"/></div>
           <div class="agx-kpi-label">Pending Shipments</div>
@@ -98,7 +98,7 @@
       </div>
 
       <div class="agx-kpi agx-kpi-purple" t-on-click="onBatchesClick">
-        <div class="agx-kpi-icon">🏭</div>
+        <div class="agx-kpi-icon"><i class="fa fa-industry fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.active_batches"/></div>
           <div class="agx-kpi-label">Active Batches</div>
@@ -106,7 +106,7 @@
       </div>
 
       <div class="agx-kpi agx-kpi-green" t-on-click="onEvaluationsClick">
-        <div class="agx-kpi-icon">📋</div>
+        <div class="agx-kpi-icon"><i class="fa fa-list-alt fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.open_evaluations"/></div>
           <div class="agx-kpi-label">Open Evaluations</div>
