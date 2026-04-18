@@ -25,7 +25,7 @@ Picking type map
   outgoing_picking_type_id   : used for shipment delivery orders
 """
 
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class ResCompany(models.Model):
