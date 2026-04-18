@@ -229,6 +229,55 @@ class AgxBatch(models.Model):
     receipt_count = fields.Integer(compute="_compute_stock_counts")
 
     # ------------------------------------------------------------------
+    # QC / Cold Storage / MRP / Packaging / Scrap fields
+    # ------------------------------------------------------------------
+    qc_count = fields.Integer(
+        compute="_compute_qc_count",
+        help="Number of QC inspections linked to this batch.",
+    )
+    cold_storage_done = fields.Boolean(
+        default=False,
+        string="Cold Storage Done",
+        help="Becomes True once the batch has been moved to cold storage.",
+    )
+    mrp_production_id = fields.Many2one(
+        "mrp.production",
+        string="Manufacturing Order",
+        copy=False,
+        readonly=True,
+        help="Optional linked MO (MRP mode only). Does not affect batch stock moves.",
+    )
+    packaging_line_ids = fields.One2many(
+        "agx.batch.packaging.line", "batch_id", string="Packaging Materials"
+    )
+    total_packaging_cost = fields.Monetary(
+        currency_field="currency_id",
+        compute="_compute_packaging_cost",
+        store=True,
+        help="Sum of all packaging material costs for this batch.",
+    )
+    scrap_line_ids = fields.One2many(
+        "agx.batch.scrap", "batch_id", string="Scrap / Waste Lines"
+    )
+    total_scrap_qty = fields.Float(
+        compute="_compute_scrap_totals",
+        store=True,
+        help="Total lost/wasted quantity across all scrap lines.",
+    )
+    total_scrap_cost = fields.Monetary(
+        currency_field="currency_id",
+        compute="_compute_scrap_totals",
+        store=True,
+        help="Estimated cost impact of all scrap lines.",
+    )
+    scrap_pct = fields.Float(
+        compute="_compute_scrap_totals",
+        store=True,
+        digits=(16, 2),
+        help="(total_scrap_qty / input_qty) × 100.",
+    )
+
+    # ------------------------------------------------------------------
     # Computed: qty totals
     # ------------------------------------------------------------------
     @api.depends("input_line_ids.qty", "output_line_ids.qty")
@@ -677,6 +726,7 @@ class AgxBatch(models.Model):
 
         Only available after the batch is Done and the company has a
         cold storage location configured.
+        Sets cold_storage_done = True after the picking is created.
         """
         for rec in self:
             cold_loc = rec.company_id.agx_cold_storage_location_id
