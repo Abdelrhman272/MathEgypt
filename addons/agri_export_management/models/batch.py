@@ -582,7 +582,7 @@ class AgxBatch(models.Model):
         """
         self.ensure_one()
         if self.mrp_production_id:
-            return self._action_view_mrp_production()
+            return self.action_view_mrp_production()
 
         # Guard: ensure MRP module is installed
         if self.env.get("mrp.production") is None:
@@ -623,9 +623,9 @@ class AgxBatch(models.Model):
 
         mo = self.env["mrp.production"].create(mo_vals)
         self.mrp_production_id = mo.id
-        return self._action_view_mrp_production()
+        return self.action_view_mrp_production()
 
-    def _action_view_mrp_production(self):
+    def action_view_mrp_production(self):
         """Open the linked Manufacturing Order."""
         self.ensure_one()
         return {

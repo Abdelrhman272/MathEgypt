@@ -172,7 +172,7 @@
                                 invisible="qc_count == 0">
                             <field name="qc_count" widget="statinfo" string="QC Checks"/>
                         </button>
-                        <button class="oe_stat_button" name="_action_view_mrp_production"
+                        <button class="oe_stat_button" name="action_view_mrp_production"
                                 type="object" icon="fa-cogs"
                                 invisible="not mrp_production_id">
                             <field name="mrp_production_id" widget="statinfo" string="Mfg Order"/>
