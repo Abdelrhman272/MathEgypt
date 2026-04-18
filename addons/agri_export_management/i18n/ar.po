@@ -1,6 +1,3 @@
-# Arabic Translation for Agricultural Export Management
-# Copyright (C) 2025 NextGen Systems
-# This file is distributed under the same license as the module.
 msgid ""
 msgstr ""
 "Project-Id-Version: agri_export_management\n"
@@ -15,7 +12,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5;\n"
 
-# ── Menu ────────────────────────────────────────────────────────────
 msgid "Agricultural Export"
 msgstr "تصدير زراعي"
 
@@ -37,7 +33,6 @@ msgstr "الإعدادات"
 msgid "Master Data"
 msgstr "البيانات الرئيسية"
 
-# ── Farm Evaluation ──────────────────────────────────────────────────
 msgid "Farm Evaluations"
 msgstr "تقييمات المزارع"
 
@@ -86,7 +81,6 @@ msgstr "الدرجات والأحجام"
 msgid "Intercompany Sale Order"
 msgstr "أمر البيع بين الشركات"
 
-# ── Production Batch ─────────────────────────────────────────────────
 msgid "Production Batches"
 msgstr "دفعات الإنتاج"
 
@@ -144,7 +138,6 @@ msgstr "التكلفة القابلة للتوزيع الفعلية"
 msgid "Costing Status"
 msgstr "حالة التكلفة"
 
-# ── Scrap ────────────────────────────────────────────────────────────
 msgid "Scrap Type"
 msgstr "نوع الهالك"
 
@@ -166,7 +159,6 @@ msgstr "الكمية الضائعة"
 msgid "Cost Impact"
 msgstr "تأثير التكلفة"
 
-# ── Export Shipment ──────────────────────────────────────────────────
 msgid "Export Shipments"
 msgstr "شحنات التصدير"
 
@@ -242,7 +234,6 @@ msgstr "إجمالي تكاليف اللوجستيات"
 msgid "Cost per Container"
 msgstr "التكلفة لكل حاوية"
 
-# ── QC Inspection ────────────────────────────────────────────────────
 msgid "QC Inspections"
 msgstr "فحوصات الجودة"
 
@@ -291,7 +282,6 @@ msgstr "إعادة تعبئة / معالجة"
 msgid "Return to Supplier"
 msgstr "إعادة للمورد"
 
-# ── Claims ───────────────────────────────────────────────────────────
 msgid "Customer Claims"
 msgstr "شكاوى العملاء"
 
@@ -343,7 +333,6 @@ msgstr "بدء المراجعة"
 msgid "Credit Note Issued"
 msgstr "تم إصدار مذكرة ائتمان"
 
-# ── Master Data ──────────────────────────────────────────────────────
 msgid "Farms"
 msgstr "المزارع"
 
@@ -365,7 +354,6 @@ msgstr "الوجهات"
 msgid "Shipment Cost Types"
 msgstr "أنواع تكاليف الشحن"
 
-# ── Settings ─────────────────────────────────────────────────────────
 msgid "Stock Integration Settings"
 msgstr "إعدادات تكامل المخزون"
 
@@ -393,7 +381,6 @@ msgstr "توليد أرقام الدفعات تلقائياً"
 msgid "Use Manufacturing Orders (MRP) instead of Production Batches"
 msgstr "استخدام أوامر التصنيع (MRP) بدلاً من دفعات الإنتاج"
 
-# ── Reports ──────────────────────────────────────────────────────────
 msgid "Shipment Packing List"
 msgstr "قائمة شحن البضاعة"
 
@@ -406,7 +393,6 @@ msgstr "تقرير تقييم المزرعة"
 msgid "Production Batch Report"
 msgstr "تقرير دفعة الإنتاج"
 
-# ── States ───────────────────────────────────────────────────────────
 msgid "Draft"
 msgstr "مسودة"
 
@@ -455,7 +441,6 @@ msgstr "مرفوض"
 msgid "Credited"
 msgstr "تم الإرجاع"
 
-# ── Packaging ────────────────────────────────────────────────────────
 msgid "Carton / Box"
 msgstr "كرتون / صندوق"
 
@@ -480,7 +465,6 @@ msgstr "مرجع البالطة"
 msgid "Pallets"
 msgstr "بالطات"
 
-# ── Traceability ─────────────────────────────────────────────────────
 msgid "Traceability Report"
 msgstr "تقرير التتبع"
 
@@ -490,7 +474,6 @@ msgstr "التتبع"
 msgid "Generate Report"
 msgstr "إنشاء تقرير"
 
-# ── Dashboard ────────────────────────────────────────────────────────
 msgid "Total Revenue"
 msgstr "إجمالي الإيراد"
 
