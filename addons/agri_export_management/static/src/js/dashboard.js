@@ -298,11 +298,17 @@ class AgxDashboard extends Component {
 
     // ── Navigation ───────────────────────────────────────────────────
     async _navigate(model, domain, view = "list") {
+        const views = view === "form"
+            ? [[false, "form"]]
+            : [[false, view], [false, "form"]];
+
         await this.action.doAction({
             type: "ir.actions.act_window",
+            name: "Open Records",
             res_model: model,
-            view_mode: `${view},form`,
-            domain,
+            views,
+            view_mode: view === "form" ? "form" : `${view},form`,
+            domain: domain || [],
             target: "current",
         });
     }
