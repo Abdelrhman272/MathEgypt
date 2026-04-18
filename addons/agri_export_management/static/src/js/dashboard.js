@@ -18,7 +18,6 @@ class AgxDashboard extends Component {
     static template = "agri_export_management.AgxDashboard";
 
     setup() {
-        this.rpc = useService("rpc");
         this.orm = useService("orm");
         this.action = useService("action");
         this.notification = useService("notification");
@@ -72,17 +71,19 @@ class AgxDashboard extends Component {
             );
             this.state.seasons = seasons;
 
-            // Load dashboard data
-            const data = await this.rpc("/web/dataset/call_kw", {
-                model: "agx.dashboard",
-                method: "get_dashboard_data",
-                args: [],
-                kwargs: {
+            // Load dashboard data through the ORM service.
+            // In Odoo 19, model methods should go through orm.call(...)
+            // instead of manually using /web/dataset/call_kw.
+            const data = await this.orm.call(
+                "agx.dashboard",
+                "get_dashboard_data",
+                [],
+                {
                     season_id: this.state.season_id || false,
                     date_from: this.state.date_from,
                     date_to: this.state.date_to,
-                },
-            });
+                }
+            );
             this.state.data = data;
             this.state.loading = false;
 
