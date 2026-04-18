@@ -1,7 +1,3 @@
-# Translation of Odoo Server.
-# This file contains the translation of the following modules:
-# 	* agri_export_management
-#
 msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 19.0\n"
@@ -15,832 +11,500 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5;\n"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Agricultural Export"
 msgstr "تصدير زراعي"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Dashboard"
 msgstr "لوحة التحكم"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Procurement"
 msgstr "المشتريات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Operations"
 msgstr "العمليات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Analytics"
 msgstr "التحليلات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Configuration"
 msgstr "الإعدادات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Master Data"
 msgstr "البيانات الرئيسية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Farm Evaluations"
 msgstr "تقييمات المزارع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Farm Evaluation"
 msgstr "تقييم مزرعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Farm"
 msgstr "المزرعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Vendor"
 msgstr "المورد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Crop"
 msgstr "المحصول"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Season"
 msgstr "الموسم"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Expected Purchase Qty"
 msgstr "الكمية المتوقع شراؤها"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Expected Total Qty"
 msgstr "إجمالي الكمية المتوقعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Actual Total Qty"
 msgstr "إجمالي الكمية الفعلية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Achievement Pct"
 msgstr "نسبة الإنجاز"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Estimated Purchase Value"
 msgstr "القيمة التقديرية للشراء"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Approve"
 msgstr "اعتماد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Reset to Draft"
 msgstr "إعادة إلى مسودة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Create Purchase Order"
 msgstr "إنشاء أمر شراء"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Grades & Sizes"
 msgstr "الدرجات والأحجام"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Intercompany Sale Order"
 msgstr "أمر البيع بين الشركات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Production Batches"
 msgstr "دفعات الإنتاج"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Production Batch"
 msgstr "دفعة إنتاج"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Batch Date"
 msgstr "تاريخ الدفعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Input Qty"
 msgstr "كمية المدخلات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Output Qty"
 msgstr "كمية المخرجات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Variance Qty"
 msgstr "كمية الفارق"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Mark Done"
 msgstr "تحديد كمنجز"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Move to Cold Storage"
 msgstr "نقل إلى التخزين البارد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Inputs"
 msgstr "المدخلات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Outputs"
 msgstr "المخرجات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Costing"
 msgstr "التكاليف"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Scrap / Waste"
 msgstr "الفاقد والهالك"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Packaging Materials"
 msgstr "مواد التغليف"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Manual Raw Material Cost"
 msgstr "تكلفة المواد الخام اليدوية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Manual Operation Cost"
 msgstr "تكلفة التشغيل اليدوية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Manual Other Cost"
 msgstr "التكاليف الأخرى اليدوية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Actual Raw Material Cost"
 msgstr "تكلفة المواد الخام الفعلية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Effective Allocable Cost"
 msgstr "التكلفة القابلة للتوزيع الفعلية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Costing Status"
 msgstr "حالة التكلفة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Scrap Type"
 msgstr "نوع الهالك"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Natural Loss / Shrinkage"
 msgstr "الفقد الطبيعي / الانكماش"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Quality Reject"
 msgstr "رفض الجودة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Physical Damage"
 msgstr "تلف جسدي"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Disease / Pest"
 msgstr "مرض / آفة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Qty Lost"
 msgstr "الكمية الضائعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Cost Impact"
 msgstr "تأثير التكلفة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Export Shipments"
 msgstr "شحنات التصدير"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Export Shipment"
 msgstr "شحنة تصدير"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Shipment Info"
 msgstr "معلومات الشحنة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Container Info"
 msgstr "معلومات الحاوية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Freight Details"
 msgstr "تفاصيل الشحن"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Profitability"
 msgstr "الربحية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Vessel"
 msgstr "السفينة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Voyage No"
 msgstr "رقم الرحلة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "ETD"
 msgstr "تاريخ المغادرة المتوقع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "ETA"
 msgstr "تاريخ الوصول المتوقع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "B/L Number"
 msgstr "رقم بوليصة الشحن"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Reserve Lots"
 msgstr "حجز الأرقام التسلسلية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Mark Shipped"
 msgstr "تحديد كمشحون"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Create Sale Order"
 msgstr "إنشاء أمر بيع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Containers"
 msgstr "الحاويات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Products"
 msgstr "المنتجات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Reserved Lots"
 msgstr "الأرقام التسلسلية المحجوزة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Logistics Costs"
 msgstr "تكاليف اللوجستيات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Total Qty"
 msgstr "إجمالي الكمية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Total Reserved Qty"
 msgstr "إجمالي الكمية المحجوزة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Revenue Amount"
 msgstr "مبلغ الإيراد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Gross Profit"
 msgstr "إجمالي الربح"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Gross Margin"
 msgstr "هامش الربح الإجمالي"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Total Logistics Cost"
 msgstr "إجمالي تكاليف اللوجستيات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Cost per Container"
 msgstr "التكلفة لكل حاوية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "QC Inspections"
 msgstr "فحوصات الجودة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "QC Inspection"
 msgstr "فحص الجودة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Incoming Goods (Raw Material)"
 msgstr "البضائع الواردة (مواد خام)"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "In-Process (Packing / Grading)"
 msgstr "أثناء الإنتاج (التعبئة / الفرز)"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Pre-Shipment (Final Check)"
 msgstr "قبل الشحن (الفحص النهائي)"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Inspector"
 msgstr "المفتش"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Checklist"
 msgstr "قائمة الفحص"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Rejections / Issues"
 msgstr "المرفوضات / المشكلات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Overall Score"
 msgstr "النتيجة الإجمالية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Criterion / Check"
 msgstr "المعيار / الفحص"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Rejection Reason"
 msgstr "سبب الرفض"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Disposition"
 msgstr "الإجراء"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Scrap / Destroy"
 msgstr "هالك / إتلاف"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Downgrade to Lower Grade"
 msgstr "تخفيض إلى درجة أدنى"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Repack / Rework"
 msgstr "إعادة تعبئة / معالجة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Return to Supplier"
 msgstr "إعادة للمورد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Customer Claims"
 msgstr "شكاوى العملاء"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Customer Claim"
 msgstr "شكوى عميل"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Claim Type"
 msgstr "نوع الشكوى"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Quality / Grade Discrepancy"
 msgstr "اختلاف الجودة / الدرجة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Short Shipment / Quantity"
 msgstr "نقص في الشحنة / الكمية"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Documentation Error"
 msgstr "خطأ في المستندات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Late Delivery"
 msgstr "تأخر في التسليم"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Transit Damage"
 msgstr "تلف أثناء النقل"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Claimed Qty"
 msgstr "الكمية المطالب بها"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Claimed Value"
 msgstr "القيمة المطالب بها"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Agreed Credit"
 msgstr "الرصيد المتفق عليه"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Root Cause"
 msgstr "السبب الجذري"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Resolution"
 msgstr "الحل"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Credit Note"
 msgstr "مذكرة ائتمان"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Affected Lots"
 msgstr "الأرقام التسلسلية المتأثرة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Start Review"
 msgstr "بدء المراجعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Credit Note Issued"
 msgstr "تم إصدار مذكرة ائتمان"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Farms"
 msgstr "المزارع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Crops / Varieties"
 msgstr "المحاصيل / الأصناف"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Grades"
 msgstr "الدرجات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Sizes"
 msgstr "الأحجام"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Production Seasons"
 msgstr "مواسم الإنتاج"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Destinations"
 msgstr "الوجهات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Shipment Cost Types"
 msgstr "أنواع تكاليف الشحن"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Stock Integration Settings"
 msgstr "إعدادات تكامل المخزون"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Raw Material Location"
 msgstr "موقع المواد الخام"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Production Location"
 msgstr "موقع الإنتاج"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Finished Goods Location"
 msgstr "موقع البضاعة التامة الصنع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Cold Storage Location"
 msgstr "موقع التخزين البارد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Internal Transfer Type"
 msgstr "نوع التحويل الداخلي"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Outgoing Delivery Type"
 msgstr "نوع التسليم الصادر"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Auto-generate Lot Numbers"
 msgstr "توليد أرقام الدفعات تلقائياً"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Use Manufacturing Orders (MRP) instead of Production Batches"
 msgstr "استخدام أوامر التصنيع (MRP) بدلاً من دفعات الإنتاج"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Shipment Packing List"
 msgstr "قائمة شحن البضاعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Certificate of Origin"
 msgstr "شهادة المنشأ"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Farm Evaluation Report"
 msgstr "تقرير تقييم المزرعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Production Batch Report"
 msgstr "تقرير دفعة الإنتاج"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Draft"
 msgstr "مسودة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Approved"
 msgstr "معتمد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "PO Created"
 msgstr "أمر الشراء منشأ"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Closed"
 msgstr "مغلق"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Cancelled"
 msgstr "ملغى"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "In Progress"
 msgstr "قيد التنفيذ"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Done"
 msgstr "منجز"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Reserved"
 msgstr "محجوز"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Shipped"
 msgstr "مشحون"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Passed"
 msgstr "اجتاز"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Failed"
 msgstr "رسب"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Conditional"
 msgstr "مشروط"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Under Review"
 msgstr "قيد المراجعة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Resolved"
 msgstr "محلول"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Rejected"
 msgstr "مرفوض"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Credited"
 msgstr "تم الإرجاع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Carton / Box"
 msgstr "كرتون / صندوق"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Label / Sticker"
 msgstr "ملصق"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Pallet"
 msgstr "بالطة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Wrapping / Film"
 msgstr "تغليف / فيلم"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Strap / Band"
 msgstr "شريط"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Cartons"
 msgstr "كراتين"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Pallet Ref"
 msgstr "مرجع البالطة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Pallets"
 msgstr "بالطات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Traceability Report"
 msgstr "تقرير التتبع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Traceability"
 msgstr "التتبع"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Generate Report"
 msgstr "إنشاء تقرير"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Total Revenue"
 msgstr "إجمالي الإيراد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Logistics Cost"
 msgstr "تكلفة اللوجستيات"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Gross Margin"
 msgstr "هامش الربح الإجمالي"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Shipped"
 msgstr "مشحون"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Pending Shipments"
 msgstr "شحنات معلقة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Active Batches"
 msgstr "دفعات نشطة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Open Evaluations"
 msgstr "تقييمات مفتوحة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Revenue vs Cost vs Profit by Season"
 msgstr "الإيراد مقابل التكلفة مقابل الربح حسب الموسم"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Shipments by Destination"
 msgstr "الشحنات حسب الوجهة"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Monthly Shipments & Revenue"
 msgstr "الشحنات الشهرية والإيراد"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Yield % by Season"
 msgstr "نسبة المحصول حسب الموسم"
 
-#. module: agri_export_management
-#: code:addons/agri_export_management/__init__.py:0
 msgid "Top 5 Customers"
 msgstr "أفضل 5 عملاء"
