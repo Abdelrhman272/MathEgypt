@@ -160,7 +160,7 @@ class AgxEvaluation(models.Model):
             "Link manually after the SO is created by Odoo's intercompany rules."
         ),
     )
-    intercompany_demanded_qty = fields.Float(
+    intercompany_demanded_qty = fields.Monetary(
         related="intercompany_so_id.amount_untaxed",
         string="IC Ordered Value",
         readonly=True,
