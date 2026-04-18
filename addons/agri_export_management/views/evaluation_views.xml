@@ -162,6 +162,8 @@
                             <field name="crop_id"/>
                             <field name="season_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="intercompany_so_id"
+                                   help="Link the SO raised by the buying company (UAE) here after Odoo creates it via intercompany rules."/>
                         </group>
                         <group>
                             <field name="farm_expected_qty"/>

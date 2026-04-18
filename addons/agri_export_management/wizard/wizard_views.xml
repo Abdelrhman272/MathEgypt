@@ -91,6 +91,19 @@
         </field>
     </record>
 
+    <!-- Traceability Wizard — action + menu -->
+    <record id="action_agx_traceability_wizard" model="ir.actions.act_window">
+        <field name="name">Traceability Report</field>
+        <field name="res_model">agx.traceability.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    <menuitem id="menu_agx_traceability"
+              name="Traceability Report"
+              parent="menu_agx_analytics"
+              action="action_agx_traceability_wizard"
+              sequence="50"/>
+
     <record id="action_agx_init_product_attributes_wizard" model="ir.actions.act_window">
         <field name="name">Initialize Product Attributes</field>
         <field name="res_model">agx.init.product.attributes.wizard</field>

@@ -142,7 +142,13 @@
                     <button name="action_move_to_cold_storage"
                             string="Move to Cold Storage"
                             type="object"
-                            invisible="state != 'done'"/>
+                            invisible="state != 'done' or cold_storage_done"/>
+                    <button name="action_create_mrp_production"
+                            string="Create MO"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="not company_id.agx_use_mrp_production or mrp_production_id"
+                            help="Create a linked Manufacturing Order (MRP mode must be enabled in Settings)"/>
                     <button name="action_cancel" string="Cancel"
                             type="object"
                             invisible="state == 'cancelled'"/>
@@ -160,6 +166,16 @@
                                 type="object" icon="fa-exchange"
                                 invisible="stock_move_count == 0">
                             <field name="stock_move_count" widget="statinfo" string="Transfers"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_qc_inspections" icon="fa-check-circle"
+                                invisible="qc_count == 0">
+                            <field name="qc_count" widget="statinfo" string="QC Checks"/>
+                        </button>
+                        <button class="oe_stat_button" name="_action_view_mrp_production"
+                                type="object" icon="fa-cogs"
+                                invisible="not mrp_production_id">
+                            <field name="mrp_production_id" widget="statinfo" string="Mfg Order"/>
                         </button>
                     </div>
                     <div class="oe_title">
@@ -210,6 +226,48 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Packaging Materials">
+                            <group>
+                                <group>
+                                    <field name="total_packaging_cost" readonly="1"/>
+                                </group>
+                            </group>
+                            <field name="packaging_line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="material_id"/>
+                                    <field name="material_type" readonly="1"/>
+                                    <field name="qty"/>
+                                    <field name="uom_id"/>
+                                    <field name="unit_cost"/>
+                                    <field name="total_cost" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Scrap / Waste">
+                            <group>
+                                <group>
+                                    <field name="total_scrap_qty" readonly="1"/>
+                                    <field name="scrap_pct" readonly="1" string="Scrap %"/>
+                                </group>
+                                <group>
+                                    <field name="total_scrap_cost" readonly="1"/>
+                                </group>
+                            </group>
+                            <field name="scrap_line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="scrap_type"/>
+                                    <field name="product_id" optional="show"/>
+                                    <field name="scrap_qty"/>
+                                    <field name="uom_id"/>
+                                    <field name="cost_impact" readonly="1"/>
+                                    <field name="reason"/>
+                                </list>
+                            </field>
+                        </page>
+
                         <page string="Costing">
                             <group string="Cost Inputs">
                                 <group>
@@ -290,7 +348,8 @@
     </record>
     <menuitem id="menu_agx_batch" name="Production Batches"
               parent="menu_agx_operations"
-              action="action_agx_batch" sequence="20"/>
+              action="action_agx_batch" sequence="20"
+              groups="agri_export_management.group_agx_user"/>
 
     <record id="action_agx_batch_analysis" model="ir.actions.act_window">
         <field name="name">Production Analysis</field>

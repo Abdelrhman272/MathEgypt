@@ -49,7 +49,7 @@ and configure the four stock locations and two picking types.
 Run Configuration → Initialize Product Attributes to link Grade/Size
 to product variants automatically.
     """,
-    "version": "19.0.5.0.0",
+    "version": "19.0.6.0.0",
     "category": "Inventory/Inventory",
     "author": "NextGen Systems",
     "website": "",
@@ -79,8 +79,21 @@ to product variants automatically.
         "views/purchase_views.xml",
         "wizard/wizard_views.xml",
         "views/settings_views.xml",
+        "views/qc_views.xml",
         "report/agx_reports.xml",
     ],
+    "test": [
+        "tests/test_evaluation.py",
+        "tests/test_batch.py",
+        "tests/test_shipment.py",
+    ],
+    "assets": {
+        "web.assets_backend": [
+            "agri_export_management/static/src/css/dashboard.css",
+            "agri_export_management/static/src/xml/dashboard.xml",
+            "agri_export_management/static/src/js/dashboard.js",
+        ],
+    },
     "application": True,
     "installable": True,
     "auto_install": False,

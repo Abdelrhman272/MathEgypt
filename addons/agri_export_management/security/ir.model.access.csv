@@ -38,3 +38,17 @@ access_agx_shipment_container_manager,agx.shipment.container manager,model_agx_s
 access_agx_season_user,agx.season user,model_agx_season,agri_export_management.group_agx_user,1,1,1,0
 access_agx_season_manager,agx.season manager,model_agx_season,agri_export_management.group_agx_manager,1,1,1,1
 access_agx_init_product_attributes_wizard_user,agx.init.product.attributes.wizard user,model_agx_init_product_attributes_wizard,agri_export_management.group_agx_admin,1,1,1,1
+access_agx_batch_scrap_user,agx.batch.scrap user,model_agx_batch_scrap,agri_export_management.group_agx_user,1,1,1,0
+access_agx_batch_scrap_manager,agx.batch.scrap manager,model_agx_batch_scrap,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_packaging_material_user,agx.packaging.material user,model_agx_packaging_material,agri_export_management.group_agx_user,1,1,1,0
+access_agx_packaging_material_manager,agx.packaging.material manager,model_agx_packaging_material,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_batch_packaging_line_user,agx.batch.packaging.line user,model_agx_batch_packaging_line,agri_export_management.group_agx_user,1,1,1,0
+access_agx_batch_packaging_line_manager,agx.batch.packaging.line manager,model_agx_batch_packaging_line,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_qc_inspection_user,agx.qc.inspection user,model_agx_qc_inspection,agri_export_management.group_agx_user,1,1,1,0
+access_agx_qc_inspection_manager,agx.qc.inspection manager,model_agx_qc_inspection,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_qc_inspection_line_user,agx.qc.inspection.line user,model_agx_qc_inspection_line,agri_export_management.group_agx_user,1,1,1,0
+access_agx_qc_inspection_line_manager,agx.qc.inspection.line manager,model_agx_qc_inspection_line,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_qc_rejection_user,agx.qc.rejection user,model_agx_qc_rejection,agri_export_management.group_agx_user,1,1,1,0
+access_agx_qc_rejection_manager,agx.qc.rejection manager,model_agx_qc_rejection,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_claim_user,agx.claim user,model_agx_claim,agri_export_management.group_agx_user,1,1,1,0
+access_agx_claim_manager,agx.claim manager,model_agx_claim,agri_export_management.group_agx_manager,1,1,1,1

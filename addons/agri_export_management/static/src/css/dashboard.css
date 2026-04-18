@@ -1,0 +1,313 @@
+/* AGX Agricultural Export Dashboard — Styles */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+    --agx-bg:      #0D1B2A;
+    --agx-panel:   #162232;
+    --agx-lift:    #1C2E42;
+    --agx-border:  #22364F;
+    --agx-green:   #22C55E;
+    --agx-blue:    #60A5FA;
+    --agx-amber:   #FBBF24;
+    --agx-purple:  #A78BFA;
+    --agx-teal:    #14B8A6;
+    --agx-red:     #F87171;
+    --agx-white:   #F8FAFC;
+    --agx-silver:  #CBD5E1;
+    --agx-mist:    #64748B;
+    --agx-font:    'DM Sans', sans-serif;
+    --agx-mono:    'DM Mono', monospace;
+    --agx-radius:  10px;
+    --agx-shadow:  0 4px 24px rgba(0,0,0,0.4);
+}
+
+/* ── Reset & base ─────────────────────────────────────────────────── */
+.agx-dashboard * { box-sizing: border-box; }
+
+.agx-dashboard {
+    font-family: var(--agx-font);
+    background: var(--agx-bg);
+    min-height: 100vh;
+    padding: 0 0 40px 0;
+    color: var(--agx-white);
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────── */
+.agx-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    background: var(--agx-panel);
+    border-bottom: 2px solid var(--agx-green);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.5);
+}
+
+.agx-toolbar-left { display: flex; align-items: center; gap: 12px; }
+.agx-toolbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.agx-logo { font-size: 24px; }
+
+.agx-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--agx-white);
+    margin: 0;
+    letter-spacing: -0.3px;
+}
+
+.agx-subtitle {
+    font-size: 11px;
+    color: var(--agx-mist);
+    background: var(--agx-lift);
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.agx-select, .agx-input {
+    background: var(--agx-lift);
+    border: 1px solid var(--agx-border);
+    color: var(--agx-white);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: var(--agx-font);
+    outline: none;
+    transition: border-color 0.2s;
+}
+.agx-select:focus, .agx-input:focus { border-color: var(--agx-green); }
+.agx-select option { background: var(--agx-panel); }
+
+.agx-sep { color: var(--agx-mist); font-size: 13px; }
+
+.agx-btn-refresh {
+    background: transparent;
+    border: 1px solid var(--agx-green);
+    color: var(--agx-green);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: var(--agx-font);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.agx-btn-refresh:hover {
+    background: var(--agx-green);
+    color: #0D1B2A;
+}
+
+/* ── Loading ──────────────────────────────────────────────────────── */
+.agx-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 80px;
+    color: var(--agx-mist);
+    font-size: 14px;
+}
+
+.agx-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--agx-border);
+    border-top-color: var(--agx-green);
+    border-radius: 50%;
+    animation: agx-spin 0.8s linear infinite;
+}
+
+@keyframes agx-spin { to { transform: rotate(360deg); } }
+
+/* ── KPI Row ──────────────────────────────────────────────────────── */
+.agx-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    padding: 20px 28px 0;
+}
+
+@media (max-width: 1200px) {
+    .agx-kpi-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+.agx-kpi {
+    background: var(--agx-panel);
+    border-radius: var(--agx-radius);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: 1px solid var(--agx-border);
+    box-shadow: var(--agx-shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+.agx-kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+}
+
+.agx-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.agx-kpi-green::before  { background: var(--agx-green); }
+.agx-kpi-blue::before   { background: var(--agx-blue); }
+.agx-kpi-amber::before  { background: var(--agx-amber); }
+.agx-kpi-purple::before { background: var(--agx-purple); }
+.agx-kpi-teal::before   { background: var(--agx-teal); }
+.agx-kpi-red::before    { background: var(--agx-red); }
+
+.agx-kpi-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+
+.agx-kpi-body { flex: 1; min-width: 0; }
+
+.agx-kpi-value {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--agx-white);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agx-kpi-green  .agx-kpi-value { color: var(--agx-green); }
+.agx-kpi-blue   .agx-kpi-value { color: var(--agx-blue); }
+.agx-kpi-amber  .agx-kpi-value { color: var(--agx-amber); }
+.agx-kpi-purple .agx-kpi-value { color: var(--agx-purple); }
+.agx-kpi-teal   .agx-kpi-value { color: var(--agx-teal); }
+.agx-kpi-red    .agx-kpi-value { color: var(--agx-red); }
+
+.agx-kpi-label {
+    font-size: 11px;
+    color: var(--agx-mist);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+}
+
+/* ── Charts ───────────────────────────────────────────────────────── */
+.agx-charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 14px;
+    padding: 14px 28px 0;
+}
+
+@media (max-width: 1100px) {
+    .agx-charts-row { grid-template-columns: 1fr; }
+}
+
+.agx-card {
+    background: var(--agx-panel);
+    border-radius: var(--agx-radius);
+    border: 1px solid var(--agx-border);
+    box-shadow: var(--agx-shadow);
+    overflow: hidden;
+}
+
+.agx-card-full {
+    margin: 14px 28px 0;
+    background: var(--agx-panel);
+    border-radius: var(--agx-radius);
+    border: 1px solid var(--agx-border);
+    box-shadow: var(--agx-shadow);
+}
+
+.agx-card-header {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--agx-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.agx-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--agx-silver);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.agx-chart-wrap {
+    padding: 14px 16px;
+    height: 260px;
+    position: relative;
+}
+
+.agx-empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--agx-mist);
+    font-size: 13px;
+}
+
+/* ── Top Customers Table ──────────────────────────────────────────── */
+.agx-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.agx-table thead tr {
+    background: var(--agx-lift);
+}
+
+.agx-table th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--agx-mist);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.agx-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--agx-border);
+    color: var(--agx-silver);
+}
+
+.agx-table tbody tr:hover { background: var(--agx-lift); }
+.agx-table tbody tr:last-child td { border-bottom: none; }
+
+.agx-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--agx-lift);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--agx-green);
+}
+
+.agx-cust-name { font-weight: 600; color: var(--agx-white); }
+
+.agx-revenue {
+    font-family: var(--agx-mono);
+    font-weight: 500;
+    color: var(--agx-green);
+}

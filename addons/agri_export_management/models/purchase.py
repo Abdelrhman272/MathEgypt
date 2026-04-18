@@ -192,6 +192,53 @@ class StockPicking(models.Model):
 # ---------------------------------------------------------------------------
 # Stock Move
 # ---------------------------------------------------------------------------
+class StockPicking(models.Model):
+    """Extends stock.picking with AGX auto lot generation on receipts.
+
+    When agx_auto_generate_lot_numbers is enabled in Settings and the
+    picking is an incoming receipt linked to an AGX evaluation, any
+    move line without a lot gets one auto-generated before validation.
+    """
+
+    _inherit = "stock.picking"
+
+    def button_validate(self):
+        """Auto-generate lot numbers on incoming AGX receipts before validation.
+
+        Triggered when the user clicks Validate on a receipt.
+        For each move line that:
+          - belongs to an incoming receipt (code = incoming)
+          - is linked to an AGX evaluation
+          - has a product with lot tracking enabled
+          - has no lot assigned yet
+        a new stock.lot is created using the ir.sequence for serial numbers.
+        """
+        for picking in self.filtered(
+            lambda p: p.picking_type_id.code == "incoming"
+            and p.agx_evaluation_id
+            and p.company_id.agx_auto_generate_lot_numbers
+        ):
+            for move_line in picking.move_line_ids.filtered(
+                lambda ml: ml.product_id.tracking == "lot"
+                and not ml.lot_id
+            ):
+                lot_name = (
+                    self.env["ir.sequence"].next_by_code("stock.lot.serial")
+                    or "LOT-{}-{}".format(
+                        move_line.product_id.default_code or move_line.product_id.id,
+                        fields.Datetime.now().strftime("%Y%m%d%H%M%S"),
+                    )
+                )
+                move_line.lot_id = self.env["stock.lot"].create(
+                    {
+                        "name": lot_name,
+                        "product_id": move_line.product_id.id,
+                        "company_id": picking.company_id.id,
+                    }
+                )
+        return super().button_validate()
+
+
 class StockMove(models.Model):
     """Adds AGX traceability fields to individual stock moves.
 

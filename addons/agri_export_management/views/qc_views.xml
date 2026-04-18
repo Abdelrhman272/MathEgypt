@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ================================================================
+         QC INSPECTION — List
+    ================================================================ -->
+    <record id="view_agx_qc_list" model="ir.ui.view">
+        <field name="name">agx.qc.inspection.list</field>
+        <field name="model">agx.qc.inspection</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'passed'"
+                  decoration-danger="state == 'failed'"
+                  decoration-warning="state == 'conditional'"
+                  decoration-muted="state == 'draft'">
+                <field name="name"/>
+                <field name="inspection_date"/>
+                <field name="inspection_type"/>
+                <field name="picking_id" optional="show"/>
+                <field name="batch_id" optional="show"/>
+                <field name="shipment_id" optional="show"/>
+                <field name="inspector_id"/>
+                <field name="overall_score" string="Score"/>
+                <field name="total_rejected_qty" string="Rejected Qty"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'passed'"
+                       decoration-danger="state == 'failed'"
+                       decoration-warning="state == 'conditional'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         QC INSPECTION — Form
+    ================================================================ -->
+    <record id="view_agx_qc_form" model="ir.ui.view">
+        <field name="name">agx.qc.inspection.form</field>
+        <field name="model">agx.qc.inspection</field>
+        <field name="arch" type="xml">
+            <form string="QC Inspection">
+                <header>
+                    <button name="action_pass" string="Pass"
+                            type="object" class="btn-success"
+                            invisible="state not in ('draft','conditional')"/>
+                    <button name="action_conditional" string="Conditional Pass"
+                            type="object" class="btn-warning"
+                            invisible="state not in ('draft',)"/>
+                    <button name="action_fail" string="Fail"
+                            type="object" class="btn-danger"
+                            invisible="state not in ('draft','conditional')"/>
+                    <button name="action_reset" string="Reset to Draft"
+                            type="object"
+                            invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,passed,failed,conditional"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="inspection_date"/>
+                            <field name="inspection_type"/>
+                            <field name="inspector_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="picking_id"
+                                   invisible="inspection_type != 'incoming'"/>
+                            <field name="batch_id"
+                                   invisible="inspection_type != 'in_process'"/>
+                            <field name="shipment_id"
+                                   invisible="inspection_type != 'pre_shipment'"/>
+                            <field name="overall_score" readonly="1"/>
+                            <field name="total_rejected_qty" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Checklist">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="criterion"/>
+                                    <field name="standard"/>
+                                    <field name="actual_value"/>
+                                    <field name="passed"
+                                           decoration-success="passed == True"
+                                           decoration-danger="passed == False"/>
+                                    <field name="score"/>
+                                    <field name="note" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Rejections / Issues">
+                            <field name="rejection_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="product_id"/>
+                                    <field name="grade_id"/>
+                                    <field name="size_id"/>
+                                    <field name="lot_id"/>
+                                    <field name="rejection_reason"/>
+                                    <field name="rejected_qty"/>
+                                    <field name="uom_id"/>
+                                    <field name="disposition"/>
+                                    <field name="note" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notes">
+                            <field name="note"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         QC INSPECTION — Search
+    ================================================================ -->
+    <record id="view_agx_qc_search" model="ir.ui.view">
+        <field name="name">agx.qc.inspection.search</field>
+        <field name="model">agx.qc.inspection</field>
+        <field name="arch" type="xml">
+            <search string="Search QC Inspections">
+                <field name="name"/>
+                <field name="inspector_id"/>
+                <field name="batch_id"/>
+                <field name="shipment_id"/>
+                <filter string="Draft"       name="draft"       domain="[('state','=','draft')]"/>
+                <filter string="Passed"      name="passed"      domain="[('state','=','passed')]"/>
+                <filter string="Failed"      name="failed"      domain="[('state','=','failed')]"/>
+                <filter string="Conditional" name="conditional" domain="[('state','=','conditional')]"/>
+                <separator/>
+                <filter string="Incoming"     name="incoming"    domain="[('inspection_type','=','incoming')]"/>
+                <filter string="In-Process"   name="in_process"  domain="[('inspection_type','=','in_process')]"/>
+                <filter string="Pre-Shipment" name="pre_ship"    domain="[('inspection_type','=','pre_shipment')]"/>
+                <separator/>
+                <filter string="By Type"      name="gb_type"     context="{'group_by':'inspection_type'}"/>
+                <filter string="By State"     name="gb_state"    context="{'group_by':'state'}"/>
+                <filter string="By Inspector" name="gb_inspector" context="{'group_by':'inspector_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         PACKAGING MATERIAL — Master
+    ================================================================ -->
+    <record id="view_agx_packaging_material_list" model="ir.ui.view">
+        <field name="name">agx.packaging.material.list</field>
+        <field name="model">agx.packaging.material</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="material_type"/>
+                <field name="standard_unit_cost"/>
+                <field name="uom_id"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_agx_packaging_material_form" model="ir.ui.view">
+        <field name="name">agx.packaging.material.form</field>
+        <field name="model">agx.packaging.material</field>
+        <field name="arch" type="xml">
+            <form string="Packaging Material">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="material_type"/>
+                            <field name="product_id"/>
+                        </group>
+                        <group>
+                            <field name="standard_unit_cost"/>
+                            <field name="uom_id"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <field name="note" placeholder="Notes..."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         CUSTOMER CLAIMS — List
+    ================================================================ -->
+    <record id="view_agx_claim_list" model="ir.ui.view">
+        <field name="name">agx.claim.list</field>
+        <field name="model">agx.claim</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="state == 'failed'"
+                  decoration-success="state == 'resolved'"
+                  decoration-warning="state == 'under_review'"
+                  decoration-muted="state == 'rejected'">
+                <field name="name"/>
+                <field name="claim_date"/>
+                <field name="customer_id"/>
+                <field name="shipment_id"/>
+                <field name="season_id" optional="show"/>
+                <field name="claim_type"/>
+                <field name="claimed_qty"/>
+                <field name="claimed_value"/>
+                <field name="agreed_credit"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'under_review'"
+                       decoration-success="state == 'resolved'"
+                       decoration-danger="state == 'failed'"
+                       decoration-muted="state == 'rejected'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         CUSTOMER CLAIMS — Form
+    ================================================================ -->
+    <record id="view_agx_claim_form" model="ir.ui.view">
+        <field name="name">agx.claim.form</field>
+        <field name="model">agx.claim</field>
+        <field name="arch" type="xml">
+            <form string="Customer Claim">
+                <header>
+                    <button name="action_review"  string="Start Review"
+                            type="object" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_resolve" string="Resolve"
+                            type="object" class="btn-success"
+                            invisible="state not in ('draft','under_review')"/>
+                    <button name="action_reject"  string="Reject"
+                            type="object"
+                            invisible="state not in ('draft','under_review')"/>
+                    <button name="action_credit"  string="Credit Note Issued"
+                            type="object"
+                            invisible="state not in ('resolved',)"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,under_review,resolved,credited,rejected"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="claim_date"/>
+                            <field name="claim_type"/>
+                            <field name="shipment_id"/>
+                            <field name="customer_id" readonly="1"/>
+                            <field name="season_id" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="claimed_qty"/>
+                            <field name="claimed_value"/>
+                            <field name="agreed_credit"/>
+                            <field name="credit_note_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Affected Lots">
+                            <field name="lot_ids" widget="many2many_tags"/>
+                        </page>
+                        <page string="Analysis">
+                            <group string="Root Cause">
+                                <field name="root_cause" nolabel="1" colspan="2"/>
+                            </group>
+                            <group string="Resolution">
+                                <field name="resolution" nolabel="1" colspan="2"/>
+                            </group>
+                        </page>
+                        <page string="Notes">
+                            <field name="note"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================================================================
+         ACTIONS + MENUS
+    ================================================================ -->
+    <record id="action_agx_qc_inspection" model="ir.actions.act_window">
+        <field name="name">QC Inspections</field>
+        <field name="res_model">agx.qc.inspection</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_agx_qc_search"/>
+    </record>
+
+    <record id="action_agx_claim" model="ir.actions.act_window">
+        <field name="name">Customer Claims</field>
+        <field name="res_model">agx.claim</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_agx_packaging_material" model="ir.actions.act_window">
+        <field name="name">Packaging Materials</field>
+        <field name="res_model">agx.packaging.material</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menus -->
+    <menuitem id="menu_agx_qc_inspection" name="QC Inspections"
+              parent="menu_agx_operations"
+              action="action_agx_qc_inspection" sequence="40"/>
+
+    <menuitem id="menu_agx_claims" name="Customer Claims"
+              parent="menu_agx_operations"
+              action="action_agx_claim" sequence="50"/>
+
+    <menuitem id="menu_agx_packaging_material" name="Packaging Materials"
+              parent="menu_agx_master_data"
+              action="action_agx_packaging_material" sequence="30"/>
+
+</odoo>

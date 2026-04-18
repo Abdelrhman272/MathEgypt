@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="agri_export_management.AgxDashboard">
+<div class="agx-dashboard">
+
+  <!-- ── Toolbar ──────────────────────────────────────────────── -->
+  <div class="agx-toolbar">
+    <div class="agx-toolbar-left">
+      <span class="agx-logo">🌿</span>
+      <h1 class="agx-title">Agricultural Export</h1>
+      <span class="agx-subtitle">Dashboard</span>
+    </div>
+    <div class="agx-toolbar-right">
+      <select class="agx-select" t-on-change="onSeasonChange">
+        <option value="">All Seasons</option>
+        <t t-foreach="state.seasons" t-as="s" t-key="s.id">
+          <option t-att-value="s.id" t-att-selected="state.season_id == s.id">
+            <t t-esc="s.name"/>
+          </option>
+        </t>
+      </select>
+      <t t-if="!state.season_id">
+        <input class="agx-input" type="date" t-att-value="state.date_from"
+               t-on-change="(e) => { state.date_from = e.target.value; onDateChange(); }"/>
+        <span class="agx-sep">→</span>
+        <input class="agx-input" type="date" t-att-value="state.date_to"
+               t-on-change="(e) => { state.date_to = e.target.value; onDateChange(); }"/>
+      </t>
+      <button class="agx-btn-refresh" t-on-click="onRefresh">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- ── Loading ──────────────────────────────────────────────── -->
+  <t t-if="state.loading">
+    <div class="agx-loading">
+      <div class="agx-spinner"/>
+      <span>Loading dashboard data…</span>
+    </div>
+  </t>
+
+  <t t-if="!state.loading and state.data">
+
+    <!-- ── KPI Cards ────────────────────────────────────────────── -->
+    <div class="agx-kpi-row">
+
+      <div class="agx-kpi agx-kpi-green" t-on-click="onShippedClick">
+        <div class="agx-kpi-icon">💰</div>
+        <div class="agx-kpi-body">
+          <div class="agx-kpi-value">
+            <t t-esc="Number(state.data.kpis.revenue).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
+          </div>
+          <div class="agx-kpi-label">Total Revenue</div>
+        </div>
+      </div>
+
+      <div class="agx-kpi agx-kpi-red">
+        <div class="agx-kpi-icon">🚢</div>
+        <div class="agx-kpi-body">
+          <div class="agx-kpi-value">
+            <t t-esc="Number(state.data.kpis.logistics_cost).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
+          </div>
+          <div class="agx-kpi-label">Logistics Cost</div>
+        </div>
+      </div>
+
+      <div t-attf-class="agx-kpi #{state.data.kpis.gross_profit >= 0 ? 'agx-kpi-blue' : 'agx-kpi-red'}">
+        <div class="agx-kpi-icon">📈</div>
+        <div class="agx-kpi-body">
+          <div class="agx-kpi-value">
+            <t t-esc="Number(state.data.kpis.gross_profit).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
+          </div>
+          <div class="agx-kpi-label">Gross Profit</div>
+        </div>
+      </div>
+
+      <div t-attf-class="agx-kpi #{state.data.kpis.margin_pct >= 20 ? 'agx-kpi-green' : state.data.kpis.margin_pct >= 0 ? 'agx-kpi-amber' : 'agx-kpi-red'}">
+        <div class="agx-kpi-icon">🎯</div>
+        <div class="agx-kpi-body">
+          <div class="agx-kpi-value"><t t-esc="state.data.kpis.margin_pct"/>%</div>
+          <div class="agx-kpi-label">Gross Margin</div>
+        </div>
+      </div>
+
+      <div class="agx-kpi agx-kpi-teal" t-on-click="onShippedClick">
+        <div class="agx-kpi-icon">✅</div>
+        <div class="agx-kpi-body">
+          <div class="agx-kpi-value"><t t-esc="state.data.kpis.shipped_count"/></div>
+          <div class="agx-kpi-label">Shipped</div>
+        </div>
+      </div>
+
+      <div class="agx-kpi agx-kpi-amber" t-on-click="onShipmentsClick">
+        <div class="agx-kpi-icon">⏳</div>
+        <div class="agx-kpi-body">
+          <div class="agx-kpi-value"><t t-esc="state.data.kpis.pending_count"/></div>
+          <div class="agx-kpi-label">Pending Shipments</div>
+        </div>
+      </div>
+
+      <div class="agx-kpi agx-kpi-purple" t-on-click="onBatchesClick">
+        <div class="agx-kpi-icon">🏭</div>
+        <div class="agx-kpi-body">
+          <div class="agx-kpi-value"><t t-esc="state.data.kpis.active_batches"/></div>
+          <div class="agx-kpi-label">Active Batches</div>
+        </div>
+      </div>
+
+      <div class="agx-kpi agx-kpi-green" t-on-click="onEvaluationsClick">
+        <div class="agx-kpi-icon">📋</div>
+        <div class="agx-kpi-body">
+          <div class="agx-kpi-value"><t t-esc="state.data.kpis.open_evaluations"/></div>
+          <div class="agx-kpi-label">Open Evaluations</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Charts Row 1: Revenue vs Cost + Destinations ────────── -->
+    <div class="agx-charts-row">
+      <div class="agx-card agx-card-wide">
+        <div class="agx-card-header">
+          <span class="agx-card-title">Revenue vs Cost vs Profit by Season</span>
+        </div>
+        <div class="agx-chart-wrap">
+          <canvas id="agx-chart-revenue"/>
+        </div>
+      </div>
+      <div class="agx-card">
+        <div class="agx-card-header">
+          <span class="agx-card-title">Shipments by Destination</span>
+        </div>
+        <div class="agx-chart-wrap">
+          <canvas id="agx-chart-destinations"/>
+        </div>
+        <t t-if="!state.data.shipments_by_destination.length">
+          <div class="agx-empty">No shipments in this period</div>
+        </t>
+      </div>
+    </div>
+
+    <!-- ── Charts Row 2: Monthly + Yield ────────────────────────── -->
+    <div class="agx-charts-row">
+      <div class="agx-card agx-card-wide">
+        <div class="agx-card-header">
+          <span class="agx-card-title">Monthly Shipments &amp; Revenue</span>
+        </div>
+        <div class="agx-chart-wrap">
+          <canvas id="agx-chart-monthly"/>
+        </div>
+        <t t-if="!state.data.monthly_shipments.length">
+          <div class="agx-empty">No data for this period</div>
+        </t>
+      </div>
+      <div class="agx-card">
+        <div class="agx-card-header">
+          <span class="agx-card-title">Yield % by Season</span>
+        </div>
+        <div class="agx-chart-wrap">
+          <canvas id="agx-chart-yield"/>
+        </div>
+        <t t-if="!state.data.yield_by_season.length">
+          <div class="agx-empty">No batch data available</div>
+        </t>
+      </div>
+    </div>
+
+    <!-- ── Top Customers Table ───────────────────────────────────── -->
+    <div class="agx-card agx-card-full">
+      <div class="agx-card-header">
+        <span class="agx-card-title">Top 5 Customers</span>
+      </div>
+      <t t-if="state.data.top_customers.length">
+        <table class="agx-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Customer</th>
+              <th>Shipments</th>
+              <th>Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            <t t-foreach="state.data.top_customers" t-as="c" t-key="c.name">
+              <tr>
+                <td><span class="agx-rank"><t t-esc="c_index + 1"/></span></td>
+                <td class="agx-cust-name"><t t-esc="c.name"/></td>
+                <td><t t-esc="c.shipments"/></td>
+                <td class="agx-revenue">
+                  <t t-esc="Number(c.revenue).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
+                </td>
+              </tr>
+            </t>
+          </tbody>
+        </table>
+      </t>
+      <t t-else="">
+        <div class="agx-empty">No shipped orders in this period</div>
+      </t>
+    </div>
+
+  </t>
+</div>
+</t>
+</templates>

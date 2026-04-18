@@ -1,2 +1,6 @@
-# Temporary: keep AGX stabilization tests in repository but do not auto-load
-# them in this branch until fixture compatibility is finalized.
+from . import test_evaluation
+from . import test_batch
+from . import test_shipment
+from . import test_full_flow
+from . import test_performance
+from . import test_upgrade

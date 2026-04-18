@@ -207,6 +207,16 @@
                                 invisible="not delivery_picking_id">
                             <field name="delivery_picking_id" widget="statinfo" string="Delivery"/>
                         </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_claims" icon="fa-exclamation-triangle"
+                                invisible="claim_count == 0">
+                            <field name="claim_count" widget="statinfo" string="Claims"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_qc_inspections" icon="fa-check-circle"
+                                invisible="qc_count == 0">
+                            <field name="qc_count" widget="statinfo" string="QC"/>
+                        </button>
                     </div>
 
                     <div class="oe_title">
@@ -286,15 +296,18 @@
 
                         <!-- Reserved Lots tab -->
                         <page string="Reserved Lots" name="lots">
-                            <field name="lot_line_ids" readonly="1">
-                                <list>
+                            <field name="lot_line_ids">
+                                <list editable="bottom">
                                     <field name="container_id"/>
                                     <field name="shipment_line_id"/>
                                     <field name="product_id"/>
                                     <field name="lot_id"/>
-                                    <field name="batch_output_id"/>
-                                    <field name="available_qty" optional="show"/>
+                                    <field name="batch_output_id" optional="show"/>
                                     <field name="reserved_qty"/>
+                                    <field name="carton_count" string="Cartons"/>
+                                    <field name="pallet_ref" string="Pallet Ref" optional="show"/>
+                                    <field name="pallet_count" string="Pallets" optional="show"/>
+                                    <field name="available_qty" optional="hide"/>
                                     <field name="note" optional="hide"/>
                                 </list>
                             </field>

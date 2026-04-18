@@ -79,6 +79,20 @@ class ResCompany(models.Model):
     # ------------------------------------------------------------------
     # Lot / Serial settings
     # ------------------------------------------------------------------
+    # MRP integration
+    agx_use_mrp_production = fields.Boolean(
+        string="Use Manufacturing Orders (MRP) instead of Production Batches",
+        default=False,
+        help=(
+            "When ON:  Production Batches menu is hidden.  "
+            "Manufacturing menu (MRP) is shown instead.  "
+            "When OFF: Production Batches menu is visible.  "
+            "MRP menu visibility is controlled by Odoo's own MRP module. "
+            "IMPORTANT: Existing batch records are never deleted — "
+            "they remain in the database.  Only the menu visibility changes."
+        ),
+    )
+
     agx_auto_generate_lot_numbers = fields.Boolean(
         default=True,
         help=(
@@ -171,6 +185,43 @@ class ResConfigSettings(models.TransientModel):
     )
 
     # Lots
+    # MRP integration
+    agx_use_mrp_production = fields.Boolean(
+        string="Use Manufacturing Orders (MRP) instead of Production Batches",
+        default=False,
+        help=(
+            "When ON:  Production Batches menu is hidden.  "
+            "Manufacturing menu (MRP) is shown instead.  "
+            "When OFF: Production Batches menu is visible.  "
+            "MRP menu visibility is controlled by Odoo's own MRP module. "
+            "IMPORTANT: Existing batch records are never deleted — "
+            "they remain in the database.  Only the menu visibility changes."
+        ),
+    )
+
+    agx_use_mrp_production = fields.Boolean(
+        related="company_id.agx_use_mrp_production", readonly=False,
+        string="Use Manufacturing Orders (MRP) instead of Production Batches",
+    )
+
+    def set_values(self):
+        """Toggle Production Batches menu visibility based on MRP setting."""
+        res = super().set_values()
+        use_mrp = self.agx_use_mrp_production
+        # Find the Production Batches menu and toggle it
+        batch_menu = self.env.ref(
+            "agri_export_management.menu_agx_batch", raise_if_not_found=False
+        )
+        if batch_menu:
+            batch_menu.sudo().write({"active": not use_mrp})
+        # Also toggle the batch analytics menu
+        batch_analytics_menu = self.env.ref(
+            "agri_export_management.menu_agx_batch_analysis",
+            raise_if_not_found=False,
+        )
+        if batch_analytics_menu:
+            batch_analytics_menu.sudo().write({"active": not use_mrp})
+        return res
     agx_auto_generate_lot_numbers = fields.Boolean(
         related="company_id.agx_auto_generate_lot_numbers", readonly=False
     )
@@ -196,3 +247,54 @@ class ResConfigSettings(models.TransientModel):
     agx_outgoing_picking_type_id = fields.Many2one(
         related="company_id.agx_outgoing_picking_type_id", readonly=False
     )
+
+
+class SaleOrder(models.Model):
+    """Auto-links intercompany Sale Orders to AGX Evaluations.
+
+    When Odoo creates a Sale Order via intercompany rules
+    (auto_purchase_order_id is set), this override searches for an
+    active AGX Evaluation for the same partner / season and links it.
+
+    This removes the need for manual linking in most cases.
+    """
+
+    _inherit = "sale.order"
+
+    def _agx_auto_link_evaluation(self):
+        """Find and link matching AGX evaluation after intercompany SO creation."""
+        for so in self:
+            # Only process intercompany SOs (have auto_purchase_order_id)
+            if not getattr(so, 'auto_purchase_order_id', False):
+                continue
+            # Already linked
+            if self.env['agx.evaluation'].search(
+                [('intercompany_so_id', '=', so.id)], limit=1
+            ):
+                continue
+            # Find evaluation: same company, approved, same partner, active season
+            eval_rec = self.env['agx.evaluation'].search(
+                [
+                    ('company_id', '=', so.company_id.id),
+                    ('state', '=', 'approved'),
+                    ('partner_id', '=', so.partner_id.id),
+                    ('season_id.state', '=', 'active'),
+                    ('intercompany_so_id', '=', False),
+                ],
+                limit=1,
+                order='evaluation_date desc',
+            )
+            if eval_rec:
+                eval_rec.intercompany_so_id = so.id
+                eval_rec.message_post(
+                    body=(
+                        "Intercompany Sale Order %s auto-linked from company %s."
+                        % (so.name, so.company_id.name)
+                    )
+                )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._agx_auto_link_evaluation()
+        return records

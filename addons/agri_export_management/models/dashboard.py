@@ -395,3 +395,131 @@ class AgxDashboard(models.Model):
             _("Pending Incoming Receipts"),
             self._get_pending_receipt_domain(),
         )
+
+    @api.model
+    def get_dashboard_data(self, season_id=False, date_from=False, date_to=False):
+        """RPC method — returns all dashboard data as a dict for the HTML client action.
+
+        Called by the OWL dashboard component via JSON-RPC.
+        Returns KPIs, chart data, top customers, and yield by season.
+        """
+        import datetime
+
+        company_id = self.env.company.id
+        Shipment  = self.env["agx.shipment"]
+        Batch     = self.env["agx.batch"]
+        Evaluation = self.env["agx.evaluation"]
+        Season    = self.env["agx.season"]
+
+        # ── Base domain ──────────────────────────────────────────────
+        base_domain = [("company_id", "=", company_id)]
+        if season_id:
+            ship_domain  = base_domain + [("season_id", "=", season_id)]
+            batch_domain = base_domain + [("season_id", "=", season_id)]
+            eval_domain  = base_domain + [("season_id", "=", season_id)]
+        else:
+            df = date_from or datetime.date.today().replace(day=1).isoformat()
+            dt = date_to   or datetime.date.today().isoformat()
+            ship_domain  = base_domain + [("shipment_date", ">=", df), ("shipment_date", "<=", dt)]
+            batch_domain = base_domain + [("batch_date",    ">=", df), ("batch_date",    "<=", dt)]
+            eval_domain  = base_domain + [("evaluation_date", ">=", df), ("evaluation_date", "<=", dt)]
+
+        shipments  = Shipment.search(ship_domain)
+        batches    = Batch.search(batch_domain)
+        evals      = Evaluation.search(eval_domain)
+
+        # ── KPIs ─────────────────────────────────────────────────────
+        revenue       = sum(shipments.mapped("revenue_amount"))
+        log_cost      = sum(shipments.mapped("total_logistics_cost"))
+        gross_profit  = revenue - log_cost
+        margin_pct    = (gross_profit / revenue * 100) if revenue else 0
+
+        shipped   = shipments.filtered(lambda s: s.state == "shipped")
+        pending   = shipments.filtered(lambda s: s.state in ("draft", "reserved"))
+        active_b  = batches.filtered(lambda b: b.state in ("draft", "in_progress"))
+        open_eval = evals.filtered(lambda e: e.state == "draft")
+
+        # ── Revenue by season ────────────────────────────────────────
+        seasons = Season.search([("company_id", "=", company_id)], limit=8, order="date_start desc")
+        revenue_by_season = []
+        for s in seasons:
+            s_ships = Shipment.search(base_domain + [("season_id", "=", s.id)])
+            s_rev  = sum(s_ships.mapped("revenue_amount"))
+            s_cost = sum(s_ships.mapped("total_logistics_cost"))
+            revenue_by_season.append({
+                "name":    s.name,
+                "revenue": s_rev,
+                "cost":    s_cost,
+                "profit":  s_rev - s_cost,
+            })
+
+        # ── Shipments by destination ─────────────────────────────────
+        dest_counter = {}
+        for shp in shipments:
+            dest = shp.destination_id.name if shp.destination_id else "Other"
+            dest_counter[dest] = dest_counter.get(dest, 0) + 1
+        shipments_by_destination = [
+            {"name": k, "count": v}
+            for k, v in sorted(dest_counter.items(), key=lambda x: -x[1])
+        ]
+
+        # ── Top 5 customers ──────────────────────────────────────────
+        cust_data = {}
+        for shp in shipped:
+            name = shp.customer_id.display_name if shp.customer_id else "Unknown"
+            if name not in cust_data:
+                cust_data[name] = {"shipments": 0, "revenue": 0}
+            cust_data[name]["shipments"] += 1
+            cust_data[name]["revenue"]   += shp.revenue_amount
+        top_customers = sorted(
+            [{"name": k, **v} for k, v in cust_data.items()],
+            key=lambda x: -x["revenue"]
+        )[:5]
+
+        # ── Monthly shipments ────────────────────────────────────────
+        monthly = {}
+        for shp in shipments:
+            if not shp.shipment_date:
+                continue
+            key = shp.shipment_date.strftime("%b %Y")
+            if key not in monthly:
+                monthly[key] = {"count": 0, "revenue": 0, "sort": shp.shipment_date.strftime("%Y-%m")}
+            monthly[key]["count"]   += 1
+            monthly[key]["revenue"] += shp.revenue_amount
+        monthly_shipments = [
+            {"month": k, "count": v["count"], "revenue": v["revenue"]}
+            for k, v in sorted(monthly.items(), key=lambda x: x[1]["sort"])
+        ]
+
+        # ── Yield by season ──────────────────────────────────────────
+        yield_by_season = []
+        for s in seasons:
+            s_batches = Batch.search(base_domain + [("season_id", "=", s.id), ("state", "=", "done")])
+            total_in  = sum(s_batches.mapped("input_qty"))
+            total_out = sum(s_batches.mapped("output_qty"))
+            yield_pct = (total_out / total_in * 100) if total_in else 0
+            if total_in > 0:
+                yield_by_season.append({
+                    "name":      s.name,
+                    "input":     total_in,
+                    "output":    total_out,
+                    "yield_pct": round(yield_pct, 1),
+                })
+
+        return {
+            "kpis": {
+                "revenue":          revenue,
+                "logistics_cost":   log_cost,
+                "gross_profit":     gross_profit,
+                "margin_pct":       round(margin_pct, 1),
+                "shipped_count":    len(shipped),
+                "pending_count":    len(pending),
+                "active_batches":   len(active_b),
+                "open_evaluations": len(open_eval),
+            },
+            "revenue_by_season":        revenue_by_season,
+            "shipments_by_destination": shipments_by_destination,
+            "top_customers":            top_customers,
+            "monthly_shipments":        monthly_shipments,
+            "yield_by_season":          yield_by_season,
+        }

@@ -519,10 +519,121 @@ class AgxBatch(models.Model):
             rec.input_line_ids = commands
 
     # ------------------------------------------------------------------
+    # MRP integration
+    # ------------------------------------------------------------------
+    def action_create_mrp_production(self):
+        """Create a Manufacturing Order linked to this batch.
+
+        Only available when agx_use_mrp_production is enabled in Settings.
+        Does NOT replace the batch stock moves workflow — both can coexist.
+        Existing batches without an MO are completely unaffected.
+
+        The MO is created in draft state so the user can configure
+        Bill of Materials, workcenter, etc. before confirming.
+        """
+        self.ensure_one()
+        if self.mrp_production_id:
+            return self._action_view_mrp_production()
+
+        # Guard: ensure MRP module is installed
+        if self.env.get("mrp.production") is None:
+            from odoo.exceptions import UserError
+            raise UserError(
+                "The Manufacturing (MRP) module is not installed. "
+                "Please install it from Apps first, then retry."
+            )
+
+        # Find the main output product for the MO
+        main_output = self.output_line_ids.sorted(
+            lambda l: l.qty, reverse=True
+        )[:1]
+        if not main_output:
+            from odoo.exceptions import UserError
+            raise UserError(
+                "Please add at least one output line before creating a Manufacturing Order."
+            )
+
+        product = main_output.product_id
+        mo_vals = {
+            "product_id": product.id,
+            "product_qty": sum(self.output_line_ids.mapped("qty")),
+            "product_uom_id": (main_output.uom_id or product.uom_id).id,
+            "company_id": self.company_id.id,
+            "origin": self.name,
+        }
+        # Try to find a BoM for the product
+        bom = self.env["mrp.bom"].search(
+            [
+                ("product_tmpl_id", "=", product.product_tmpl_id.id),
+                ("company_id", "in", [False, self.company_id.id]),
+            ],
+            limit=1,
+        )
+        if bom:
+            mo_vals["bom_id"] = bom.id
+
+        mo = self.env["mrp.production"].create(mo_vals)
+        self.mrp_production_id = mo.id
+        return self._action_view_mrp_production()
+
+    def _action_view_mrp_production(self):
+        """Open the linked Manufacturing Order."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Manufacturing Order",
+            "res_model": "mrp.production",
+            "res_id": self.mrp_production_id.id,
+            "view_mode": "form",
+            "target": "current",
+        }
+
+    # ------------------------------------------------------------------
     # State transitions
     # ------------------------------------------------------------------
     def action_start(self):
         self.write({"state": "in_progress"})
+
+    def _validate_before_done(self):
+        """Business validations before marking a batch as Done.
+
+        Raises UserError for:
+          - No output lines
+          - Output qty > input qty (implausible without scrap explanation)
+          - Missing lots on outputs
+        """
+        self.ensure_one()
+        errors = []
+
+        if not self.output_line_ids:
+            errors.append("Please add at least one output line before marking Done.")
+
+        if not self.input_line_ids:
+            errors.append("No input lines found. Please add raw material inputs.")
+
+        # Outputs > inputs without scrap explanation
+        if (self.output_qty > self.input_qty * 1.05  # 5% tolerance
+                and not self.scrap_line_ids):
+            errors.append(
+                f"Output qty ({self.output_qty:.0f}) exceeds input qty "
+                f"({self.input_qty:.0f}) by more than 5%. "
+                "If this is expected, please add a note. "
+                "If not, check your input/output figures."
+            )
+
+        # Warn if scrap is very high (> 30%) — non-blocking chatter warning
+        if self.input_qty and self.total_scrap_qty:
+            scrap_ratio = self.total_scrap_qty / self.input_qty
+            if scrap_ratio > 0.30:
+                self.message_post(
+                    body=(
+                        f"⚠️ High scrap ratio: {scrap_ratio*100:.1f}% of input "
+                        "was recorded as waste/loss. Please verify."
+                    )
+                )
+
+        if errors:
+            raise UserError("  |  ".join(["* " + str(e) for e in errors]))
 
     def action_done(self):
         """Validate the batch and post stock movements.
@@ -1160,6 +1271,40 @@ class AgxBatchOutput(models.Model):
     # ------------------------------------------------------------------
     # Onchange
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # ORM overrides — trigger evaluation line recompute
+    # ------------------------------------------------------------------
+    def _trigger_evaluation_recompute(self):
+        """Invalidate evaluation line actual_qty when batch outputs change.
+
+        When a batch output is created or modified, we need to recompute
+        the linked evaluation lines so Actual Qty and Achievement % update.
+        """
+        eval_ids = self.mapped("batch_id.evaluation_id").filtered(bool)
+        if eval_ids:
+            eval_lines = self.env["agx.evaluation.line"].search(
+                [("evaluation_id", "in", eval_ids.ids)]
+            )
+            # Invalidate the stored compute fields so they recalculate
+            eval_lines.invalidate_recordset(["actual_qty", "variance_qty", "achievement_pct"])
+            eval_lines._compute_actuals()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._trigger_evaluation_recompute()
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        if any(f in vals for f in ("qty", "grade_id", "size_id", "batch_id")):
+            self._trigger_evaluation_recompute()
+        return res
+
+    def unlink(self):
+        self._trigger_evaluation_recompute()
+        return super().unlink()
+
     @api.onchange("product_id")
     def _onchange_product_id(self):
         """Default UoM and auto-fill grade/size from variant attributes."""
@@ -1208,3 +1353,195 @@ class AgxBatchOutput(models.Model):
             rec.cost_per_unit = (
                 (rec.allocated_cost / rec.qty) if rec.qty else 0.0
             )
+
+
+class AgxBatchScrap(models.Model):
+    """Waste / Scrap / Loss line on a Production Batch.
+
+    Records any quantity that was consumed but did not become a
+    finished output — spoilage, rejects, natural shrinkage, etc.
+
+    scrap_qty is automatically deducted from batch costing so the
+    effective_allocable_cost per output unit reflects real yield.
+
+    Scrap types:
+      natural_loss   — inevitable field shrinkage (dew, evaporation)
+      quality_reject — failed grading / sizing at packing line
+      damage         — mechanical or transit damage
+      disease        — fungal / pest loss
+      other          — anything else, requires reason text
+    """
+
+    _name = "agx.batch.scrap"
+    _description = "Batch Scrap / Waste Line"
+    _order = "sequence, id"
+
+    sequence = fields.Integer(default=10)
+    batch_id = fields.Many2one(
+        "agx.batch", required=True, ondelete="cascade"
+    )
+    company_id = fields.Many2one(
+        related="batch_id.company_id", store=True, readonly=True
+    )
+    currency_id = fields.Many2one(
+        related="batch_id.currency_id", store=True, readonly=True
+    )
+
+    scrap_type = fields.Selection(
+        [
+            ("natural_loss",   "Natural Loss / Shrinkage"),
+            ("quality_reject", "Quality Reject"),
+            ("damage",         "Physical Damage"),
+            ("disease",        "Disease / Pest"),
+            ("other",          "Other"),
+        ],
+        required=True,
+        default="natural_loss",
+        string="Scrap Type",
+    )
+    product_id = fields.Many2one(
+        "product.product",
+        string="Product",
+        help="Leave empty to use the batch input product.",
+    )
+    scrap_qty = fields.Float(required=True, default=0.0, string="Qty Lost")
+    uom_id = fields.Many2one("uom.uom", string="UoM")
+    reason = fields.Char(
+        string="Reason / Note",
+        help="Required when scrap_type = 'other'.",
+    )
+    cost_impact = fields.Monetary(
+        currency_field="currency_id",
+        compute="_compute_cost_impact",
+        store=True,
+        help="Estimated cost of this loss = scrap_qty × avg input cost per unit.",
+    )
+
+    @api.depends("scrap_qty", "batch_id.actual_raw_material_cost", "batch_id.input_qty")
+    def _compute_cost_impact(self):
+        for rec in self:
+            if rec.batch_id.input_qty and rec.batch_id.actual_raw_material_cost:
+                cost_per_unit = (
+                    rec.batch_id.actual_raw_material_cost / rec.batch_id.input_qty
+                )
+                rec.cost_impact = rec.scrap_qty * cost_per_unit
+            else:
+                rec.cost_impact = 0.0
+
+    @api.constrains("scrap_type", "reason")
+    def _check_other_reason(self):
+        for rec in self:
+            if rec.scrap_type == "other" and not rec.reason:
+                raise ValidationError(
+                    _("Please provide a reason when scrap type is 'Other'.")
+                )
+
+    @api.constrains("scrap_qty")
+    def _check_qty(self):
+        for rec in self:
+            if rec.scrap_qty < 0:
+                raise ValidationError(_("Scrap quantity cannot be negative."))
+
+    @api.onchange("product_id")
+    def _onchange_product_id(self):
+        if self.product_id:
+            self.uom_id = self.product_id.uom_id
+
+
+# ════════════════════════════════════════════════════════════════════
+# Packaging Materials Cost
+# ════════════════════════════════════════════════════════════════════
+class AgxPackagingMaterial(models.Model):
+    """Packaging materials reference table.
+
+    Defines reusable packaging items (cartons, labels, pallets, etc.)
+    with a standard unit cost that can be used across batches.
+    """
+
+    _name = "agx.packaging.material"
+    _description = "Packaging Material"
+    _order = "sequence, name"
+
+    sequence  = fields.Integer(default=10)
+    name      = fields.Char(required=True)
+    code      = fields.Char()
+    active    = fields.Boolean(default=True)
+    material_type = fields.Selection(
+        [
+            ("carton",      "Carton / Box"),
+            ("label",       "Label / Sticker"),
+            ("pallet",      "Pallet"),
+            ("wrapping",    "Wrapping / Film"),
+            ("strap",       "Strap / Band"),
+            ("other",       "Other"),
+        ],
+        required=True,
+        default="carton",
+    )
+    product_id = fields.Many2one(
+        "product.product",
+        help="Optional Odoo product link for stock/accounting integration.",
+    )
+    standard_unit_cost = fields.Float(
+        digits=(16, 4),
+        help="Default cost per unit — can be overridden on each batch line.",
+    )
+    uom_id = fields.Many2one("uom.uom")
+    note   = fields.Char()
+
+
+class AgxBatchPackagingLine(models.Model):
+    """One packaging material line on a Production Batch.
+
+    Records the quantity and unit cost of each packaging item used
+    in this batch so it is factored into the total allocable cost.
+    """
+
+    _name  = "agx.batch.packaging.line"
+    _description = "Batch Packaging Material Line"
+    _order = "sequence, id"
+
+    sequence = fields.Integer(default=10)
+    batch_id = fields.Many2one("agx.batch", required=True, ondelete="cascade")
+    company_id = fields.Many2one(
+        related="batch_id.company_id", store=True, readonly=True
+    )
+    currency_id = fields.Many2one(
+        related="batch_id.currency_id", store=True, readonly=True
+    )
+    material_id = fields.Many2one(
+        "agx.packaging.material",
+        required=True,
+        string="Material",
+    )
+    material_type = fields.Selection(
+        related="material_id.material_type", store=True, readonly=True
+    )
+    qty     = fields.Float(required=True, default=1.0)
+    uom_id  = fields.Many2one("uom.uom")
+    unit_cost = fields.Float(
+        digits=(16, 4),
+        help="Cost per unit — defaults from material standard cost.",
+    )
+    total_cost = fields.Monetary(
+        currency_field="currency_id",
+        compute="_compute_total",
+        store=True,
+    )
+
+    @api.depends("qty", "unit_cost")
+    def _compute_total(self):
+        for rec in self:
+            rec.total_cost = rec.qty * rec.unit_cost
+
+    @api.onchange("material_id")
+    def _onchange_material(self):
+        if self.material_id:
+            self.unit_cost = self.material_id.standard_unit_cost
+            self.uom_id    = self.material_id.uom_id
+
+    @api.constrains("qty")
+    def _check_qty(self):
+        for rec in self:
+            if rec.qty <= 0:
+                raise ValidationError(_("Packaging quantity must be greater than zero."))

@@ -190,6 +190,43 @@ class AgxShipment(models.Model):
     # ------------------------------------------------------------------
     # Linked documents
     # ------------------------------------------------------------------
+    # Claims + QC
+    claim_count = fields.Integer(compute="_compute_claim_count")
+    qc_count    = fields.Integer(compute="_compute_qc_count_shp")
+
+    def _compute_claim_count(self):
+        Claim = self.env["agx.claim"]
+        for rec in self:
+            rec.claim_count = Claim.search_count([("shipment_id", "=", rec.id)])
+
+    def _compute_qc_count_shp(self):
+        QC = self.env["agx.qc.inspection"]
+        for rec in self:
+            rec.qc_count = QC.search_count([("shipment_id", "=", rec.id)])
+
+    def action_view_claims(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Claims",
+            "res_model": "agx.claim",
+            "view_mode": "list,form",
+            "domain": [("shipment_id", "=", self.id)],
+            "context": {"default_shipment_id": self.id},
+        }
+
+    def action_view_qc_inspections(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "QC Inspections",
+            "res_model": "agx.qc.inspection",
+            "view_mode": "list,form",
+            "domain": [("shipment_id", "=", self.id)],
+            "context": {"default_shipment_id": self.id,
+                        "default_inspection_type": "pre_shipment"},
+        }
+
     sale_order_id = fields.Many2one("sale.order", copy=False)
     delivery_picking_id = fields.Many2one(
         "stock.picking",
@@ -835,6 +872,65 @@ class AgxShipment(models.Model):
     # ------------------------------------------------------------------
     # State actions
     # ------------------------------------------------------------------
+    def _validate_before_reserve(self):
+        """Business validations before reserving lots.
+
+        Raises UserError for:
+          - Missing product lines
+          - Lines without grade/size (needed for lot matching)
+          - ETD in the past
+          - Duplicate container numbers
+          - Missing weights on lines
+        """
+        self.ensure_one()
+        errors = []
+
+        # 1. Must have product lines
+        if not self.line_ids:
+            errors.append("Please add at least one product line before reserving.")
+
+        # 2. ETD must not be in the past
+        if self.etd and self.etd < fields.Date.context_today(self):
+            errors.append(
+                f"ETD ({self.etd}) is in the past. "
+                "Please update the estimated departure date."
+            )
+
+        # 3. ETA must be after ETD
+        if self.etd and self.eta and self.eta < self.etd:
+            errors.append(
+                f"ETA ({self.eta}) cannot be before ETD ({self.etd})."
+            )
+
+        # 4. Check for duplicate container numbers across other shipments
+        if self.container_no:
+            duplicate = self.search([
+                ("container_no", "=", self.container_no),
+                ("id", "!=", self.id),
+                ("state", "not in", ("cancelled",)),
+                ("company_id", "=", self.company_id.id),
+            ], limit=1)
+            if duplicate:
+                errors.append(
+                    f"Container number '{self.container_no}' is already used "
+                    f"in shipment {duplicate.name}. Please verify."
+                )
+
+        # 5. Warn if any line has no carton/weight data
+        lines_missing_weight = self.line_ids.filtered(
+            lambda l: l.product_qty > 0
+            and (l.carton_qty == 0 or l.net_weight == 0)
+        )
+        if lines_missing_weight:
+            products = ", ".join(lines_missing_weight.mapped("product_id.display_name"))
+            errors.append(
+                f"Missing carton qty or net weight on: {products}. "
+                "These are required for the Certificate of Origin and Packing List."
+            )
+
+        if errors:
+            raise UserError("  |  ".join(["* " + str(e) for e in errors]))
+
     def action_reserve(self):
         """Reserve lots for this shipment.
 
@@ -848,6 +944,7 @@ class AgxShipment(models.Model):
           7. Set state to 'reserved'.
         """
         for rec in self:
+            rec._validate_before_reserve()
             rec._sync_container_setup()
             rec._normalize_line_containers()
             candidates, pairs = rec._get_candidate_reservation_scope()
@@ -864,6 +961,53 @@ class AgxShipment(models.Model):
             rec._build_delivery_picking()
             rec.state = "reserved"
         return True
+
+    def _validate_before_ship(self):
+        """Business validations before marking as shipped.
+
+        Raises UserError for:
+          - Missing B/L number
+          - Duplicate B/L number
+          - Missing season
+          - No Sale Order
+        """
+        self.ensure_one()
+        warnings = []
+
+        # 1. B/L number should be set before shipping
+        if not self.bl_number:
+            warnings.append(
+                "No B/L Number set. "
+                "It is strongly recommended to add the Bill of Lading "
+                "number before marking as Shipped."
+            )
+
+        # 2. Duplicate B/L check
+        if self.bl_number:
+            dup = self.search([
+                ("bl_number", "=", self.bl_number),
+                ("id", "!=", self.id),
+                ("state", "not in", ("cancelled",)),
+                ("company_id", "=", self.company_id.id),
+            ], limit=1)
+            if dup:
+                raise UserError(
+                    f"B/L Number '{self.bl_number}' is already used "
+                    f"in shipment {dup.name}. Please verify."
+                )
+
+        # 3. Season should be set for analytic tracking
+        if not self.season_id:
+            warnings.append(
+                "No Season linked. This shipment will not appear "
+                "in Season analytics or P&L reports."
+            )
+
+        # Post warnings to chatter (non-blocking)
+        if warnings:
+            self.message_post(
+                body="Shipping warnings: " + "  |  ".join(["* " + w for w in warnings])
+            )
 
     def action_ship(self):
         """Validate the shipment — move goods from stock to customer.
@@ -883,6 +1027,7 @@ class AgxShipment(models.Model):
         """
         MoveLine = self.env["stock.move.line"]
         for rec in self:
+            rec._validate_before_ship()
             if not rec.lot_line_ids:
                 raise UserError(_("Please reserve lots before shipping."))
             if not rec.delivery_picking_id or rec.delivery_picking_id.state in (
@@ -1111,7 +1256,11 @@ class AgxShipmentLine(models.Model):
     grade_id = fields.Many2one("agx.grade")
     size_id = fields.Many2one("agx.size")
     product_qty = fields.Float(required=True, default=1.0)
-    uom_id = fields.Many2one("uom.uom")
+    uom_id = fields.Many2one(
+        "uom.uom",
+        help="Must match the product's unit of measure (e.g. PACK OF 15). "
+             "Using a different UoM will cause 'not enough lots' errors during reservation.",
+    )
     carton_qty = fields.Float(default=0.0)
     net_weight = fields.Float(default=0.0)
     gross_weight = fields.Float(default=0.0)
@@ -1133,8 +1282,16 @@ class AgxShipmentLine(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Ensure UoM matches product UoM on creation."""
+        for vals in vals_list:
+            if vals.get("product_id") and not vals.get("uom_id"):
+                product = self.env["product.product"].browse(vals["product_id"])
+                vals["uom_id"] = product.uom_id.id
         records = super().create(vals_list)
         for rec in records:
+            # Default UoM from product if still missing
+            if not rec.uom_id and rec.product_id:
+                rec.uom_id = rec.product_id.uom_id
             if not rec.container_id and rec.shipment_id.container_ids:
                 first = rec.shipment_id.container_ids.sorted("sequence")[:1]
                 if first:
@@ -1232,6 +1389,15 @@ class AgxShipmentLotLine(models.Model):
     Created automatically by ``action_reserve`` or manually via the
     Reserve Lots Wizard.  Validated by a constraint that prevents
     over-reservation beyond the lot's effective available quantity.
+
+    Packaging Hierarchy:
+      lot_id  → the stock tracking unit (PACK OF 15)
+      carton_count  → how many physical cartons in this lot
+      pallet_ref    → which pallet these cartons are on
+      pallet_count  → how many pallets
+
+    This gives full Lot → Carton → Pallet visibility on the
+    Reserved Lots tab and on the Certificate of Origin / Packing List.
     """
 
     _name = "agx.shipment.lot.line"
@@ -1259,6 +1425,21 @@ class AgxShipmentLotLine(models.Model):
         help="Effective available qty at reservation time (informational)."
     )
     reserved_qty = fields.Float(required=True, default=1.0)
+
+    # ── Packaging Hierarchy ───────────────────────────────────────
+    carton_count = fields.Integer(
+        default=0,
+        help="Number of physical cartons in this lot line.",
+    )
+    pallet_ref = fields.Char(
+        string="Pallet Ref",
+        help="Pallet reference / barcode for this lot (e.g. PLT-001).",
+    )
+    pallet_count = fields.Integer(
+        default=0,
+        help="Number of pallets covering this lot line.",
+    )
+
     note = fields.Char()
 
     @api.constrains(
@@ -1383,3 +1564,127 @@ class AgxShipmentCostLine(models.Model):
             rec.effective_amount = (
                 src if rec.cost_source != "manual" else rec.manual_amount
             )
+
+
+# ════════════════════════════════════════════════════════════════════
+# Customer Claims / Complaints
+# ════════════════════════════════════════════════════════════════════
+class AgxClaim(models.Model):
+    """Customer claim linked to an Export Shipment.
+
+    Captures post-delivery quality complaints, quantity discrepancies,
+    and documentation issues — with full traceability back to the
+    shipment, lots, batches, and farm.
+
+    Claim lifecycle:
+      draft → under_review → resolved / rejected / credited
+    """
+
+    _name = "agx.claim"
+    _description = "Customer Claim"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _order = "claim_date desc, id desc"
+
+    name = fields.Char(
+        default=lambda self: _("New"), copy=False, readonly=True
+    )
+    claim_date = fields.Date(
+        default=fields.Date.context_today, required=True, tracking=True
+    )
+    company_id = fields.Many2one(
+        "res.company", required=True,
+        default=lambda self: self.env.company, index=True,
+    )
+    currency_id = fields.Many2one(
+        related="company_id.currency_id", store=True, readonly=True
+    )
+
+    shipment_id = fields.Many2one(
+        "agx.shipment", required=True,
+        string="Shipment", tracking=True, index=True,
+    )
+    customer_id = fields.Many2one(
+        related="shipment_id.customer_id", store=True, readonly=True
+    )
+    season_id = fields.Many2one(
+        related="shipment_id.season_id", store=True, readonly=True
+    )
+
+    claim_type = fields.Selection(
+        [
+            ("quality",       "Quality / Grade Discrepancy"),
+            ("quantity",      "Short Shipment / Quantity"),
+            ("documentation", "Documentation Error"),
+            ("delay",         "Late Delivery"),
+            ("damage",        "Transit Damage"),
+            ("other",         "Other"),
+        ],
+        required=True, default="quality", tracking=True,
+    )
+    state = fields.Selection(
+        [
+            ("draft",        "Draft"),
+            ("under_review", "Under Review"),
+            ("resolved",     "Resolved"),
+            ("rejected",     "Rejected"),
+            ("credited",     "Credit Note Issued"),
+        ],
+        default="draft", tracking=True,
+    )
+
+    # Affected lots
+    lot_ids = fields.Many2many(
+        "stock.lot", string="Affected Lots",
+        help="Which lots are involved in this claim — auto-suggest from shipment.",
+    )
+
+    claimed_qty  = fields.Float(help="Quantity disputed by customer.")
+    claimed_value = fields.Monetary(
+        currency_field="currency_id",
+        help="Financial value of the claim as stated by customer.",
+    )
+    agreed_credit = fields.Monetary(
+        currency_field="currency_id",
+        help="Credit note / compensation amount agreed.",
+        tracking=True,
+    )
+
+    root_cause = fields.Text(help="Root cause analysis.")
+    resolution = fields.Text(help="How the claim was resolved.")
+    note       = fields.Html()
+
+    # Credit note link
+    credit_note_id = fields.Many2one(
+        "account.move",
+        domain="[('move_type','=','out_refund')]",
+        string="Credit Note",
+        copy=False, readonly=True,
+    )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("name", _("New")) == _("New"):
+                vals["name"] = (
+                    self.env["ir.sequence"].next_by_code("agx.claim")
+                    or _("New")
+                )
+        return super().create(vals_list)
+
+    @api.onchange("shipment_id")
+    def _onchange_shipment(self):
+        """Pre-fill lots from shipment reserved lots."""
+        if self.shipment_id:
+            self.lot_ids = self.shipment_id.lot_line_ids.mapped("lot_id")
+
+    def action_review(self):
+        self.write({"state": "under_review"})
+
+    def action_resolve(self):
+        self.write({"state": "resolved"})
+
+    def action_reject(self):
+        self.write({"state": "rejected"})
+
+    def action_credit(self):
+        self.write({"state": "credited"})

@@ -25,6 +25,224 @@
     </record>
 
     <!-- ================================================================
+         BATCH PRODUCTION REPORT
+         Shows inputs, outputs, costing, and lot traceability per batch.
+    ================================================================ -->
+    <record id="action_report_agx_batch" model="ir.actions.report">
+        <field name="name">Production Batch Report</field>
+        <field name="model">agx.batch</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">agri_export_management.report_agx_batch</field>
+        <field name="report_file">agri_export_management.report_agx_batch</field>
+        <field name="binding_model_id" ref="model_agx_batch"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_agx_batch">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+
+                        <!-- Header -->
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <h2 style="color:#1a5276;">Production Batch</h2>
+                                <h3 t-esc="o.name"/>
+                                <p class="text-muted" style="font-size:11px;">
+                                    Date: <t t-esc="o.batch_date"/>
+                                    <t t-if="o.season_id">
+                                        &amp;nbsp;|&amp;nbsp;
+                                        Season: <t t-esc="o.season_id.name"/>
+                                    </t>
+                                </p>
+                            </div>
+                            <div class="col-6 text-right">
+                                <table class="table table-sm table-borderless" style="font-size:11px;">
+                                    <tr>
+                                        <td><strong>Evaluation:</strong></td>
+                                        <td t-esc="o.evaluation_id.name if o.evaluation_id else '-'"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Farm:</strong></td>
+                                        <td t-esc="o.evaluation_id.farm_id.name if o.evaluation_id and o.evaluation_id.farm_id else '-'"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Status:</strong></td>
+                                        <td t-esc="o.state"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Input Qty:</strong></td>
+                                        <td t-esc="'%.2f' % o.input_qty"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Output Qty:</strong></td>
+                                        <td t-esc="'%.2f' % o.output_qty"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Variance:</strong></td>
+                                        <td t-attf-style="color:{{ '#27ae60' if o.variance_qty >= 0 else '#c0392b' }}"
+                                            t-esc="'%.2f' % o.variance_qty"/>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Inputs -->
+                        <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
+                            Raw Material Inputs
+                        </h4>
+                        <table class="table table-sm table-bordered" style="font-size:11px;">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Lot / Serial</th>
+                                    <th class="text-right">Qty</th>
+                                    <th>UoM</th>
+                                    <th>Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="o.input_line_ids" t-as="i">
+                                    <td t-esc="i.product_id.display_name"/>
+                                    <td t-esc="i.lot_id.name if i.lot_id else '-'"/>
+                                    <td class="text-right" t-esc="'%.2f' % i.qty"/>
+                                    <td t-esc="i.uom_id.name if i.uom_id else '-'"/>
+                                    <td t-esc="i.note or ''"/>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr style="font-weight:bold; background:#eaf4fb;">
+                                    <td colspan="2">Total Input</td>
+                                    <td class="text-right" t-esc="'%.2f' % o.input_qty"/>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <!-- Outputs -->
+                        <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px; margin-top:16px;">
+                            Finished Goods Outputs
+                        </h4>
+                        <table class="table table-sm table-bordered" style="font-size:11px;">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Grade</th>
+                                    <th>Size</th>
+                                    <th>Lot</th>
+                                    <th class="text-right">Qty</th>
+                                    <th>UoM</th>
+                                    <th class="text-right">Sales Price</th>
+                                    <th class="text-right">Sales Value</th>
+                                    <th class="text-right">Cost/Unit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="o.output_line_ids" t-as="out">
+                                    <td t-esc="out.product_id.display_name"/>
+                                    <td t-esc="out.grade_id.name if out.grade_id else '-'"/>
+                                    <td t-esc="out.size_id.name if out.size_id else '-'"/>
+                                    <td t-esc="out.lot_id.name if out.lot_id else '-'"/>
+                                    <td class="text-right" t-esc="'%.2f' % out.qty"/>
+                                    <td t-esc="out.uom_id.name if out.uom_id else '-'"/>
+                                    <td class="text-right" t-esc="'%.2f' % out.sales_price_unit"/>
+                                    <td class="text-right" t-esc="'%.2f' % out.sales_value"/>
+                                    <td class="text-right" t-esc="'%.2f' % out.cost_per_unit"/>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr style="font-weight:bold; background:#eaf4fb;">
+                                    <td colspan="4">Total Output</td>
+                                    <td class="text-right" t-esc="'%.2f' % o.output_qty"/>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-right" t-esc="'%.2f' % o.total_relative_sales_value"/>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <!-- Costing Summary -->
+                        <div class="row mt-3">
+                            <div class="col-6">
+                                <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
+                                    Cost Summary
+                                </h4>
+                                <table class="table table-sm" style="font-size:11px;">
+                                    <tr>
+                                        <td>Actual Raw Material Cost</td>
+                                        <td class="text-right" t-esc="'%.2f' % o.actual_raw_material_cost"/>
+                                    </tr>
+                                    <tr>
+                                        <td>Manual Operation Cost</td>
+                                        <td class="text-right" t-esc="'%.2f' % o.manual_operation_cost"/>
+                                    </tr>
+                                    <tr>
+                                        <td>Manual Other Cost</td>
+                                        <td class="text-right" t-esc="'%.2f' % o.manual_other_cost"/>
+                                    </tr>
+                                    <tr style="font-weight:bold; border-top:2px solid #1a5276;">
+                                        <td>Effective Allocable Cost</td>
+                                        <td class="text-right" t-esc="'%.2f' % o.effective_allocable_cost"/>
+                                    </tr>
+                                    <tr>
+                                        <td>Costing Status</td>
+                                        <td class="text-right">
+                                            <span t-attf-style="color:{{ '#27ae60' if o.costing_status == 'actual' else '#f39c12' }}"
+                                                  t-esc="o.costing_status.title()"/>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-6">
+                                <h4 style="color:#1a5276; border-bottom:2px solid #1a5276; padding-bottom:4px;">
+                                    Yield Analysis
+                                </h4>
+                                <table class="table table-sm" style="font-size:11px;">
+                                    <tr>
+                                        <td>Total Input</td>
+                                        <td class="text-right" t-esc="'%.2f' % o.input_qty"/>
+                                    </tr>
+                                    <tr>
+                                        <td>Total Output</td>
+                                        <td class="text-right" t-esc="'%.2f' % o.output_qty"/>
+                                    </tr>
+                                    <tr>
+                                        <td>Variance</td>
+                                        <td class="text-right"
+                                            t-attf-style="color:{{ '#27ae60' if o.variance_qty >= 0 else '#c0392b' }}"
+                                            t-esc="'%.2f' % o.variance_qty"/>
+                                    </tr>
+                                    <tr style="font-weight:bold;">
+                                        <td>Yield %</td>
+                                        <td class="text-right"
+                                            t-esc="'%.1f' % (o.output_qty / o.input_qty * 100 if o.input_qty else 0) + '%'"/>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Signatures -->
+                        <div class="row mt-5" style="font-size:11px;">
+                            <div class="col-4 text-center">
+                                <div style="border-top:1px solid #333; padding-top:4px;">Production Manager</div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div style="border-top:1px solid #333; padding-top:4px;">Quality Control</div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div style="border-top:1px solid #333; padding-top:4px;">Date</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ================================================================
          SHIPMENT PACKING LIST
          Professional export document showing containers, products,
          lots, weights, and logistics cost summary.
@@ -420,6 +638,344 @@
 
                     </div>
                 </t>
+            </t>
+        </t>
+    </template>
+
+
+    <!-- ================================================================
+         CERTIFICATE OF ORIGIN
+         Professional export certificate: shipment, farm, products,
+         lots, destination — ready for customs submission.
+    ================================================================ -->
+    <record id="action_report_agx_certificate_of_origin" model="ir.actions.report">
+        <field name="name">Certificate of Origin</field>
+        <field name="model">agx.shipment</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">agri_export_management.report_agx_certificate_of_origin</field>
+        <field name="report_file">agri_export_management.report_agx_certificate_of_origin</field>
+        <field name="binding_model_id" ref="model_agx_shipment"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="base.paperformat_euro"/>
+    </record>
+
+    <template id="report_agx_certificate_of_origin">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <!-- Full-page certificate layout -->
+                <div style="font-family: 'Georgia', serif; padding: 30px 40px;
+                            min-height: 297mm; position: relative;
+                            border: 3px double #1a5276; margin: 10px;">
+
+                    <!-- Official header -->
+                    <div style="text-align:center; border-bottom: 2px solid #1a5276;
+                                padding-bottom: 16px; margin-bottom: 20px;">
+                        <div style="font-size:11px; color:#666; letter-spacing:2px;
+                                    text-transform:uppercase; margin-bottom:6px;">
+                            Arab Republic of Egypt
+                        </div>
+                        <h1 style="font-size:26px; font-weight:bold; color:#1a5276;
+                                   margin:0; letter-spacing:1px;">
+                            CERTIFICATE OF ORIGIN
+                        </h1>
+                        <div style="font-size:12px; color:#555; margin-top:6px;">
+                            Agricultural Produce — Export Declaration
+                        </div>
+                        <div style="font-size:11px; color:#888; margin-top:4px;">
+                            Ref: <t t-esc="o.name"/>
+                            &amp;nbsp;|&amp;nbsp;
+                            Date: <t t-esc="o.shipment_date"/>
+                        </div>
+                    </div>
+
+                    <!-- Exporter / Consignee row -->
+                    <table style="width:100%; border-collapse:collapse;
+                                  margin-bottom:16px; font-size:11px;">
+                        <tr>
+                            <td style="width:50%; padding:10px; border:1px solid #aaa;
+                                       vertical-align:top;">
+                                <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                            letter-spacing:1px; margin-bottom:4px;">
+                                    1. Exporter / Producer
+                                </div>
+                                <div style="font-weight:bold; font-size:13px;"
+                                     t-esc="o.company_id.name"/>
+                                <t t-if="o.company_id.street">
+                                    <div t-esc="o.company_id.street"/>
+                                </t>
+                                <t t-if="o.company_id.city">
+                                    <div>
+                                        <t t-esc="o.company_id.city"/>
+                                        <t t-if="o.company_id.country_id">
+                                            , <t t-esc="o.company_id.country_id.name"/>
+                                        </t>
+                                    </div>
+                                </t>
+                            </td>
+                            <td style="width:50%; padding:10px; border:1px solid #aaa;
+                                       vertical-align:top; border-left:none;">
+                                <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                            letter-spacing:1px; margin-bottom:4px;">
+                                    2. Consignee / Buyer
+                                </div>
+                                <t t-if="o.customer_id">
+                                    <div style="font-weight:bold; font-size:13px;"
+                                         t-esc="o.customer_id.display_name"/>
+                                    <t t-if="o.customer_id.street">
+                                        <div t-esc="o.customer_id.street"/>
+                                    </t>
+                                    <t t-if="o.customer_id.city">
+                                        <div>
+                                            <t t-esc="o.customer_id.city"/>
+                                            <t t-if="o.customer_id.country_id">
+                                                , <t t-esc="o.customer_id.country_id.name"/>
+                                            </t>
+                                        </div>
+                                    </t>
+                                </t>
+                                <t t-else=""><div style="color:#999;">—</div></t>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Transport / Destination row -->
+                    <table style="width:100%; border-collapse:collapse;
+                                  margin-bottom:16px; font-size:11px;">
+                        <tr>
+                            <td style="width:33%; padding:10px; border:1px solid #aaa;
+                                       vertical-align:top;">
+                                <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                            letter-spacing:1px; margin-bottom:4px;">
+                                    3. Country of Origin
+                                </div>
+                                <div style="font-weight:bold;">Arab Republic of Egypt</div>
+                                <t t-if="o.evaluation_ids or o.lot_line_ids">
+                                    <div style="font-size:10px; color:#555; margin-top:4px;">
+                                        Source:
+                                        <t t-esc="', '.join(set(o.lot_line_ids.mapped('batch_output_id.batch_id.evaluation_id.farm_id.region') or ['Egypt']))"/>
+                                    </div>
+                                </t>
+                            </td>
+                            <td style="width:33%; padding:10px; border:1px solid #aaa;
+                                       vertical-align:top; border-left:none;">
+                                <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                            letter-spacing:1px; margin-bottom:4px;">
+                                    4. Country of Destination
+                                </div>
+                                <div style="font-weight:bold;">
+                                    <t t-esc="o.destination_id.name if o.destination_id else '—'"/>
+                                </div>
+                                <t t-if="o.destination_id and o.destination_id.port_name">
+                                    <div style="font-size:10px; color:#555;">
+                                        Port: <t t-esc="o.destination_id.port_name"/>
+                                    </div>
+                                </t>
+                            </td>
+                            <td style="width:34%; padding:10px; border:1px solid #aaa;
+                                       vertical-align:top; border-left:none;">
+                                <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                            letter-spacing:1px; margin-bottom:4px;">
+                                    5. Transport Details
+                                </div>
+                                <t t-if="o.vessel_name">
+                                    <div>Vessel: <strong t-esc="o.vessel_name"/></div>
+                                </t>
+                                <t t-if="o.voyage_no">
+                                    <div>Voyage: <strong t-esc="o.voyage_no"/></div>
+                                </t>
+                                <t t-if="o.bl_number">
+                                    <div>B/L: <strong t-esc="o.bl_number"/></div>
+                                </t>
+                                <t t-if="o.etd">
+                                    <div>ETD: <t t-esc="o.etd"/></div>
+                                </t>
+                                <t t-if="o.eta">
+                                    <div>ETA: <t t-esc="o.eta"/></div>
+                                </t>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Containers row -->
+                    <table style="width:100%; border-collapse:collapse;
+                                  margin-bottom:16px; font-size:11px;">
+                        <tr>
+                            <td style="padding:10px; border:1px solid #aaa;">
+                                <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                            letter-spacing:1px; margin-bottom:4px;">
+                                    6. Container Information
+                                </div>
+                                <div>
+                                    Number of Containers:
+                                    <strong t-esc="o.container_count"/>
+                                </div>
+                                <t t-if="o.container_ids">
+                                    <div style="margin-top:4px;">
+                                        <t t-foreach="o.container_ids" t-as="c">
+                                            <span style="margin-right:16px;">
+                                                <t t-esc="c.name"/>
+                                                <t t-if="c.container_no">
+                                                    : <strong t-esc="c.container_no"/>
+                                                </t>
+                                                <t t-if="c.seal_no">
+                                                    (Seal: <t t-esc="c.seal_no"/>)
+                                                </t>
+                                            </span>
+                                        </t>
+                                    </div>
+                                </t>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Goods description -->
+                    <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                letter-spacing:1px; margin-bottom:6px;">
+                        7. Description of Goods
+                    </div>
+                    <table style="width:100%; border-collapse:collapse;
+                                  margin-bottom:20px; font-size:11px;">
+                        <thead>
+                            <tr style="background:#1a5276; color:white;">
+                                <th style="padding:7px 10px; text-align:left;">Product</th>
+                                <th style="padding:7px 10px;">Grade</th>
+                                <th style="padding:7px 10px;">Size</th>
+                                <th style="padding:7px 10px; text-align:right;">Qty</th>
+                                <th style="padding:7px 10px;">UoM</th>
+                                <th style="padding:7px 10px; text-align:right;">Cartons</th>
+                                <th style="padding:7px 10px; text-align:right;">Net Wt (kg)</th>
+                                <th style="padding:7px 10px; text-align:right;">Gross Wt (kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="o.line_ids" t-as="l">
+                                <tr t-attf-style="background:{{ '#f5faff' if l_index % 2 == 0 else 'white' }}">
+                                    <td style="padding:7px 10px; font-weight:500;"
+                                        t-esc="l.product_id.display_name"/>
+                                    <td style="padding:7px 10px; text-align:center;"
+                                        t-esc="l.grade_id.name if l.grade_id else '—'"/>
+                                    <td style="padding:7px 10px; text-align:center;"
+                                        t-esc="l.size_id.name if l.size_id else '—'"/>
+                                    <td style="padding:7px 10px; text-align:right;"
+                                        t-esc="'%.0f' % l.product_qty"/>
+                                    <td style="padding:7px 10px;"
+                                        t-esc="l.uom_id.name if l.uom_id else ''"/>
+                                    <td style="padding:7px 10px; text-align:right;"
+                                        t-esc="'%.0f' % l.carton_qty"/>
+                                    <td style="padding:7px 10px; text-align:right;"
+                                        t-esc="'%.2f' % l.net_weight"/>
+                                    <td style="padding:7px 10px; text-align:right;"
+                                        t-esc="'%.2f' % l.gross_weight"/>
+                                </tr>
+                            </t>
+                        </tbody>
+                        <tfoot>
+                            <tr style="font-weight:bold; background:#eaf4fb;
+                                       border-top:2px solid #1a5276;">
+                                <td colspan="3" style="padding:7px 10px;">TOTAL</td>
+                                <td style="padding:7px 10px; text-align:right;"
+                                    t-esc="'%.0f' % o.total_qty"/>
+                                <td></td>
+                                <td style="padding:7px 10px; text-align:right;"
+                                    t-esc="'%.0f' % sum(o.line_ids.mapped('carton_qty'))"/>
+                                <td style="padding:7px 10px; text-align:right;"
+                                    t-esc="'%.2f' % sum(o.line_ids.mapped('net_weight'))"/>
+                                <td style="padding:7px 10px; text-align:right;"
+                                    t-esc="'%.2f' % sum(o.line_ids.mapped('gross_weight'))"/>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <!-- Lot / Batch traceability -->
+                    <t t-if="o.lot_line_ids">
+                        <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                    letter-spacing:1px; margin-bottom:6px;">
+                            8. Lot / Batch Traceability
+                        </div>
+                        <table style="width:100%; border-collapse:collapse;
+                                      margin-bottom:20px; font-size:10px;">
+                            <thead>
+                                <tr style="background:#2c3e50; color:white;">
+                                    <th style="padding:6px 8px; text-align:left;">Lot No.</th>
+                                    <th style="padding:6px 8px;">Grade</th>
+                                    <th style="padding:6px 8px;">Size</th>
+                                    <th style="padding:6px 8px; text-align:right;">Qty</th>
+                                    <th style="padding:6px 8px; text-align:left;">Batch</th>
+                                    <th style="padding:6px 8px; text-align:left;">Farm</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="o.lot_line_ids" t-as="ll">
+                                    <tr t-attf-style="background:{{ '#f9f9f9' if ll_index % 2 == 0 else 'white' }}">
+                                        <td style="padding:5px 8px; font-family:monospace; font-weight:600;"
+                                            t-esc="ll.lot_id.name"/>
+                                        <td style="padding:5px 8px; text-align:center;"
+                                            t-esc="ll.batch_output_id.grade_id.name if ll.batch_output_id else '—'"/>
+                                        <td style="padding:5px 8px; text-align:center;"
+                                            t-esc="ll.batch_output_id.size_id.name if ll.batch_output_id else '—'"/>
+                                        <td style="padding:5px 8px; text-align:right;"
+                                            t-esc="'%.0f' % ll.reserved_qty"/>
+                                        <td style="padding:5px 8px;"
+                                            t-esc="ll.batch_output_id.batch_id.name if ll.batch_output_id else '—'"/>
+                                        <td style="padding:5px 8px;"
+                                            t-esc="ll.batch_output_id.batch_id.evaluation_id.farm_id.name if ll.batch_output_id and ll.batch_output_id.batch_id and ll.batch_output_id.batch_id.evaluation_id else '—'"/>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </t>
+
+                    <!-- Declaration + Signatures -->
+                    <div style="border:1px solid #aaa; padding:14px;
+                                margin-bottom:20px; font-size:11px;
+                                background:#fffef5;">
+                        <div style="font-size:9px; color:#888; text-transform:uppercase;
+                                    letter-spacing:1px; margin-bottom:6px;">
+                            9. Declaration
+                        </div>
+                        <p style="margin:0; line-height:1.6;">
+                            The undersigned hereby declares that the above-mentioned goods
+                            are of <strong>Egyptian Origin</strong> and were produced/packed
+                            in accordance with applicable agricultural export standards.
+                            All information contained in this certificate is true and correct.
+                        </p>
+                    </div>
+
+                    <table style="width:100%; font-size:11px;">
+                        <tr>
+                            <td style="width:40%; text-align:center; padding:0 10px;">
+                                <div style="border-top:1px solid #333;
+                                            padding-top:6px; margin-top:40px;">
+                                    <div style="font-weight:bold;"
+                                         t-esc="o.company_id.name"/>
+                                    <div style="color:#666; font-size:10px;">
+                                        Authorized Signature &amp; Stamp
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="width:20%;"></td>
+                            <td style="width:40%; text-align:center; padding:0 10px;">
+                                <div style="border-top:1px solid #333;
+                                            padding-top:6px; margin-top:40px;">
+                                    <div style="font-weight:bold;">
+                                        Chamber of Commerce
+                                    </div>
+                                    <div style="color:#666; font-size:10px;">
+                                        Official Stamp &amp; Date
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Certificate number bottom right -->
+                    <div style="position:absolute; bottom:20px; right:40px;
+                                font-size:10px; color:#aaa;">
+                        Certificate Ref: <t t-esc="o.name"/>
+                        &amp;nbsp;|&amp;nbsp; Issued: <t t-esc="o.shipment_date"/>
+                    </div>
+
+                </div>
             </t>
         </t>
     </template>
