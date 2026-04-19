@@ -56,16 +56,16 @@ class ResCompany(models.Model):
             "when a shipment is confirmed (one line per container)."
         ),
     )
-    agx_so_line_prefix = fields.Char(help="Prefix added to sale order line descriptions (e.g. AGX-EXPORT). Leave blank to use default.",
+    agx_so_line_prefix = fields.Char(
         default="Shipment",
-        help="Prefix text used in the Sales Order line description.",
+        help="Prefix added to sale order line descriptions (e.g. AGX-EXPORT). Leave blank to use default.",
     )
 
     # ------------------------------------------------------------------
     # Costing settings
     # ------------------------------------------------------------------
-    agx_default_logistics_basis = fields.Selection(# Allocation basis used when no specific basis is set on cost type
-        
+    agx_default_logistics_basis = fields.Selection(
+        # Allocation basis used when no specific basis is set on cost type
         [
             ("qty", "By Quantity"),
             ("carton", "By Cartons"),
@@ -76,24 +76,24 @@ class ResCompany(models.Model):
         default="qty",
         help="Default method for allocating logistics costs across shipment lines.",
     )
-    agx_allow_vendor_bill_cost_source = fields.Boolean(help="Allow importing logistics costs from Vendor Bills onto shipment cost lines.",
+    agx_allow_vendor_bill_cost_source = fields.Boolean(
         default=True,
-        help="Allow importing costs from Vendor Bills on shipments.",
+        help="Allow importing logistics costs from Vendor Bills onto shipment cost lines.",
     )
-    agx_allow_landed_cost_source = fields.Boolean(help="Allow importing logistics costs from Odoo Landed Costs onto shipment cost lines.",
+    agx_allow_landed_cost_source = fields.Boolean(
         default=True,
-        help="Allow importing costs from Landed Costs on shipments.",
+        help="Allow importing logistics costs from Odoo Landed Costs onto shipment cost lines.",
     )
-    agx_margin_precision = fields.Integer(help="Number of decimal places shown in margin percentage calculations (default: 2).",
+    agx_margin_precision = fields.Integer(
         default=2,
-        help="Decimal precision used for margin % display.",
+        help="Number of decimal places shown in margin percentage calculations (default: 2).",
     )
 
     # ------------------------------------------------------------------
     # Lot / Serial settings
     # ------------------------------------------------------------------
     # MRP integration
-    agx_use_mrp_production = fields.Boolean(help="When enabled, Production Batches link to MRP Manufacturing Orders instead of doing direct stock moves.",
+    agx_use_mrp_production = fields.Boolean(
         string="Use Manufacturing Orders (MRP) instead of Production Batches",
         default=False,
         help=(
@@ -106,7 +106,7 @@ class ResCompany(models.Model):
         ),
     )
 
-    agx_auto_generate_lot_numbers = fields.Boolean(help="Automatically generate sequential lot numbers when validating receipts.",
+    agx_auto_generate_lot_numbers = fields.Boolean(
         default=True,
         help=(
             "When enabled, batch output lines without a lot number get "
