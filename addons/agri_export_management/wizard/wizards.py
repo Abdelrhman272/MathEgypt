@@ -318,7 +318,7 @@ class AgxTraceabilityWizard(models.TransientModel):
             for lot_line in shipment.lot_line_ids:
                 batch = lot_line.batch_output_id.batch_id
                 evaluation = batch.evaluation_id if batch else False
-                farm = evaluation.farm_id if evaluation else False
+                farm = evaluation.farm_partner_id if evaluation else False
                 parts.append(
                     "<tr>"
                     "<td>{}</td><td>{}</td><td>{}</td>"

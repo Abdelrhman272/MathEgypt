@@ -2,110 +2,17 @@
 <odoo>
 
     <!-- ================================================================
-         FARM
-    ================================================================ -->
-    <record id="view_agx_farm_list" model="ir.ui.view">
-        <field name="name">agx.farm.list</field>
-        <field name="model">agx.farm</field>
-        <field name="arch" type="xml">
-            <list>
-                <field name="name"/>
-                <field name="code"/>
-                <field name="partner_id"/>
-                <field name="region"/>
-                <field name="company_id" groups="base.group_multi_company"/>
-                <field name="active" optional="hide"/>
-            </list>
-        </field>
-    </record>
-
-    <record id="view_agx_farm_form" model="ir.ui.view">
-        <field name="name">agx.farm.form</field>
-        <field name="model">agx.farm</field>
-        <field name="arch" type="xml">
-            <form string="Farm">
-                <sheet>
-                    <div class="oe_title">
-                        <h1><field name="name"/></h1>
-                    </div>
-                    <group>
-                        <group>
-                            <field name="code"/>
-                            <field name="partner_id"/>
-                            <field name="company_id" groups="base.group_multi_company"/>
-                        </group>
-                        <group>
-                            <field name="region"/>
-                            <field name="location"/>
-                            <field name="active"/>
-                        </group>
-                    </group>
-                    <notebook>
-                        <page string="Notes"><field name="note"/></page>
-                    </notebook>
-                </sheet>
-                <chatter/>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_agx_farm" model="ir.actions.act_window">
-        <field name="name">Farms</field>
-        <field name="res_model">agx.farm</field>
-        <field name="view_mode">list,form</field>
-    </record>
-    <menuitem id="menu_agx_farms" name="Farms" parent="menu_agx_master_data"
-              action="action_agx_farm" sequence="10"/>
-
-    <!-- ================================================================
-         CROP
-    ================================================================ -->
-    <record id="view_agx_crop_list" model="ir.ui.view">
-        <field name="name">agx.crop.list</field>
-        <field name="model">agx.crop</field>
-        <field name="arch" type="xml">
-            <list><field name="name"/><field name="code"/><field name="active"/></list>
-        </field>
-    </record>
-
-    <record id="view_agx_crop_form" model="ir.ui.view">
-        <field name="name">agx.crop.form</field>
-        <field name="model">agx.crop</field>
-        <field name="arch" type="xml">
-            <form string="Crop">
-                <sheet>
-                    <group>
-                        <group><field name="name"/><field name="code"/></group>
-                        <group><field name="active"/></group>
-                    </group>
-                    <field name="note"/>
-                </sheet>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_agx_crop" model="ir.actions.act_window">
-        <field name="name">Crops / Varieties</field>
-        <field name="res_model">agx.crop</field>
-        <field name="view_mode">list,form</field>
-    </record>
-    <menuitem id="menu_agx_crop" name="Crops / Varieties" parent="menu_agx_master_data"
-              action="action_agx_crop" sequence="20"/>
-
-    <!-- ================================================================
-         GRADE — includes attribute_value_id for variant bridge
+         GRADE — list + form (bridge to product.attribute.value)
     ================================================================ -->
     <record id="view_agx_grade_list" model="ir.ui.view">
         <field name="name">agx.grade.list</field>
         <field name="model">agx.grade</field>
         <field name="arch" type="xml">
             <list>
+                <field name="sequence" widget="handle"/>
                 <field name="name"/>
                 <field name="code"/>
-                <field name="sequence"/>
-                <field name="attribute_value_id" optional="show"
-                       string="Variant Attribute Value"/>
-                <field name="active" optional="hide"/>
+                <field name="attribute_value_id" optional="show"/>
             </list>
         </field>
     </record>
@@ -120,46 +27,30 @@
                         <group>
                             <field name="name"/>
                             <field name="code"/>
+                            <field name="sequence"/>
                         </group>
                         <group>
-                            <field name="sequence"/>
-                            <field name="active"/>
+                            <field name="attribute_value_id"
+                                   help="Linked product attribute value (set by Initialize wizard)"/>
                         </group>
                     </group>
-                    <group string="Product Variant Bridge"
-                           help="Link this grade to a product attribute value so stock shows Grade-level variants.">
-                        <field name="attribute_value_id"
-                               string="Attribute Value"
-                               help="Set by the Initialize Product Attributes wizard."/>
-                    </group>
-                    <field name="note"/>
                 </sheet>
             </form>
         </field>
     </record>
 
-    <record id="action_agx_grade" model="ir.actions.act_window">
-        <field name="name">Grades</field>
-        <field name="res_model">agx.grade</field>
-        <field name="view_mode">list,form</field>
-    </record>
-    <menuitem id="menu_agx_grade" name="Grades" parent="menu_agx_master_data"
-              action="action_agx_grade" sequence="30"/>
-
     <!-- ================================================================
-         SIZE — includes attribute_value_id for variant bridge
+         SIZE
     ================================================================ -->
     <record id="view_agx_size_list" model="ir.ui.view">
         <field name="name">agx.size.list</field>
         <field name="model">agx.size</field>
         <field name="arch" type="xml">
             <list>
+                <field name="sequence" widget="handle"/>
                 <field name="number"/>
-                <field name="name"/>
-                <field name="sequence"/>
-                <field name="attribute_value_id" optional="show"
-                       string="Variant Attribute Value"/>
-                <field name="active" optional="hide"/>
+                <field name="name" optional="show"/>
+                <field name="attribute_value_id" optional="show"/>
             </list>
         </field>
     </record>
@@ -173,32 +64,17 @@
                     <group>
                         <group>
                             <field name="number"/>
-                            <field name="code"/>
+                            <field name="sequence"/>
                         </group>
                         <group>
-                            <field name="sequence"/>
-                            <field name="active"/>
+                            <field name="attribute_value_id"
+                                   help="Linked product attribute value (set by Initialize wizard)"/>
                         </group>
                     </group>
-                    <group string="Product Variant Bridge"
-                           help="Link this size to a product attribute value so stock shows Size-level variants.">
-                        <field name="attribute_value_id"
-                               string="Attribute Value"
-                               help="Set by the Initialize Product Attributes wizard."/>
-                    </group>
-                    <field name="note"/>
                 </sheet>
             </form>
         </field>
     </record>
-
-    <record id="action_agx_size" model="ir.actions.act_window">
-        <field name="name">Sizes</field>
-        <field name="res_model">agx.size</field>
-        <field name="view_mode">list,form</field>
-    </record>
-    <menuitem id="menu_agx_size" name="Sizes" parent="menu_agx_master_data"
-              action="action_agx_size" sequence="40"/>
 
     <!-- ================================================================
          SEASON
@@ -207,18 +83,16 @@
         <field name="name">agx.season.list</field>
         <field name="model">agx.season</field>
         <field name="arch" type="xml">
-            <list>
+            <list decoration-success="state == 'active'"
+                  decoration-muted="state == 'closed'">
                 <field name="name"/>
                 <field name="code"/>
-                <field name="crop_id"/>
                 <field name="date_start"/>
                 <field name="date_end"/>
+                <field name="analytic_account_id" optional="show"/>
                 <field name="state" widget="badge"
                        decoration-success="state == 'active'"
                        decoration-muted="state == 'closed'"/>
-                <field name="evaluation_count" string="Evaluations"/>
-                <field name="batch_count" string="Batches"/>
-                <field name="shipment_count" string="Shipments"/>
             </list>
         </field>
     </record>
@@ -235,7 +109,7 @@
                     <button name="action_close" string="Close Season"
                             type="object"
                             invisible="state != 'active'"/>
-                    <button name="action_reset_draft" string="Reset to Draft"
+                    <button name="action_reset_draft" string="Reset"
                             type="object"
                             invisible="state == 'draft'"/>
                     <field name="state" widget="statusbar"
@@ -244,20 +118,20 @@
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button class="oe_stat_button" type="object"
-                                name="action_view_evaluations"
-                                icon="fa-leaf">
+                                name="action_view_evaluations" icon="fa-leaf"
+                                invisible="evaluation_count == 0">
                             <field name="evaluation_count" widget="statinfo"
                                    string="Evaluations"/>
                         </button>
                         <button class="oe_stat_button" type="object"
-                                name="action_view_batches"
-                                icon="fa-industry">
+                                name="action_view_batches" icon="fa-industry"
+                                invisible="batch_count == 0">
                             <field name="batch_count" widget="statinfo"
                                    string="Batches"/>
                         </button>
                         <button class="oe_stat_button" type="object"
-                                name="action_view_shipments"
-                                icon="fa-ship">
+                                name="action_view_shipments" icon="fa-ship"
+                                invisible="shipment_count == 0">
                             <field name="shipment_count" widget="statinfo"
                                    string="Shipments"/>
                         </button>
@@ -268,74 +142,20 @@
                     <group>
                         <group>
                             <field name="code"/>
-                            <field name="crop_id"/>
-                            <field name="company_id"
-                                   groups="base.group_multi_company"/>
-                        </group>
-                        <group>
                             <field name="date_start"/>
                             <field name="date_end"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
                             <field name="analytic_account_id" readonly="1"/>
                         </group>
                     </group>
-                    <notebook>
-                        <page string="Notes"><field name="note"/></page>
-                    </notebook>
+                    <field name="note" placeholder="Notes..."/>
                 </sheet>
                 <chatter/>
             </form>
         </field>
     </record>
-
-    <record id="action_agx_season" model="ir.actions.act_window">
-        <field name="name">Production Seasons</field>
-        <field name="res_model">agx.season</field>
-        <field name="view_mode">list,form</field>
-    </record>
-    <menuitem id="menu_agx_season" name="Production Seasons"
-              parent="menu_agx_master_data"
-              action="action_agx_season" sequence="5"/>
-
-    <!-- ================================================================
-         DESTINATION
-    ================================================================ -->
-    <record id="view_agx_destination_list" model="ir.ui.view">
-        <field name="name">agx.destination.list</field>
-        <field name="model">agx.destination</field>
-        <field name="arch" type="xml">
-            <list>
-                <field name="name"/>
-                <field name="country_id"/>
-                <field name="port_name"/>
-                <field name="active" optional="hide"/>
-            </list>
-        </field>
-    </record>
-
-    <record id="view_agx_destination_form" model="ir.ui.view">
-        <field name="name">agx.destination.form</field>
-        <field name="model">agx.destination</field>
-        <field name="arch" type="xml">
-            <form string="Destination">
-                <sheet>
-                    <group>
-                        <group><field name="name"/><field name="country_id"/></group>
-                        <group><field name="port_name"/><field name="active"/></group>
-                    </group>
-                    <field name="note"/>
-                </sheet>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_agx_destination" model="ir.actions.act_window">
-        <field name="name">Destinations</field>
-        <field name="res_model">agx.destination</field>
-        <field name="view_mode">list,form</field>
-    </record>
-    <menuitem id="menu_agx_destination" name="Destinations"
-              parent="menu_agx_master_data"
-              action="action_agx_destination" sequence="50"/>
 
     <!-- ================================================================
          SHIPMENT COST TYPE
@@ -344,12 +164,12 @@
         <field name="name">agx.shipment.cost.type.list</field>
         <field name="model">agx.shipment.cost.type</field>
         <field name="arch" type="xml">
-            <list>
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
                 <field name="name"/>
                 <field name="code"/>
-                <field name="default_allocation_basis"/>
-                <field name="sequence"/>
-                <field name="active" optional="hide"/>
+                <field name="default_basis"/>
+                <field name="active"/>
             </list>
         </field>
     </record>
@@ -364,17 +184,60 @@
                         <group>
                             <field name="name"/>
                             <field name="code"/>
+                            <field name="sequence"/>
                         </group>
                         <group>
-                            <field name="default_allocation_basis"/>
-                            <field name="sequence"/>
+                            <field name="default_basis"/>
                             <field name="active"/>
                         </group>
                     </group>
-                    <field name="note"/>
                 </sheet>
             </form>
         </field>
+    </record>
+
+    <!-- ================================================================
+         FARM PARTNERS — extends res.partner list/form via filter
+         (no separate model — farms are res.partner with is_agx_farm=True)
+    ================================================================ -->
+    <record id="action_agx_farm_partners" model="ir.actions.act_window">
+        <field name="name">Farms</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_agx_farm', '=', True)]</field>
+        <field name="context">{'default_is_agx_farm': True, 'default_supplier_rank': 1}</field>
+    </record>
+
+    <!-- ================================================================
+         CROP CATEGORIES — extends product.category via filter
+    ================================================================ -->
+    <record id="action_agx_crop_categories" model="ir.actions.act_window">
+        <field name="name">Crops / Varieties</field>
+        <field name="res_model">product.category</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_agx_crop', '=', True)]</field>
+        <field name="context">{'default_is_agx_crop': True}</field>
+    </record>
+
+    <!-- ================================================================
+         ACTIONS
+    ================================================================ -->
+    <record id="action_agx_grade" model="ir.actions.act_window">
+        <field name="name">Grades</field>
+        <field name="res_model">agx.grade</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_agx_size" model="ir.actions.act_window">
+        <field name="name">Sizes</field>
+        <field name="res_model">agx.size</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_agx_season" model="ir.actions.act_window">
+        <field name="name">Production Seasons</field>
+        <field name="res_model">agx.season</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_agx_shipment_cost_type" model="ir.actions.act_window">
@@ -382,8 +245,33 @@
         <field name="res_model">agx.shipment.cost.type</field>
         <field name="view_mode">list,form</field>
     </record>
-    <menuitem id="menu_agx_shipment_cost_type" name="Shipment Cost Types"
+
+
+    <!-- ================================================================
+         MENUS
+    ================================================================ -->
+    <menuitem id="menu_agx_grades" name="Grades"
               parent="menu_agx_master_data"
-              action="action_agx_shipment_cost_type" sequence="60"/>
+              action="action_agx_grade" sequence="10"/>
+
+    <menuitem id="menu_agx_sizes" name="Sizes"
+              parent="menu_agx_master_data"
+              action="action_agx_size" sequence="20"/>
+
+    <menuitem id="menu_agx_seasons" name="Production Seasons"
+              parent="menu_agx_master_data"
+              action="action_agx_season" sequence="30"/>
+
+    <menuitem id="menu_agx_shipment_cost_types" name="Shipment Cost Types"
+              parent="menu_agx_master_data"
+              action="action_agx_shipment_cost_type" sequence="40"/>
+
+    <menuitem id="menu_agx_farms" name="Farms"
+              parent="menu_agx_master_data"
+              action="action_agx_farm_partners" sequence="50"/>
+
+    <menuitem id="menu_agx_crops" name="Crops / Varieties"
+              parent="menu_agx_master_data"
+              action="action_agx_crop_categories" sequence="60"/>
 
 </odoo>

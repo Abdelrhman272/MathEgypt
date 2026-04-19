@@ -30,64 +30,6 @@ from odoo import _, api, fields, models
 # ---------------------------------------------------------------------------
 # Farm
 # ---------------------------------------------------------------------------
-class AgxFarm(models.Model):
-    """Represents a supplier farm.
-
-    Linked to a ``res.partner`` (the owner/vendor) so purchase orders
-    can be raised directly from the evaluation without re-entering
-    contact details.
-    """
-
-    _name = "agx.farm"
-    _description = "Farm"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
-    _order = "name"
-
-    name = fields.Char(required=True, tracking=True)
-    code = fields.Char(copy=False)
-    partner_id = fields.Many2one(
-        "res.partner",
-        string="Owner / Vendor",
-        tracking=True,
-        help="Vendor used when creating purchase orders from an evaluation.",
-    )
-    company_id = fields.Many2one(
-        "res.company",
-        required=True,
-        default=lambda self: self.env.company,
-        index=True,
-    )
-    region = fields.Char(
-        help="Geographic region (e.g. Delta, Upper Egypt)."
-    )
-    location = fields.Char(help="Specific location / address notes.")
-    active = fields.Boolean(default=True)
-    note = fields.Html()
-
-
-# ---------------------------------------------------------------------------
-# Crop / Variety
-# ---------------------------------------------------------------------------
-class AgxCrop(models.Model):
-    """Crop or variety (e.g. Navel Orange, Valencia Orange).
-
-    Selected on the evaluation and used as a grouping dimension for
-    season-level reporting.
-    """
-
-    _name = "agx.crop"
-    _description = "Crop / Variety"
-    _order = "name"
-
-    name = fields.Char(required=True)
-    code = fields.Char()
-    active = fields.Boolean(default=True)
-    note = fields.Text()
-
-
-# ---------------------------------------------------------------------------
-# Grade
-# ---------------------------------------------------------------------------
 class AgxGrade(models.Model):
     """Quality grade assigned to finished-goods output (e.g. A, B, Export).
 
@@ -228,10 +170,16 @@ class AgxSeason(models.Model):
         copy=False,
         help="Short code used as sequence prefix, e.g. 'ORG-25'.",
     )
-    crop_id = fields.Many2one(
-        "agx.crop",
-        string="Crop",
+    crop_category_id = fields.Many2one(
+        "product.category",
+        string="Crop / Variety",
         tracking=True,
+        domain="[('is_agx_crop', '=', True)]",
+        help="Product category representing the crop type for this season.",
+    )
+    crop_id = fields.Many2one(
+        related="crop_category_id", readonly=True,
+        string="Crop",
     )
     company_id = fields.Many2one(
         "res.company",
@@ -411,26 +359,6 @@ class AgxSeason(models.Model):
 # ---------------------------------------------------------------------------
 # Destination
 # ---------------------------------------------------------------------------
-class AgxDestination(models.Model):
-    """Export destination — country + port combination.
-
-    Used on shipment headers for top-destination reporting.
-    """
-
-    _name = "agx.destination"
-    _description = "Destination"
-    _order = "name"
-
-    name = fields.Char(required=True)
-    country_id = fields.Many2one("res.country")
-    port_name = fields.Char(help="Loading or discharge port name.")
-    active = fields.Boolean(default=True)
-    note = fields.Text()
-
-
-# ---------------------------------------------------------------------------
-# Shipment Cost Type
-# ---------------------------------------------------------------------------
 class AgxShipmentCostType(models.Model):
     """Category for logistics costs on a shipment.
 
@@ -471,3 +399,48 @@ class AgxShipmentCostType(models.Model):
         help="Default cost spread method for this cost type.",
     )
     note = fields.Text()
+
+
+# ════════════════════════════════════════════════════════════════
+# Standard Odoo extensions — replaces agx.farm & agx.crop
+# ════════════════════════════════════════════════════════════════
+
+class ResPartner(models.Model):
+    """Extends res.partner to flag Farm/Supplier partners.
+
+    Instead of a separate agx.farm model, farms are standard Odoo
+    partners with is_agx_farm = True.  This allows full use of
+    Odoo's standard vendor, contact, and address features.
+    """
+
+    _inherit = "res.partner"
+
+    is_agx_farm = fields.Boolean(
+        string="Is Agricultural Farm",
+        default=False,
+        help="Check this if the partner is an agricultural farm / supplier.",
+    )
+    agx_region = fields.Char(
+        string="Farm Region",
+        help="Geographic region of the farm (used on Certificate of Origin).",
+    )
+    agx_farm_code = fields.Char(
+        string="Farm Code",
+        help="Internal code for this farm (e.g. EG-NL-001).",
+    )
+
+
+class ProductCategory(models.Model):
+    """Extends product.category to mark crop/variety categories.
+
+    Instead of a separate agx.crop model, crop types are standard
+    Odoo product categories with is_agx_crop = True.
+    """
+
+    _inherit = "product.category"
+
+    is_agx_crop = fields.Boolean(
+        string="Is Agricultural Crop",
+        default=False,
+        help="Mark product categories that represent agricultural crops.",
+    )

@@ -15,7 +15,8 @@
                 <field name="name"/>
                 <field name="shipment_date"/>
                 <field name="customer_id"/>
-                <field name="destination_id"/>
+                <field name="destination_country_id"/>
+                            <field name="destination_port"/>
                 <field name="season_id" optional="show"/>
                 <field name="container_count" string="Containers"/>
                 <field name="total_qty" string="Qty"/>
@@ -48,7 +49,8 @@
                 <field name="name"/>
                 <field name="shipment_date"/>
                 <field name="customer_id"/>
-                <field name="destination_id"/>
+                <field name="destination_country_id"/>
+                            <field name="destination_port"/>
                 <field name="season_id"/>
                 <field name="container_count"/>
                 <field name="total_qty"/>
@@ -108,7 +110,8 @@
                         <search string="Search Shipments">
                 <field name="name"/>
                 <field name="customer_id"/>
-                <field name="destination_id"/>
+                <field name="destination_country_id"/>
+                            <field name="destination_port"/>
                 <field name="season_id"/>
                 <field name="bl_number" string="B/L Number"/>
                 <filter string="Draft"    name="draft"    domain="[('state','=','draft')]"/>
@@ -137,7 +140,7 @@
         <field name="arch" type="xml">
             <graph string="Shipment Profitability" type="bar">
                 <field name="season_id" type="row"/>
-                <field name="destination_id" type="col"/>
+                <field name="destination_country_id" type="col"/>
                 <field name="revenue_amount" type="measure"/>
                 <field name="total_logistics_cost" type="measure"/>
                 <field name="gross_profit_amount" type="measure"/>
@@ -154,7 +157,7 @@
         <field name="arch" type="xml">
             <pivot string="Shipment Analysis">
                 <field name="season_id" type="row"/>
-                <field name="destination_id" type="row"/>
+                <field name="destination_country_id" type="row"/>
                 <field name="total_qty" type="measure"/>
                 <field name="total_logistics_cost" type="measure"/>
                 <field name="revenue_amount" type="measure"/>
@@ -212,11 +215,7 @@
                                 invisible="claim_count == 0">
                             <field name="claim_count" widget="statinfo" string="Claims"/>
                         </button>
-                        <button class="oe_stat_button" type="object"
-                                name="action_view_qc_inspections" icon="fa-check-circle"
-                                invisible="qc_count == 0">
-                            <field name="qc_count" widget="statinfo" string="QC"/>
-                        </button>
+
                     </div>
 
                     <div class="oe_title">
@@ -228,7 +227,8 @@
                         <group string="Shipment Info">
                             <field name="shipment_date"/>
                             <field name="customer_id"/>
-                            <field name="destination_id"/>
+                            <field name="destination_country_id"/>
+                            <field name="destination_port"/>
                             <field name="season_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>

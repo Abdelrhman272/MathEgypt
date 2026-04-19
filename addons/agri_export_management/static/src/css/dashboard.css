@@ -3,52 +3,7 @@
 /* Google Fonts - load separately if needed */
 /* @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap'); */
 
-/* Theme-aware colors: default to light and switch to dark when the system/Odoo theme is dark. */
 :root {
-    --agx-bg:      #f6f7fb;
-    --agx-panel:   #ffffff;
-    --agx-lift:    #f8fafc;
-    --agx-border:  #e2e8f0;
-    --agx-green:   #16a34a;
-    --agx-blue:    #2563eb;
-    --agx-amber:   #d97706;
-    --agx-purple:  #7c3aed;
-    --agx-teal:    #0f766e;
-    --agx-red:     #dc2626;
-    --agx-white:   #0f172a;
-    --agx-silver:  #334155;
-    --agx-mist:    #64748b;
-    --agx-font:    'DM Sans', 'Segoe UI', Arial, sans-serif;
-    --agx-mono:    'DM Mono', 'Courier New', monospace;
-    --agx-radius:  10px;
-    --agx-shadow:  0 4px 20px rgba(15, 23, 42, 0.08);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --agx-bg:      #0D1B2A;
-        --agx-panel:   #162232;
-        --agx-lift:    #1C2E42;
-        --agx-border:  #22364F;
-        --agx-green:   #22C55E;
-        --agx-blue:    #60A5FA;
-        --agx-amber:   #FBBF24;
-        --agx-purple:  #A78BFA;
-        --agx-teal:    #14B8A6;
-        --agx-red:     #F87171;
-        --agx-white:   #F8FAFC;
-        --agx-silver:  #CBD5E1;
-        --agx-mist:    #94a3b8;
-        --agx-shadow:  0 4px 24px rgba(0,0,0,0.35);
-    }
-}
-
-html[data-theme="dark"],
-body[data-theme="dark"],
-html.o_dark_mode,
-body.o_dark_mode,
-.o_web_client.o_dark_mode,
-.o_web_client[data-theme="dark"] {
     --agx-bg:      #0D1B2A;
     --agx-panel:   #162232;
     --agx-lift:    #1C2E42;
@@ -61,8 +16,11 @@ body.o_dark_mode,
     --agx-red:     #F87171;
     --agx-white:   #F8FAFC;
     --agx-silver:  #CBD5E1;
-    --agx-mist:    #94a3b8;
-    --agx-shadow:  0 4px 24px rgba(0,0,0,0.35);
+    --agx-mist:    #64748B;
+    --agx-font:    'DM Sans', 'Segoe UI', Arial, sans-serif;
+    --agx-mono:    'DM Mono', 'Courier New', monospace;
+    --agx-radius:  10px;
+    --agx-shadow:  0 4px 24px rgba(0,0,0,0.4);
 }
 
 /* ── Reset & base ─────────────────────────────────────────────────── */
@@ -70,7 +28,7 @@ body.o_dark_mode,
 
 .agx-dashboard {
     font-family: var(--agx-font);
-    background: transparent;
+    background: var(--agx-bg);
     min-height: 100vh;
     padding: 0 0 40px 0;
     color: var(--agx-white);

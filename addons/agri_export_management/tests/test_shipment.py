@@ -12,7 +12,7 @@ class TestAgxShipment(TransactionCase):
     def setUp(self):
         super().setUp()
         self.customer = self.env['res.partner'].create({'name': 'Test Customer NL', 'customer_rank': 1})
-        self.dest = self.env['agx.destination'].create({'name': 'Test Netherlands', 'port_name': 'Rotterdam'})
+        self.dest = self.env['res.country'].search([('code', '=', 'NL')], limit=1) or self.env['res.country'].create({'name': 'Netherlands', 'code': 'NL'})
         self.season = self.env['agx.season'].create({
             'name': 'Ship Test Season',
             'code': 'STS-25',
@@ -22,7 +22,7 @@ class TestAgxShipment(TransactionCase):
     def _make_shipment(self, **kwargs):
         vals = {
             'customer_id': self.customer.id,
-            'destination_id': self.dest.id,
+            'destination_country_id': self.dest.id,
             'season_id': self.season.id,
             'shipment_date': fields.Date.today(),
         }

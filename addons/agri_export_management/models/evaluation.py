@@ -64,22 +64,27 @@ class AgxEvaluation(models.Model):
     # ------------------------------------------------------------------
     # Core references
     # ------------------------------------------------------------------
-    farm_id = fields.Many2one(
-        "agx.farm",
+    farm_partner_id = fields.Many2one(
+        "res.partner",
+        string="Farm / Supplier",
         required=True,
         tracking=True,
-        help="Farm where the produce will be purchased.",
+        domain="[('is_agx_farm', '=', True), ('supplier_rank', '>', 0)]",
+        help="The farm partner. Mark partner as 'Is Agricultural Farm' to appear here.",
     )
+    # Keep partner_id as alias for PO creation compatibility
     partner_id = fields.Many2one(
-        "res.partner",
+        related="farm_partner_id",
         string="Vendor",
-        tracking=True,
-        help="Defaults from the farm owner; can be overridden.",
+        store=True,
+        readonly=True,
     )
-    crop_id = fields.Many2one(
-        "agx.crop",
+    crop_category_id = fields.Many2one(
+        "product.category",
+        string="Crop / Variety",
         tracking=True,
-        help="Crop type being evaluated.",
+        domain="[('is_agx_crop', '=', True)]",
+        help="Product category marked as Agricultural Crop.",
     )
     season_id = fields.Many2one(
         "agx.season",
@@ -360,6 +365,36 @@ class AgxEvaluation(models.Model):
             ],
         }
 
+    def action_link_intercompany_so(self):
+        """Open a wizard to select and confirm the Intercompany SO link.
+
+        Shows all unlinked SOs from partner companies that match
+        this evaluation's farm partner, filtered by active season.
+        """
+        self.ensure_one()
+        # Find candidate SOs from other companies
+        other_companies = self.env['res.company'].search([
+            ('id', '!=', self.company_id.id)
+        ])
+        candidate_sos = self.env['sale.order'].search([
+            ('company_id', 'in', other_companies.ids),
+            ('partner_id', '=', self.farm_partner_id.id),
+            ('state', 'in', ('sale', 'done')),
+        ], limit=20, order='date_order desc')
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Select Intercompany Sale Order',
+            'res_model': 'agx.evaluation',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {
+                'default_intercompany_so_id': candidate_sos[:1].id if candidate_sos else False,
+                'show_ic_so_field': True,
+            },
+        }
+
     def action_view_batches(self):
         self.ensure_one()
         return {
@@ -525,196 +560,3 @@ class AgxEvaluationLine(models.Model):
 # ════════════════════════════════════════════════════════════════════
 # QC / Inspection
 # ════════════════════════════════════════════════════════════════════
-class AgxQcInspection(models.Model):
-    """Quality Control Inspection record.
-
-    A QC check can be linked to:
-      - A Goods Receipt (incoming — raw produce quality)
-      - A Production Batch (in-process — grading/packing quality)
-      - An Export Shipment (pre-shipment — final check before loading)
-
-    Each inspection has a result and may generate rejection lines
-    that feed back into batch scrap or shipment decisions.
-
-    Inspection stages:
-      draft      → inspector fills the form
-      passed     → all checks within tolerance → proceed
-      failed     → issues found → see rejection_ids
-      conditional → minor issues, proceed with notes
-    """
-
-    _name = "agx.qc.inspection"
-    _description = "QC / Quality Inspection"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
-    _order = "inspection_date desc, id desc"
-
-    name = fields.Char(
-        default=lambda self: _("New"),
-        copy=False, readonly=True,
-    )
-    inspection_date = fields.Date(
-        default=fields.Date.context_today, required=True, tracking=True
-    )
-    company_id = fields.Many2one(
-        "res.company", required=True,
-        default=lambda self: self.env.company, index=True,
-    )
-    inspector_id = fields.Many2one(
-        "res.users", string="Inspector",
-        default=lambda self: self.env.user, tracking=True,
-    )
-
-    # Link to ONE of these (exclusive)
-    picking_id  = fields.Many2one(
-        "stock.picking", string="Goods Receipt",
-        domain="[('picking_type_id.code','=','incoming')]",
-        help="Link to incoming goods receipt for raw material inspection.",
-    )
-    batch_id    = fields.Many2one(
-        "agx.batch", string="Production Batch",
-        help="Link to batch for in-process quality check.",
-    )
-    shipment_id = fields.Many2one(
-        "agx.shipment", string="Export Shipment",
-        help="Link to shipment for pre-loading final inspection.",
-    )
-
-    inspection_type = fields.Selection(
-        [
-            ("incoming",    "Incoming Goods (Raw Material)"),
-            ("in_process",  "In-Process (Packing / Grading)"),
-            ("pre_shipment","Pre-Shipment (Final Check)"),
-        ],
-        required=True, default="incoming", tracking=True,
-    )
-    result = fields.Selection(
-        [
-            ("passed",      "Passed"),
-            ("failed",      "Failed"),
-            ("conditional", "Conditional Pass"),
-        ],
-        tracking=True,
-    )
-    state = fields.Selection(
-        [
-            ("draft",  "Draft"),
-            ("passed", "Passed"),
-            ("failed", "Failed"),
-            ("conditional", "Conditional"),
-        ],
-        default="draft", tracking=True,
-    )
-
-    # Checklist lines
-    line_ids = fields.One2many(
-        "agx.qc.inspection.line", "inspection_id", string="Checklist"
-    )
-    rejection_ids = fields.One2many(
-        "agx.qc.rejection", "inspection_id", string="Rejections / Issues"
-    )
-
-    overall_score = fields.Float(
-        compute="_compute_score", store=True,
-        help="Average score across all checklist lines (0–100).",
-    )
-    total_rejected_qty = fields.Float(
-        compute="_compute_rejections", store=True,
-        help="Sum of rejected quantities across all rejection lines.",
-    )
-    note = fields.Html()
-
-    @api.depends("line_ids.score")
-    def _compute_score(self):
-        for rec in self:
-            lines = rec.line_ids.filtered(lambda l: l.score is not False)
-            rec.overall_score = (
-                sum(lines.mapped("score")) / len(lines) if lines else 0.0
-            )
-
-    @api.depends("rejection_ids.rejected_qty")
-    def _compute_rejections(self):
-        for rec in self:
-            rec.total_rejected_qty = sum(
-                rec.rejection_ids.mapped("rejected_qty")
-            )
-
-    @api.model_create_multi
-    def create(self, vals_list):
-        for vals in vals_list:
-            if vals.get("name", _("New")) == _("New"):
-                vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("agx.qc.inspection")
-                    or _("New")
-                )
-        return super().create(vals_list)
-
-    def action_pass(self):
-        self.write({"state": "passed", "result": "passed"})
-
-    def action_fail(self):
-        self.write({"state": "failed", "result": "failed"})
-
-    def action_conditional(self):
-        self.write({"state": "conditional", "result": "conditional"})
-
-    def action_reset(self):
-        self.write({"state": "draft", "result": False})
-
-
-class AgxQcInspectionLine(models.Model):
-    """One checklist item on a QC Inspection."""
-
-    _name = "agx.qc.inspection.line"
-    _description = "QC Inspection Checklist Line"
-    _order = "sequence, id"
-
-    sequence     = fields.Integer(default=10)
-    inspection_id = fields.Many2one("agx.qc.inspection", required=True, ondelete="cascade")
-    criterion    = fields.Char(required=True, string="Criterion / Check")
-    standard     = fields.Char(help="Expected standard or tolerance (e.g. Brix ≥ 9.5)")
-    actual_value = fields.Char(help="Measured / observed value")
-    passed       = fields.Boolean(default=True)
-    score        = fields.Float(
-        digits=(16, 1),
-        help="Score 0–100 for this criterion.",
-    )
-    note         = fields.Char()
-
-
-class AgxQcRejection(models.Model):
-    """One rejection item found during a QC Inspection."""
-
-    _name = "agx.qc.rejection"
-    _description = "QC Rejection Line"
-    _order = "sequence, id"
-
-    sequence      = fields.Integer(default=10)
-    inspection_id = fields.Many2one("agx.qc.inspection", required=True, ondelete="cascade")
-    product_id    = fields.Many2one("product.product")
-    grade_id      = fields.Many2one("agx.grade")
-    size_id       = fields.Many2one("agx.size")
-    lot_id        = fields.Many2one("stock.lot")
-    rejection_reason = fields.Selection(
-        [
-            ("size_out_of_spec",  "Size Out of Specification"),
-            ("colour_defect",     "Colour Defect"),
-            ("disease",           "Disease / Mould"),
-            ("physical_damage",   "Physical Damage"),
-            ("foreign_material",  "Foreign Material"),
-            ("labelling",         "Labelling / Packaging Issue"),
-            ("other",             "Other"),
-        ],
-        required=True,
-    )
-    rejected_qty  = fields.Float(required=True, default=1.0)
-    uom_id        = fields.Many2one("uom.uom")
-    disposition   = fields.Selection(
-        [
-            ("scrap",     "Scrap / Destroy"),
-            ("downgrade", "Downgrade to Lower Grade"),
-            ("repack",    "Repack / Rework"),
-            ("return",    "Return to Supplier"),
-        ],
-        default="scrap",
-    )
-    note = fields.Char()

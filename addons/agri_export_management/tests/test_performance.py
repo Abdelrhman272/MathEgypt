@@ -17,15 +17,15 @@ class TestPerformance(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         env = cls.env
-        cls.crop = env['agx.crop'].create({'name': 'Perf Orange', 'code': 'PRF'})
+        cls.crop = env['product.category'].create({'name': 'Perf Orange', 'is_agx_crop': True})
         cls.grade_a = env['agx.grade'].create({'name': 'A', 'code': 'PA', 'sequence': 1})
         cls.grade_b = env['agx.grade'].create({'name': 'B', 'code': 'PB', 'sequence': 2})
         cls.grade_c = env['agx.grade'].create({'name': 'C', 'code': 'PC', 'sequence': 3})
         cls.size_36 = env['agx.size'].create({'number': 36, 'name': '36', 'sequence': 36})
         cls.size_40 = env['agx.size'].create({'number': 40, 'name': '40', 'sequence': 40})
-        cls.vendor  = env['res.partner'].create({'name': 'Perf Vendor', 'supplier_rank': 1})
-        cls.farm    = env['agx.farm'].create({'name': 'Perf Farm', 'code': 'PF-001', 'partner_id': cls.vendor.id})
-        cls.season  = env['agx.season'].create({'name': 'Perf Season', 'code': 'PS-25', 'crop_id': cls.crop.id, 'state': 'active'})
+        cls.vendor  = env['res.partner'].create({'name': 'Perf Vendor', 'supplier_rank': 1, 'is_agx_farm': True})
+        cls.farm    = env['res.partner'].create({'name': 'Perf Farm', 'code': 'PF-001', 'partner_id': cls.vendor.id})
+        cls.season  = env['agx.season'].create({'name': 'Perf Season', 'code': 'PS-25', 'crop_category_id': cls.crop.id, 'state': 'active'})
         cls.raw_product = env['product.template'].create({
             'name': 'Perf Raw', 'type': 'consu', 'tracking': 'lot',
             'uom_id': env.ref('uom.product_uom_kgm').id,
@@ -37,9 +37,9 @@ class TestPerformance(TransactionCase):
         evals = []
         for i in range(count):
             ev = self.env['agx.evaluation'].create({
-                'farm_id': self.farm.id,
+                'farm_partner_id': self.vendor.id,
                 'partner_id': self.vendor.id,
-                'crop_id': self.crop.id,
+                'crop_category_id': self.crop.id,
                 'season_id': self.season.id,
                 'evaluation_date': '2025-11-01',
                 'farm_expected_qty': 1000.0 + i * 100,

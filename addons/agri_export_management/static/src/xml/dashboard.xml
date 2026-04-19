@@ -47,7 +47,7 @@
         <div class="agx-kpi-icon"><i class="fa fa-usd fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value">
-            <t t-esc="_fmt(state.data.kpis.revenue)"/>
+            <t t-esc="Number(state.data.kpis.revenue).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
           </div>
           <div class="agx-kpi-label">Total Revenue</div>
         </div>
@@ -57,7 +57,7 @@
         <div class="agx-kpi-icon"><i class="fa fa-ship fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value">
-            <t t-esc="_fmt(state.data.kpis.logistics_cost)"/>
+            <t t-esc="Number(state.data.kpis.logistics_cost).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
           </div>
           <div class="agx-kpi-label">Logistics Cost</div>
         </div>
@@ -67,7 +67,7 @@
         <div class="agx-kpi-icon"><i class="fa fa-line-chart fa-2x"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value">
-            <t t-esc="_fmt(state.data.kpis.gross_profit)"/>
+            <t t-esc="Number(state.data.kpis.gross_profit).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
           </div>
           <div class="agx-kpi-label">Gross Profit</div>
         </div>
@@ -186,7 +186,7 @@
                 <td class="agx-cust-name"><t t-esc="c.name"/></td>
                 <td><t t-esc="c.shipments"/></td>
                 <td class="agx-revenue">
-                  <t t-esc="_fmt(c.revenue)"/>
+                  <t t-esc="Number(c.revenue).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})"/>
                 </td>
               </tr>
             </t>

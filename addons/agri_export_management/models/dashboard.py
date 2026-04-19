@@ -251,8 +251,8 @@ class AgxDashboard(models.Model):
 
             # Highlights — top destination and customer by shipment count
             destinations = Counter(
-                shipments.filtered(lambda s: s.destination_id).mapped(
-                    "destination_id.name"
+                shipments.filtered(lambda s: s.destination_country_id).mapped(
+                    "destination_country_id.name"
                 )
             )
             customers = Counter(
@@ -456,7 +456,7 @@ class AgxDashboard(models.Model):
         # ── Shipments by destination ─────────────────────────────────
         dest_counter = {}
         for shp in shipments:
-            dest = shp.destination_id.name if shp.destination_id else "Other"
+            dest = shp.destination_country_id.name if shp.destination_country_id else "Other"
             dest_counter[dest] = dest_counter.get(dest, 0) + 1
         shipments_by_destination = [
             {"name": k, "count": v}
