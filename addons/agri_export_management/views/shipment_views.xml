@@ -71,8 +71,8 @@
                             <div class="text-muted small mt-1">
                                 👤 <t t-esc="record.customer_id.value"/>
                             </div>
-                            <div t-if="record.destination_id.value" class="text-muted small">
-                                🚢 <t t-esc="record.destination_id.value"/>
+                            <div t-if="record.destination_country_id.value" class="text-muted small">
+                                🚢 <t t-esc="record.destination_country_id.value"/>
                             </div>
                             <div t-if="record.etd.value" class="text-muted small">
                                 📅 ETD: <t t-esc="record.etd.value"/>
@@ -125,7 +125,7 @@
                 <separator/>
                 <filter string="By Season"      name="gb_season"  context="{'group_by':'season_id'}"/>
                 <filter string="By Customer"    name="gb_customer" context="{'group_by':'customer_id'}"/>
-                <filter string="By Destination" name="gb_dest"    context="{'group_by':'destination_id'}"/>
+                <filter string="By Destination" name="gb_dest"    context="{'group_by':'destination_country_id'}"/>
                 <filter string="By State"       name="gb_state"   context="{'group_by':'state'}"/>
             </search>
         </field>
