@@ -168,7 +168,7 @@
                 <field name="sequence" widget="handle"/>
                 <field name="name"/>
                 <field name="code"/>
-                <field name="default_basis"/>
+                <field name="default_allocation_basis"/>
                 <field name="active"/>
             </list>
         </field>
@@ -187,7 +187,7 @@
                             <field name="sequence"/>
                         </group>
                         <group>
-                            <field name="default_basis"/>
+                            <field name="default_allocation_basis"/>
                             <field name="active"/>
                         </group>
                     </group>
