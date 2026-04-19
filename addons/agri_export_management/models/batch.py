@@ -251,7 +251,7 @@ class AgxBatch(models.Model):
         compute="_compute_qc_count",
         help="Number of QC inspections linked to this batch.",
     )
-    cold_storage_done = fields.Boolean(help="Checked when finished goods have been transferred to Cold Storage.",
+    cold_storage_done = fields.Boolean(
         default=False,
         string="Cold Storage Done",
         help="Becomes True once the batch has been moved to cold storage.",

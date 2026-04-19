@@ -137,14 +137,14 @@ class AgxShipment(models.Model):
         tracking=True,
         help="Number of containers; drives auto-creation of container records.",
     )
-    seal_no = fields.Char(help="Container seal number applied at loading (printed on Packing List).",
+    seal_no = fields.Char(
         help="Seal number of the first container.",
     )
 
     # ------------------------------------------------------------------
     # Freight / shipping details
     # ------------------------------------------------------------------
-    vessel_name = fields.Char(help="Name of the carrying vessel (printed on Packing List and COO).",
+    vessel_name = fields.Char(
         string="Vessel",
         help="Name of the vessel carrying this shipment.",
     )
@@ -159,7 +159,7 @@ class AgxShipment(models.Model):
         string="ETA",
         help="Estimated Time of Arrival at destination.",
     )
-    bl_number = fields.Char(help="Bill of Lading number — must be unique per shipment.",
+    bl_number = fields.Char(
         string="B/L Number",
         help="Bill of Lading reference number.",
     )

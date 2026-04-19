@@ -73,12 +73,12 @@ class AgxDashboard(models.Model):
         related="company_id.currency_id",
         readonly=True,
     )
-    date_from = fields.Date(help="Dashboard date range start (used when no season filter is active).",
+    date_from = fields.Date(
         default=lambda self: fields.Date.context_today(self).replace(day=1),
         required=True,
         help="Start of the reporting period.",
     )
-    date_to = fields.Date(help="Dashboard date range end (used when no season filter is active).",
+    date_to = fields.Date(
         default=fields.Date.context_today,
         required=True,
         help="End of the reporting period.",

@@ -467,7 +467,7 @@ class AgxEvaluationLine(models.Model):
     # ------------------------------------------------------------------
     # Quantities
     # ------------------------------------------------------------------
-    expected_ratio = fields.Float(help="Expected percentage of total farm qty for this Grade × Size combination.",
+    expected_ratio = fields.Float(
         string="Expected %",
         help="Expected yield percentage of this grade/size from the total farm qty.",
     )
