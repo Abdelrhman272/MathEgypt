@@ -18,7 +18,6 @@ class AgxDashboard extends Component {
     static template = "agri_export_management.AgxDashboard";
 
     setup() {
-        this.rpc = useService("rpc");
         this.orm = useService("orm");
         this.action = useService("action");
         this.notification = useService("notification");
@@ -67,22 +66,22 @@ class AgxDashboard extends Component {
             const seasons = await this.orm.searchRead(
                 "agx.season",
                 [["state", "!=", "cancelled"]],
-                ["id", "name", "crop_id", "state"],
+                ["id", "name", "state"],
                 { order: "date_start desc", limit: 20 }
             );
             this.state.seasons = seasons;
 
             // Load dashboard data
-            const data = await this.rpc("/web/dataset/call_kw", {
-                model: "agx.dashboard",
-                method: "get_dashboard_data",
-                args: [],
-                kwargs: {
+            const data = await this.orm.call(
+                "agx.dashboard",
+                "get_dashboard_data",
+                [],
+                {
                     season_id: this.state.season_id || false,
                     date_from: this.state.date_from,
                     date_to: this.state.date_to,
-                },
-            });
+                }
+            );
             this.state.data = data;
             this.state.loading = false;
 
