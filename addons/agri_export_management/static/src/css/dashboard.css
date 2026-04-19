@@ -1,34 +1,36 @@
-/* AGX Dashboard — adapts to Odoo light/dark mode */
+/* AGX Dashboard — responsive, adapts to Odoo light/dark mode */
 
-/* ── CSS variable bridge (reads from Odoo's own tokens) ─────────── */
+/* ── CSS variable bridge ────────────────────────────────────────── */
 .agx-dashboard {
-    /* Light mode defaults — Odoo sets these on :root */
-    --agx-bg:      var(--o-view-background-color, #FFFFFF);
-    --agx-panel:   var(--card-bg, #F8F9FA);
-    --agx-lift:    var(--dropdown-bg, #FFFFFF);
-    --agx-border:  var(--border-color, #DEE2E6);
-    --agx-text:    var(--body-color, #212529);
-    --agx-muted:   var(--text-muted, #6C757D);
+    --agx-bg:     var(--o-view-background-color, #FFFFFF);
+    --agx-panel:  var(--card-bg, #F8F9FA);
+    --agx-lift:   var(--dropdown-bg, #FFFFFF);
+    --agx-border: var(--border-color, #DEE2E6);
+    --agx-text:   var(--body-color, #212529);
+    --agx-muted:  var(--text-muted, #6C757D);
 
-    /* Brand colors — same in both modes */
-    --agx-green:   #22C55E;
-    --agx-blue:    #60A5FA;
-    --agx-amber:   #FBBF24;
-    --agx-purple:  #A78BFA;
-    --agx-teal:    #14B8A6;
-    --agx-red:     #F87171;
-
-    --agx-radius:  10px;
-    --agx-shadow:  0 2px 12px rgba(0,0,0,0.08);
+    --agx-green:  #22C55E;
+    --agx-blue:   #60A5FA;
+    --agx-amber:  #FBBF24;
+    --agx-purple: #A78BFA;
+    --agx-teal:   #14B8A6;
+    --agx-red:    #F87171;
+    --agx-radius: 8px;
+    --agx-shadow: 0 1px 6px rgba(0,0,0,0.08);
 
     font-family: inherit;
-    background:  var(--agx-bg);
-    min-height:  100%;
-    padding:     0 0 40px;
-    color:       var(--agx-text);
+    font-size: 13px;
+    background: var(--agx-bg);
+    color: var(--agx-text);
+    /* KEY: fill Odoo's content area, scroll vertically */
+    width: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
+    padding-bottom: 32px;
+    box-sizing: border-box;
 }
 
-/* Dark mode overrides — Odoo adds data-color-scheme="dark" on <html> */
+/* Dark mode */
 html[data-color-scheme="dark"] .agx-dashboard,
 .o_dark .agx-dashboard {
     --agx-bg:     #0D1B2A;
@@ -37,52 +39,54 @@ html[data-color-scheme="dark"] .agx-dashboard,
     --agx-border: #22364F;
     --agx-text:   #F8FAFC;
     --agx-muted:  #64748B;
-    --agx-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --agx-shadow: 0 2px 12px rgba(0,0,0,0.35);
 }
 
 /* ── Toolbar ────────────────────────────────────────────────────── */
 .agx-toolbar {
-    display:         flex;
-    align-items:     center;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    padding:         14px 24px;
-    background:      var(--agx-panel);
-    border-bottom:   2px solid var(--agx-green);
-    position:        sticky;
-    top:             0;
-    z-index:         100;
-    box-shadow:      var(--agx-shadow);
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--agx-panel);
+    border-bottom: 2px solid var(--agx-green);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--agx-shadow);
 }
-.agx-toolbar-left  { display: flex; align-items: center; gap: 12px; }
-.agx-toolbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.agx-toolbar-left  { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.agx-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-.agx-logo    { font-size: 22px; }
-.agx-title   { font-size: 17px; font-weight: 700; color: var(--agx-text); margin: 0; }
+.agx-logo    { font-size: 18px; line-height: 1; }
+.agx-title   { font-size: 15px; font-weight: 700; color: var(--agx-text); margin: 0; }
 .agx-subtitle {
-    font-size: 11px; color: var(--agx-muted);
-    background: var(--agx-lift); padding: 2px 8px;
-    border-radius: 20px; font-weight: 500;
-    text-transform: uppercase; letter-spacing: 0.5px;
+    font-size: 10px; color: var(--agx-muted);
+    background: var(--agx-lift);
+    padding: 1px 7px; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: 0.4px;
 }
 .agx-select, .agx-input {
     background: var(--agx-lift);
     border: 1px solid var(--agx-border);
     color: var(--agx-text);
-    border-radius: 6px; padding: 6px 10px;
-    font-size: 13px; outline: none;
-    transition: border-color 0.2s;
+    border-radius: 5px; padding: 4px 8px;
+    font-size: 12px; outline: none;
+    transition: border-color 0.15s;
+    max-width: 140px;
 }
 .agx-select:focus, .agx-input:focus { border-color: var(--agx-green); }
 .agx-select option { background: var(--agx-panel); color: var(--agx-text); }
-.agx-sep { color: var(--agx-muted); }
-
+.agx-sep { color: var(--agx-muted); font-size: 11px; }
 .agx-btn-refresh {
     background: transparent;
     border: 1px solid var(--agx-green);
     color: var(--agx-green);
-    border-radius: 6px; padding: 6px 14px;
-    font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all 0.2s;
+    border-radius: 5px; padding: 4px 12px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
 .agx-btn-refresh:hover { background: var(--agx-green); color: #0D1B2A; }
 
@@ -90,43 +94,50 @@ html[data-color-scheme="dark"] .agx-dashboard,
 .agx-loading {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 16px; padding: 80px;
-    color: var(--agx-muted); font-size: 14px;
+    gap: 14px; padding: 60px;
+    color: var(--agx-muted);
 }
 .agx-spinner {
-    width: 36px; height: 36px;
+    width: 32px; height: 32px;
     border: 3px solid var(--agx-border);
     border-top-color: var(--agx-green);
     border-radius: 50%;
-    animation: agx-spin 0.8s linear infinite;
+    animation: agx-spin 0.7s linear infinite;
 }
 @keyframes agx-spin { to { transform: rotate(360deg); } }
+
+/* ── Body wrapper — single column on narrow, multi on wide ─────── */
+.agx-body {
+    padding: 12px 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
 
 /* ── KPI Row ────────────────────────────────────────────────────── */
 .agx-kpi-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px; padding: 18px 24px 0;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
 }
-@media (max-width: 1200px) { .agx-kpi-row { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px)  { .agx-kpi-row { grid-template-columns: 1fr; } }
 
 .agx-kpi {
     background: var(--agx-panel);
     border-radius: var(--agx-radius);
-    padding: 16px 18px;
-    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.12s, box-shadow 0.12s;
     border: 1px solid var(--agx-border);
     box-shadow: var(--agx-shadow);
     position: relative; overflow: hidden;
+    min-width: 0;
 }
 .agx-kpi::before {
     content: ''; position: absolute;
-    top: 0; left: 0; width: 4px; height: 100%;
+    top: 0; left: 0; width: 3px; height: 100%;
 }
-.agx-kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.15); }
+.agx-kpi:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
 
 .agx-kpi-green::before  { background: var(--agx-green); }
 .agx-kpi-blue::before   { background: var(--agx-blue); }
@@ -135,10 +146,10 @@ html[data-color-scheme="dark"] .agx-dashboard,
 .agx-kpi-teal::before   { background: var(--agx-teal); }
 .agx-kpi-red::before    { background: var(--agx-red); }
 
-.agx-kpi-icon  { font-size: 26px; flex-shrink: 0; color: var(--agx-muted); }
-.agx-kpi-body  { flex: 1; min-width: 0; }
+.agx-kpi-icon { font-size: 20px; flex-shrink: 0; color: var(--agx-muted); }
+.agx-kpi-body { flex: 1; min-width: 0; }
 .agx-kpi-value {
-    font-size: 22px; font-weight: 700; line-height: 1.1;
+    font-size: 18px; font-weight: 700; line-height: 1.15;
     color: var(--agx-text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -149,16 +160,20 @@ html[data-color-scheme="dark"] .agx-dashboard,
 .agx-kpi-teal   .agx-kpi-value { color: var(--agx-teal); }
 .agx-kpi-red    .agx-kpi-value { color: var(--agx-red); }
 .agx-kpi-label {
-    font-size: 11px; color: var(--agx-muted); font-weight: 500;
-    text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;
+    font-size: 10px; color: var(--agx-muted);
+    text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ── Charts ─────────────────────────────────────────────────────── */
+/* ── Charts grid — 2 cols on ≥900px, 1 col below ───────────────── */
 .agx-charts-row {
-    display: grid; grid-template-columns: 2fr 1fr;
-    gap: 12px; padding: 12px 24px 0;
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 10px;
 }
-@media (max-width: 1100px) { .agx-charts-row { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+    .agx-charts-row { grid-template-columns: 1fr; }
+}
 
 .agx-card {
     background: var(--agx-panel);
@@ -166,45 +181,48 @@ html[data-color-scheme="dark"] .agx-dashboard,
     border: 1px solid var(--agx-border);
     box-shadow: var(--agx-shadow);
     overflow: hidden;
-}
-.agx-card-full {
-    margin: 12px 24px 0;
-    background: var(--agx-panel);
-    border-radius: var(--agx-radius);
-    border: 1px solid var(--agx-border);
-    box-shadow: var(--agx-shadow);
+    min-width: 0;
 }
 .agx-card-header {
-    padding: 12px 16px 10px;
+    padding: 10px 14px 8px;
     border-bottom: 1px solid var(--agx-border);
 }
 .agx-card-title {
-    font-size: 12px; font-weight: 600;
-    color: var(--agx-muted);
-    text-transform: uppercase; letter-spacing: 0.5px;
-}
-.agx-chart-wrap { padding: 12px 14px; height: 250px; position: relative; }
-.agx-empty { padding: 36px; text-align: center; color: var(--agx-muted); font-size: 13px; }
-
-/* ── Top Customers Table ────────────────────────────────────────── */
-.agx-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.agx-table thead tr { background: var(--agx-lift); }
-.agx-table th {
-    padding: 10px 16px; text-align: left;
     font-size: 11px; font-weight: 600;
     color: var(--agx-muted);
-    text-transform: uppercase; letter-spacing: 0.5px;
+    text-transform: uppercase; letter-spacing: 0.4px;
 }
-.agx-table td { padding: 11px 16px; border-bottom: 1px solid var(--agx-border); color: var(--agx-text); }
+.agx-chart-wrap {
+    padding: 10px 12px;
+    height: 220px;      /* shorter = more content visible without zoom */
+    position: relative;
+}
+.agx-empty {
+    padding: 30px; text-align: center;
+    color: var(--agx-muted); font-size: 12px;
+}
+
+/* ── Customers table ────────────────────────────────────────────── */
+.agx-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.agx-table thead tr { background: var(--agx-lift); }
+.agx-table th {
+    padding: 8px 12px; text-align: left;
+    font-size: 10px; font-weight: 600; color: var(--agx-muted);
+    text-transform: uppercase; letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+.agx-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--agx-border);
+    color: var(--agx-text);
+}
 .agx-table tbody tr:hover  { background: var(--agx-lift); }
 .agx-table tbody tr:last-child td { border-bottom: none; }
-
 .agx-rank {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px;
-    background: var(--agx-lift);
-    border-radius: 50%; font-size: 11px; font-weight: 700;
-    color: var(--agx-green);
+    width: 20px; height: 20px;
+    background: var(--agx-lift); border-radius: 50%;
+    font-size: 10px; font-weight: 700; color: var(--agx-green);
 }
 .agx-cust-name { font-weight: 600; }
 .agx-revenue   { font-weight: 600; color: var(--agx-green); }

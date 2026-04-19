@@ -1,4 +1,18 @@
 # -*- coding: utf-8 -*-
+# Copyright 2025 NextGen Systems — OPL-1
+"""Export Shipment models — container booking, lot reservation, costing.
+
+Models defined here:
+  AgxShipment         — The shipment record (ETD/ETA, B/L, vessel)
+  AgxShipmentContainer — Individual containers on the shipment
+  AgxShipmentLine     — Products to ship (Grade × Size × Qty)
+  AgxShipmentLotLine  — Reserved lots with Lot → Carton → Pallet hierarchy
+  AgxShipmentCostLine — Logistics cost lines (manual, vendor bill, landed cost)
+  AgxClaim            — Customer claims linked to shipment + lots + credit notes
+
+Workflow: Draft → Reserved → Shipped (or Cancelled)
+Key constraint: UoM must match product UoM category (enforced by @api.constrains).
+"""
 """
 shipment.py — Export Shipment Models
 ======================================
@@ -123,18 +137,18 @@ class AgxShipment(models.Model):
         tracking=True,
         help="Number of containers; drives auto-creation of container records.",
     )
-    seal_no = fields.Char(
+    seal_no = fields.Char(help="Container seal number applied at loading (printed on Packing List).",
         help="Seal number of the first container.",
     )
 
     # ------------------------------------------------------------------
     # Freight / shipping details
     # ------------------------------------------------------------------
-    vessel_name = fields.Char(
+    vessel_name = fields.Char(help="Name of the carrying vessel (printed on Packing List and COO).",
         string="Vessel",
         help="Name of the vessel carrying this shipment.",
     )
-    voyage_no = fields.Char(
+    voyage_no = fields.Char(help="Voyage number assigned by the shipping line.",
         string="Voyage No",
     )
     etd = fields.Date(
@@ -145,7 +159,7 @@ class AgxShipment(models.Model):
         string="ETA",
         help="Estimated Time of Arrival at destination.",
     )
-    bl_number = fields.Char(
+    bl_number = fields.Char(help="Bill of Lading number — must be unique per shipment.",
         string="B/L Number",
         help="Bill of Lading reference number.",
     )
@@ -204,6 +218,7 @@ class AgxShipment(models.Model):
             rec.claim_count = Claim.search_count([("shipment_id", "=", rec.id)])
 
     def action_view_claims(self):
+        """Open Customer Claims linked to this shipment."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
@@ -1121,6 +1136,7 @@ class AgxShipment(models.Model):
         return self.action_view_sale_order()
 
     def action_view_sale_order(self):
+        """Open the Sale Order generated when this shipment was marked as shipped."""
         self.ensure_one()
         if not self.sale_order_id:
             return False
@@ -1134,6 +1150,7 @@ class AgxShipment(models.Model):
         }
 
     def action_view_delivery(self):
+        """Open the Delivery Order (outgoing picking) for this shipment."""
         self.ensure_one()
         if not self.delivery_picking_id:
             return False
@@ -1332,6 +1349,7 @@ class AgxShipmentLine(models.Model):
 
     @api.constrains("container_id", "shipment_id")
     def _check_container_shipment(self):
+        """Prevent the same container from being used in two different shipments."""
         for rec in self:
             if (
                 rec.container_id
@@ -1646,8 +1664,8 @@ class AgxClaim(models.Model):
         help="Auto-suggested from shipment reserved lots.",
     )
     claimed_qty   = fields.Float()
-    claimed_value = fields.Monetary(currency_field="currency_id")
-    agreed_credit = fields.Monetary(currency_field="currency_id", tracking=True)
+    claimed_value = fields.Monetary(help="Value of the claim as stated by the customer.",currency_field="currency_id")
+    agreed_credit = fields.Monetary(currency_field="currency_id", help="Final agreed compensation amount after claim review.", tracking=True)
     root_cause    = fields.Text()
     resolution    = fields.Text()
     credit_note_id = fields.Many2one(
@@ -1668,6 +1686,7 @@ class AgxClaim(models.Model):
 
     @api.onchange("shipment_id")
     def _onchange_shipment(self):
+        """Pre-populate affected lots from the shipment's reserved lots."""
         if self.shipment_id:
             self.lot_ids = self.shipment_id.lot_line_ids.mapped("lot_id")
 

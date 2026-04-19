@@ -1,4 +1,15 @@
 # -*- coding: utf-8 -*-
+# Copyright 2025 NextGen Systems — OPL-1
+"""Master / lookup models for Agricultural Export Management.
+
+Models defined here:
+  AgxGrade       — Quality grades (A, B, C) linked to product.attribute.value
+  AgxSize        — Carton sizes (36, 40, 48) linked to product.attribute.value
+  AgxSeason      — Production season with auto-created analytic account for P&L
+  AgxShipmentCostType — Logistics cost categories (Inland, Port, Ocean, Customs)
+  ResPartner     — Extension: adds is_agx_farm, agx_region, agx_farm_code
+  ProductCategory — Extension: adds is_agx_crop flag
+"""
 """
 master.py — Master Data Models for Agricultural Export Management
 =================================================================
@@ -187,8 +198,10 @@ class AgxSeason(models.Model):
         default=lambda self: self.env.company,
         index=True,
     )
-    date_start = fields.Date(string="Start Date", required=True, tracking=True)
-    date_end = fields.Date(string="End Date", tracking=True)
+    date_start = fields.Date(string="Start Date", required=True, tracking=True,
+        help="First day of the harvest/production season.")
+    date_end = fields.Date(string="End Date", tracking=True,
+        help="Last day of the season. Leave blank for open-ended seasons.")
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -320,12 +333,14 @@ class AgxSeason(models.Model):
         self.write({"state": "closed"})
 
     def action_reset_draft(self):
+        """Reset season back to Draft so dates and crop can be edited."""
         self.write({"state": "draft"})
 
     # ------------------------------------------------------------------
     # Smart button navigation
     # ------------------------------------------------------------------
     def action_view_evaluations(self):
+        """Open Farm Evaluations belonging to this season."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
@@ -336,6 +351,7 @@ class AgxSeason(models.Model):
         }
 
     def action_view_batches(self):
+        """Open Production Batches linked to this season."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
@@ -346,6 +362,7 @@ class AgxSeason(models.Model):
         }
 
     def action_view_shipments(self):
+        """Open Export Shipments linked to this season."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
@@ -386,7 +403,8 @@ class AgxShipmentCostType(models.Model):
     )
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)
-    default_allocation_basis = fields.Selection(
+    default_allocation_basis = fields.Selection(# Default basis used when no explicit basis set on cost line
+        
         [
             ("qty", "By Quantity"),
             ("carton", "By Cartons"),

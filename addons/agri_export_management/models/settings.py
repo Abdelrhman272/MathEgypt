@@ -1,4 +1,16 @@
 # -*- coding: utf-8 -*-
+# Copyright 2025 NextGen Systems — OPL-1
+"""Settings and configuration for Agricultural Export Management.
+
+Models defined here:
+  ResCompany      — Extension: adds all AGX settings fields
+  ResConfigSettings — Extension: exposes company settings in the UI
+  SaleOrder       — Extension: triggers intercompany evaluation suggestions
+
+Intercompany flow:
+  UAE PO → Odoo auto-creates Egypt SO → AGX posts candidate evaluations
+  in Chatter → user confirms via 'Link Intercompany SO' button.
+"""
 """
 settings.py — Company-level configuration for Agricultural Export Management
 =============================================================================
@@ -44,7 +56,7 @@ class ResCompany(models.Model):
             "when a shipment is confirmed (one line per container)."
         ),
     )
-    agx_so_line_prefix = fields.Char(
+    agx_so_line_prefix = fields.Char(help="Prefix added to sale order line descriptions (e.g. AGX-EXPORT). Leave blank to use default.",
         default="Shipment",
         help="Prefix text used in the Sales Order line description.",
     )
@@ -52,7 +64,8 @@ class ResCompany(models.Model):
     # ------------------------------------------------------------------
     # Costing settings
     # ------------------------------------------------------------------
-    agx_default_logistics_basis = fields.Selection(
+    agx_default_logistics_basis = fields.Selection(# Allocation basis used when no specific basis is set on cost type
+        
         [
             ("qty", "By Quantity"),
             ("carton", "By Cartons"),
@@ -63,15 +76,15 @@ class ResCompany(models.Model):
         default="qty",
         help="Default method for allocating logistics costs across shipment lines.",
     )
-    agx_allow_vendor_bill_cost_source = fields.Boolean(
+    agx_allow_vendor_bill_cost_source = fields.Boolean(help="Allow importing logistics costs from Vendor Bills onto shipment cost lines.",
         default=True,
         help="Allow importing costs from Vendor Bills on shipments.",
     )
-    agx_allow_landed_cost_source = fields.Boolean(
+    agx_allow_landed_cost_source = fields.Boolean(help="Allow importing logistics costs from Odoo Landed Costs onto shipment cost lines.",
         default=True,
         help="Allow importing costs from Landed Costs on shipments.",
     )
-    agx_margin_precision = fields.Integer(
+    agx_margin_precision = fields.Integer(help="Number of decimal places shown in margin percentage calculations (default: 2).",
         default=2,
         help="Decimal precision used for margin % display.",
     )
@@ -80,7 +93,7 @@ class ResCompany(models.Model):
     # Lot / Serial settings
     # ------------------------------------------------------------------
     # MRP integration
-    agx_use_mrp_production = fields.Boolean(
+    agx_use_mrp_production = fields.Boolean(help="When enabled, Production Batches link to MRP Manufacturing Orders instead of doing direct stock moves.",
         string="Use Manufacturing Orders (MRP) instead of Production Batches",
         default=False,
         help=(
@@ -93,7 +106,7 @@ class ResCompany(models.Model):
         ),
     )
 
-    agx_auto_generate_lot_numbers = fields.Boolean(
+    agx_auto_generate_lot_numbers = fields.Boolean(help="Automatically generate sequential lot numbers when validating receipts.",
         default=True,
         help=(
             "When enabled, batch output lines without a lot number get "
@@ -339,6 +352,7 @@ class SaleOrder(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Override to trigger intercompany evaluation suggestion after SO creation."""
         records = super().create(vals_list)
         records._agx_suggest_evaluation_link()
         return records

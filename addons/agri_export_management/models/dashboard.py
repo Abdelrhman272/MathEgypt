@@ -1,4 +1,19 @@
 # -*- coding: utf-8 -*-
+# Copyright 2025 NextGen Systems — OPL-1
+"""Dashboard data model for Agricultural Export Management.
+
+Models defined here:
+  AgxDashboard — Transient model providing all KPI and chart data via
+                 get_dashboard_data() RPC method.
+
+The OWL component (static/src/js/dashboard.js) calls get_dashboard_data()
+with optional season_id and date_from/date_to filters.
+
+KPIs: revenue, logistics_cost, gross_profit, margin_pct,
+      shipped_count, pending_count, active_batches, open_evaluations
+Charts: revenue_by_season, shipments_by_destination,
+        monthly_shipments, yield_by_season, top_customers
+"""
 """
 dashboard.py — Agricultural Export Dashboard
 =============================================
@@ -58,12 +73,12 @@ class AgxDashboard(models.Model):
         related="company_id.currency_id",
         readonly=True,
     )
-    date_from = fields.Date(
+    date_from = fields.Date(help="Dashboard date range start (used when no season filter is active).",
         default=lambda self: fields.Date.context_today(self).replace(day=1),
         required=True,
         help="Start of the reporting period.",
     )
-    date_to = fields.Date(
+    date_to = fields.Date(help="Dashboard date range end (used when no season filter is active).",
         default=fields.Date.context_today,
         required=True,
         help="End of the reporting period.",
@@ -380,6 +395,7 @@ class AgxDashboard(models.Model):
         )
 
     def action_open_profitability(self):
+        """Open a pivot report filtered to shipped shipments for P&L analysis."""
         self.ensure_one()
         return self._action_for_model(
             "agx.shipment",
@@ -389,6 +405,7 @@ class AgxDashboard(models.Model):
         )
 
     def action_open_incoming_receipts(self):
+        """Open incoming receipts waiting for validation."""
         self.ensure_one()
         return self._action_for_model(
             "stock.picking",

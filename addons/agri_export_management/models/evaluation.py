@@ -1,4 +1,14 @@
 # -*- coding: utf-8 -*-
+# Copyright 2025 NextGen Systems — OPL-1
+"""Farm Evaluation models — pre-purchase yield assessment.
+
+Models defined here:
+  AgxEvaluation     — The evaluation record: Farm × Crop × Season
+  AgxEvaluationLine — Grade × Size breakdown with expected/actual quantities
+
+Workflow: Draft → Approved → PO Created → Closed
+Key actions: action_approve, action_create_purchase_order
+"""
 """
 evaluation.py — Farm Evaluation & Evaluation Lines
 ====================================================
@@ -45,7 +55,7 @@ class AgxEvaluation(models.Model):
         readonly=True,
         help="Auto-generated reference from the AGX Evaluation sequence.",
     )
-    evaluation_date = fields.Date(
+    evaluation_date = fields.Date(help="Date of the physical farm visit.",
         default=fields.Date.context_today, tracking=True
     )
     company_id = fields.Many2one(
@@ -259,9 +269,11 @@ class AgxEvaluation(models.Model):
         self.write({"state": "approved"})
 
     def action_reset_draft(self):
+        """Reset evaluation back to Draft so it can be edited."""
         self.write({"state": "draft"})
 
     def action_cancel(self):
+        """Cancel the evaluation. Can be reset to Draft if needed."""
         self.write({"state": "cancelled"})
 
     # ------------------------------------------------------------------
@@ -340,6 +352,7 @@ class AgxEvaluation(models.Model):
     # Navigation actions
     # ------------------------------------------------------------------
     def action_view_purchase_order(self):
+        """Open the Purchase Order created from this evaluation."""
         self.ensure_one()
         if not self.po_id:
             return False
@@ -353,6 +366,7 @@ class AgxEvaluation(models.Model):
         }
 
     def action_view_receipts(self):
+        """Open incoming receipts related to this evaluation's PO."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
@@ -396,6 +410,7 @@ class AgxEvaluation(models.Model):
         }
 
     def action_view_batches(self):
+        """Open Production Batches that reference this evaluation."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
@@ -452,7 +467,7 @@ class AgxEvaluationLine(models.Model):
     # ------------------------------------------------------------------
     # Quantities
     # ------------------------------------------------------------------
-    expected_ratio = fields.Float(
+    expected_ratio = fields.Float(help="Expected percentage of total farm qty for this Grade × Size combination.",
         string="Expected %",
         help="Expected yield percentage of this grade/size from the total farm qty.",
     )
@@ -478,7 +493,7 @@ class AgxEvaluationLine(models.Model):
         help="(actual_qty / expected_qty) × 100.",
     )
     uom_id = fields.Many2one("uom.uom", string="UoM")
-    estimated_unit_price = fields.Monetary(currency_field="currency_id")
+    estimated_unit_price = fields.Monetary(help="Agreed purchase price per kg for this grade.",currency_field="currency_id")
     note = fields.Char()
 
     # ------------------------------------------------------------------

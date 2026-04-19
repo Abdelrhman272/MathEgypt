@@ -3,11 +3,11 @@
 <t t-name="agri_export_management.AgxDashboard">
 <div class="agx-dashboard">
 
-  <!-- ── Toolbar ──────────────────────────────────────────────── -->
+  <!-- ── Toolbar ─────────────────────────────────────────────── -->
   <div class="agx-toolbar">
     <div class="agx-toolbar-left">
-      <span class="agx-logo"><i class="fa fa-leaf"/></span>
-      <h1 class="agx-title">Agricultural Export</h1>
+      <span class="agx-logo"><i class="fa fa-leaf" style="color:#22C55E"/></span>
+      <span class="agx-title">Agricultural Export</span>
       <span class="agx-subtitle">Dashboard</span>
     </div>
     <div class="agx-toolbar-right">
@@ -22,11 +22,13 @@
       <t t-if="!state.season_id">
         <input class="agx-input" type="date" t-att-value="state.date_from"
                t-on-change="(e) => { state.date_from = e.target.value; onDateChange(); }"/>
-        <span class="agx-sep"><i class="fa fa-arrow-right"/></span>
+        <span class="agx-sep">&#8594;</span>
         <input class="agx-input" type="date" t-att-value="state.date_to"
                t-on-change="(e) => { state.date_to = e.target.value; onDateChange(); }"/>
       </t>
-      <button class="agx-btn-refresh" t-on-click="onRefresh"><i class="fa fa-refresh"/> Refresh</button>
+      <button class="agx-btn-refresh" t-on-click="onRefresh">
+        <i class="fa fa-refresh"/> Refresh
+      </button>
     </div>
   </div>
 
@@ -34,55 +36,50 @@
   <t t-if="state.loading">
     <div class="agx-loading">
       <div class="agx-spinner"/>
-      <span>Loading dashboard data…</span>
+      <span>Loading…</span>
     </div>
   </t>
 
   <t t-if="!state.loading and state.data">
+  <div class="agx-body">
 
-    <!-- ── KPI Cards ────────────────────────────────────────────── -->
+    <!-- ── KPI Cards ──────────────────────────────────────────── -->
     <div class="agx-kpi-row">
 
       <div class="agx-kpi agx-kpi-green" t-on-click="onShippedClick">
-        <div class="agx-kpi-icon"><i class="fa fa-usd fa-2x"/></div>
+        <div class="agx-kpi-icon"><i class="fa fa-usd"/></div>
         <div class="agx-kpi-body">
-          <div class="agx-kpi-value">
-            <t t-esc="fmt(state.data.kpis.revenue)"/>
-          </div>
-          <div class="agx-kpi-label">Total Revenue</div>
+          <div class="agx-kpi-value"><t t-esc="fmt(state.data.kpis.revenue)"/></div>
+          <div class="agx-kpi-label">Revenue</div>
         </div>
       </div>
 
       <div class="agx-kpi agx-kpi-red">
-        <div class="agx-kpi-icon"><i class="fa fa-ship fa-2x"/></div>
+        <div class="agx-kpi-icon"><i class="fa fa-ship"/></div>
         <div class="agx-kpi-body">
-          <div class="agx-kpi-value">
-            <t t-esc="fmt(state.data.kpis.logistics_cost)"/>
-          </div>
+          <div class="agx-kpi-value"><t t-esc="fmt(state.data.kpis.logistics_cost)"/></div>
           <div class="agx-kpi-label">Logistics Cost</div>
         </div>
       </div>
 
       <div t-attf-class="agx-kpi #{state.data.kpis.gross_profit >= 0 ? 'agx-kpi-blue' : 'agx-kpi-red'}">
-        <div class="agx-kpi-icon"><i class="fa fa-line-chart fa-2x"/></div>
+        <div class="agx-kpi-icon"><i class="fa fa-line-chart"/></div>
         <div class="agx-kpi-body">
-          <div class="agx-kpi-value">
-            <t t-esc="fmt(state.data.kpis.gross_profit)"/>
-          </div>
+          <div class="agx-kpi-value"><t t-esc="fmt(state.data.kpis.gross_profit)"/></div>
           <div class="agx-kpi-label">Gross Profit</div>
         </div>
       </div>
 
       <div t-attf-class="agx-kpi #{state.data.kpis.margin_pct >= 20 ? 'agx-kpi-green' : state.data.kpis.margin_pct >= 0 ? 'agx-kpi-amber' : 'agx-kpi-red'}">
-        <div class="agx-kpi-icon"><i class="fa fa-crosshairs fa-2x"/></div>
+        <div class="agx-kpi-icon"><i class="fa fa-percent"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.margin_pct"/>%</div>
-          <div class="agx-kpi-label">Gross Margin</div>
+          <div class="agx-kpi-label">Margin</div>
         </div>
       </div>
 
       <div class="agx-kpi agx-kpi-teal" t-on-click="onShippedClick">
-        <div class="agx-kpi-icon"><i class="fa fa-check fa-2x"/></div>
+        <div class="agx-kpi-icon"><i class="fa fa-check-circle"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.shipped_count"/></div>
           <div class="agx-kpi-label">Shipped</div>
@@ -90,15 +87,15 @@
       </div>
 
       <div class="agx-kpi agx-kpi-amber" t-on-click="onShipmentsClick">
-        <div class="agx-kpi-icon"><i class="fa fa-hourglass-half fa-2x"/></div>
+        <div class="agx-kpi-icon"><i class="fa fa-clock-o"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.pending_count"/></div>
-          <div class="agx-kpi-label">Pending Shipments</div>
+          <div class="agx-kpi-label">Pending</div>
         </div>
       </div>
 
       <div class="agx-kpi agx-kpi-purple" t-on-click="onBatchesClick">
-        <div class="agx-kpi-icon"><i class="fa fa-industry fa-2x"/></div>
+        <div class="agx-kpi-icon"><i class="fa fa-cogs"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.active_batches"/></div>
           <div class="agx-kpi-label">Active Batches</div>
@@ -106,24 +103,27 @@
       </div>
 
       <div class="agx-kpi agx-kpi-green" t-on-click="onEvaluationsClick">
-        <div class="agx-kpi-icon"><i class="fa fa-list-alt fa-2x"/></div>
+        <div class="agx-kpi-icon"><i class="fa fa-file-text-o"/></div>
         <div class="agx-kpi-body">
           <div class="agx-kpi-value"><t t-esc="state.data.kpis.open_evaluations"/></div>
-          <div class="agx-kpi-label">Open Evaluations</div>
+          <div class="agx-kpi-label">Open Evals</div>
         </div>
       </div>
 
     </div>
 
-    <!-- ── Charts Row 1: Revenue vs Cost + Destinations ────────── -->
+    <!-- ── Charts Row 1 ─────────────────────────────────────── -->
     <div class="agx-charts-row">
-      <div class="agx-card agx-card-wide">
+      <div class="agx-card">
         <div class="agx-card-header">
-          <span class="agx-card-title">Revenue vs Cost vs Profit by Season</span>
+          <span class="agx-card-title">Revenue vs Cost vs Profit</span>
         </div>
         <div class="agx-chart-wrap">
           <canvas id="agx-chart-revenue"/>
         </div>
+        <t t-if="!state.data.revenue_by_season.length">
+          <div class="agx-empty">No season data</div>
+        </t>
       </div>
       <div class="agx-card">
         <div class="agx-card-header">
@@ -133,14 +133,14 @@
           <canvas id="agx-chart-destinations"/>
         </div>
         <t t-if="!state.data.shipments_by_destination.length">
-          <div class="agx-empty">No shipments in this period</div>
+          <div class="agx-empty">No shipments yet</div>
         </t>
       </div>
     </div>
 
-    <!-- ── Charts Row 2: Monthly + Yield ────────────────────────── -->
+    <!-- ── Charts Row 2 ─────────────────────────────────────── -->
     <div class="agx-charts-row">
-      <div class="agx-card agx-card-wide">
+      <div class="agx-card">
         <div class="agx-card-header">
           <span class="agx-card-title">Monthly Shipments &amp; Revenue</span>
         </div>
@@ -148,7 +148,7 @@
           <canvas id="agx-chart-monthly"/>
         </div>
         <t t-if="!state.data.monthly_shipments.length">
-          <div class="agx-empty">No data for this period</div>
+          <div class="agx-empty">No monthly data</div>
         </t>
       </div>
       <div class="agx-card">
@@ -159,24 +159,21 @@
           <canvas id="agx-chart-yield"/>
         </div>
         <t t-if="!state.data.yield_by_season.length">
-          <div class="agx-empty">No batch data available</div>
+          <div class="agx-empty">No batch data</div>
         </t>
       </div>
     </div>
 
-    <!-- ── Top Customers Table ───────────────────────────────────── -->
-    <div class="agx-card agx-card-full">
+    <!-- ── Top Customers ────────────────────────────────────── -->
+    <div class="agx-card">
       <div class="agx-card-header">
-        <span class="agx-card-title">Top 5 Customers</span>
+        <span class="agx-card-title">Top 5 Customers by Revenue</span>
       </div>
       <t t-if="state.data.top_customers.length">
         <table class="agx-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Customer</th>
-              <th>Shipments</th>
-              <th>Revenue</th>
+              <th>#</th><th>Customer</th><th>Shipments</th><th>Revenue</th>
             </tr>
           </thead>
           <tbody>
@@ -185,9 +182,7 @@
                 <td><span class="agx-rank"><t t-esc="c_index + 1"/></span></td>
                 <td class="agx-cust-name"><t t-esc="c.name"/></td>
                 <td><t t-esc="c.shipments"/></td>
-                <td class="agx-revenue">
-                  <t t-esc="fmt(c.revenue)"/>
-                </td>
+                <td class="agx-revenue"><t t-esc="fmt(c.revenue)"/></td>
               </tr>
             </t>
           </tbody>
@@ -198,7 +193,9 @@
       </t>
     </div>
 
+  </div>
   </t>
+
 </div>
 </t>
 </templates>

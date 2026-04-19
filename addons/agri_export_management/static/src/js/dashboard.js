@@ -232,8 +232,8 @@ class AgxDashboard extends Component {
         await this.action.doAction({
             type: "ir.actions.act_window",
             res_model: model,
-            view_mode: `${view},form`,
-            domain,
+            views: [[false, view], [false, "form"]],
+            domain: domain || [],
             target: "current",
         });
     }
