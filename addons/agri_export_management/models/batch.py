@@ -290,6 +290,31 @@ class AgxBatch(models.Model):
     # ------------------------------------------------------------------
     # Computed: stock counts
     # ------------------------------------------------------------------
+
+    @api.depends("packaging_line_ids.total_cost")
+    def _compute_packaging_cost(self):
+        for rec in self:
+            rec.total_packaging_cost = sum(
+                l.total_cost for l in rec.packaging_line_ids
+            )
+
+    @api.depends("scrap_line_ids.scrap_qty", "scrap_line_ids.cost_impact", "input_qty")
+    def _compute_scrap_totals(self):
+        for rec in self:
+            rec.total_scrap_qty  = sum(l.scrap_qty for l in rec.scrap_line_ids)
+            rec.total_scrap_cost = sum(
+                l.cost_impact for l in rec.scrap_line_ids
+            )
+            if rec.input_qty:
+                rec.scrap_pct = rec.total_scrap_qty / rec.input_qty * 100
+            else:
+                rec.scrap_pct = 0.0
+
+    def _compute_qc_count(self):
+        """QC is handled by Odoo quality module — always 0 in AGX."""
+        for rec in self:
+            rec.qc_count = 0
+
     @api.depends(
         "evaluation_id",
         "stock_picking_ids.state",
@@ -1469,6 +1494,16 @@ class AgxBatchScrap(models.Model):
     )
 
     @api.depends("scrap_qty", "batch_id.actual_raw_material_cost", "batch_id.input_qty")
+    @api.constrains("scrap_type", "reason")
+    def _check_scrap_reason(self):
+        for rec in self:
+            if rec.scrap_type == "other" and not (rec.reason or "").strip():
+                raise ValidationError(
+                    "Scrap type 'Other' requires a reason. "
+                    "Please fill in the Reason field."
+                )
+
+
     def _compute_cost_impact(self):
         for rec in self:
             if rec.batch_id.input_qty and rec.batch_id.actual_raw_material_cost:

@@ -1,15 +1,4 @@
 /** @odoo-module **/
-/**
- * AGX Agricultural Export Dashboard — OWL Component
- * A rich client-action dashboard with live data from the server.
- *
- * Architecture:
- *   - OWL Component registered as a client action
- *   - Fetches data via rpc calls to agx.dashboard model
- *   - Chart.js for bar, pie, and line charts
- *   - Renders fully inside Odoo's web client
- */
-
 import { Component, useState, onMounted, onWillUnmount } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
@@ -18,8 +7,8 @@ class AgxDashboard extends Component {
     static template = "agri_export_management.AgxDashboard";
 
     setup() {
-        this.orm = useService("orm");
-        this.action = useService("action");
+        this.orm          = useService("orm");
+        this.action       = useService("action");
         this.notification = useService("notification");
 
         this.state = useState({
@@ -36,7 +25,17 @@ class AgxDashboard extends Component {
         onWillUnmount(() => this._destroyCharts());
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────
+    // ── Helpers exposed to template ───────────────────────────────────
+    fmt(val, decimals = 0) {
+        if (val === undefined || val === null) return "0";
+        return Number(val).toLocaleString("en-US", {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+        });
+    }
+
+    fmtPct(val) { return `${this.fmt(val, 1)}%`; }
+
     _today() {
         return new Date().toISOString().split("T")[0];
     }
@@ -46,23 +45,10 @@ class AgxDashboard extends Component {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     }
 
-    _fmt(val, decimals = 0) {
-        if (val === undefined || val === null) return "0";
-        return Number(val).toLocaleString("en-US", {
-            minimumFractionDigits: decimals,
-            maximumFractionDigits: decimals,
-        });
-    }
-
-    _fmtPct(val) {
-        return `${this._fmt(val, 1)}%`;
-    }
-
-    // ── Data loading ─────────────────────────────────────────────────
+    // ── Data loading ──────────────────────────────────────────────────
     async _loadData() {
         this.state.loading = true;
         try {
-            // Load seasons list
             const seasons = await this.orm.searchRead(
                 "agx.season",
                 [["state", "!=", "cancelled"]],
@@ -71,7 +57,6 @@ class AgxDashboard extends Component {
             );
             this.state.seasons = seasons;
 
-            // Load dashboard data
             const data = await this.orm.call(
                 "agx.dashboard",
                 "get_dashboard_data",
@@ -79,13 +64,11 @@ class AgxDashboard extends Component {
                 {
                     season_id: this.state.season_id || false,
                     date_from: this.state.date_from,
-                    date_to: this.state.date_to,
+                    date_to:   this.state.date_to,
                 }
             );
             this.state.data = data;
             this.state.loading = false;
-
-            // Render charts after DOM update
             setTimeout(() => this._renderCharts(), 100);
         } catch (e) {
             console.error("AGX Dashboard error:", e);
@@ -110,160 +93,114 @@ class AgxDashboard extends Component {
         };
     }
 
-    // ── Chart rendering ───────────────────────────────────────────────
+    // ── Charts ────────────────────────────────────────────────────────
     _destroyCharts() {
         Object.values(this.state.charts).forEach(c => { try { c.destroy(); } catch(e){} });
         this.state.charts = {};
     }
 
-    _getChartDefaults() {
+    _isDark() {
+        // Detect Odoo dark mode
+        return document.documentElement.getAttribute("data-color-scheme") === "dark"
+            || document.body.classList.contains("o_dark");
+    }
+
+    _chartColors() {
+        const dark = this._isDark();
         return {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { labels: { color: "#CBD5E1", font: { family: "DM Sans" } } },
-                tooltip: {
-                    backgroundColor: "#1C2E42",
-                    titleColor: "#F8FAFC",
-                    bodyColor: "#CBD5E1",
-                    borderColor: "#22364F",
-                    borderWidth: 1,
-                },
-            },
+            text:    dark ? "#CBD5E1" : "#374151",
+            grid:    dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+            tooltip: dark ? "#1C2E42"  : "#FFFFFF",
+            tooltipBorder: dark ? "#22364F" : "#E5E7EB",
         };
     }
 
     _renderCharts() {
         const d = this.state.data;
-        if (!d) return;
+        if (!d || !window.Chart) return;
         this._destroyCharts();
 
-        // Chart.js must be loaded from the page
-        const Chart = window.Chart;
-        if (!Chart) return;
+        const cc = this._chartColors();
+        const base = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: cc.text, font: { family: "inherit" } } },
+                tooltip: {
+                    backgroundColor: cc.tooltip,
+                    titleColor: cc.text,
+                    bodyColor: cc.text,
+                    borderColor: cc.tooltipBorder,
+                    borderWidth: 1,
+                },
+            },
+        };
+        const scales = {
+            x: { ticks: { color: cc.text }, grid: { color: cc.grid } },
+            y: { ticks: { color: cc.text }, grid: { color: cc.grid } },
+        };
 
-        const defaults = this._getChartDefaults();
-
-        // ── 1. Revenue vs Cost bar chart ──────────────────────────────
+        // 1. Revenue vs Cost vs Profit
         const barEl = document.getElementById("agx-chart-revenue");
-        if (barEl) {
-            const labels = d.revenue_by_season.map(s => s.name);
-            const revenues = d.revenue_by_season.map(s => s.revenue);
-            const costs = d.revenue_by_season.map(s => s.cost);
-            const profits = d.revenue_by_season.map(s => s.profit);
-            this.state.charts.bar = new Chart(barEl, {
+        if (barEl && d.revenue_by_season.length) {
+            this.state.charts.bar = new window.Chart(barEl, {
                 type: "bar",
                 data: {
-                    labels,
+                    labels: d.revenue_by_season.map(s => s.name),
                     datasets: [
-                        {
-                            label: "Revenue",
-                            data: revenues,
-                            backgroundColor: "rgba(34,197,94,0.8)",
-                            borderRadius: 4,
-                        },
-                        {
-                            label: "Logistics Cost",
-                            data: costs,
-                            backgroundColor: "rgba(248,113,113,0.8)",
-                            borderRadius: 4,
-                        },
-                        {
-                            label: "Gross Profit",
-                            data: profits,
-                            backgroundColor: "rgba(96,165,250,0.8)",
-                            borderRadius: 4,
-                        },
+                        { label: "Revenue",        data: d.revenue_by_season.map(s => s.revenue), backgroundColor: "rgba(34,197,94,0.8)",  borderRadius: 4 },
+                        { label: "Logistics Cost", data: d.revenue_by_season.map(s => s.cost),    backgroundColor: "rgba(248,113,113,0.8)", borderRadius: 4 },
+                        { label: "Gross Profit",   data: d.revenue_by_season.map(s => s.profit),  backgroundColor: "rgba(96,165,250,0.8)",  borderRadius: 4 },
                     ],
                 },
-                options: {
-                    ...defaults,
-                    scales: {
-                        x: { ticks: { color: "#64748B" }, grid: { color: "#22364F" } },
-                        y: { ticks: { color: "#64748B" }, grid: { color: "#22364F" } },
-                    },
-                },
+                options: { ...base, scales },
             });
         }
 
-        // ── 2. Shipments by destination pie ───────────────────────────
+        // 2. Shipments by destination
         const pieEl = document.getElementById("agx-chart-destinations");
         if (pieEl && d.shipments_by_destination.length) {
-            const COLORS = [
-                "#22C55E","#60A5FA","#FBBF24","#A78BFA",
-                "#14B8A6","#F87171","#FB923C","#E879F9",
-            ];
-            this.state.charts.pie = new Chart(pieEl, {
+            this.state.charts.pie = new window.Chart(pieEl, {
                 type: "doughnut",
                 data: {
                     labels: d.shipments_by_destination.map(x => x.name),
                     datasets: [{
                         data: d.shipments_by_destination.map(x => x.count),
-                        backgroundColor: COLORS,
+                        backgroundColor: ["#22C55E","#60A5FA","#FBBF24","#A78BFA","#14B8A6","#F87171","#FB923C","#E879F9"],
                         borderWidth: 2,
-                        borderColor: "#0D1B2A",
+                        borderColor: "transparent",
                     }],
                 },
-                options: {
-                    ...defaults,
-                    cutout: "65%",
-                },
+                options: { ...base, cutout: "65%" },
             });
         }
 
-        // ── 3. Monthly shipments line chart ───────────────────────────
+        // 3. Monthly shipments + revenue
         const lineEl = document.getElementById("agx-chart-monthly");
         if (lineEl && d.monthly_shipments.length) {
-            this.state.charts.line = new Chart(lineEl, {
+            this.state.charts.line = new window.Chart(lineEl, {
                 type: "line",
                 data: {
                     labels: d.monthly_shipments.map(x => x.month),
                     datasets: [
-                        {
-                            label: "Shipments",
-                            data: d.monthly_shipments.map(x => x.count),
-                            borderColor: "#22C55E",
-                            backgroundColor: "rgba(34,197,94,0.1)",
-                            tension: 0.4,
-                            fill: true,
-                            pointBackgroundColor: "#22C55E",
-                        },
-                        {
-                            label: "Revenue (k)",
-                            data: d.monthly_shipments.map(x => x.revenue / 1000),
-                            borderColor: "#60A5FA",
-                            backgroundColor: "rgba(96,165,250,0.1)",
-                            tension: 0.4,
-                            fill: true,
-                            pointBackgroundColor: "#60A5FA",
-                            yAxisID: "y2",
-                        },
+                        { label: "Shipments", data: d.monthly_shipments.map(x => x.count), borderColor: "#22C55E", backgroundColor: "rgba(34,197,94,0.1)", tension: 0.4, fill: true, pointBackgroundColor: "#22C55E" },
+                        { label: "Revenue (k)", data: d.monthly_shipments.map(x => x.revenue / 1000), borderColor: "#60A5FA", backgroundColor: "rgba(96,165,250,0.1)", tension: 0.4, fill: true, pointBackgroundColor: "#60A5FA", yAxisID: "y2" },
                     ],
                 },
                 options: {
-                    ...defaults,
+                    ...base,
                     scales: {
-                        x: { ticks: { color: "#64748B" }, grid: { color: "#22364F" } },
-                        y: {
-                            ticks: { color: "#64748B" },
-                            grid: { color: "#22364F" },
-                            title: { display: true, text: "Shipments", color: "#64748B" },
-                        },
-                        y2: {
-                            position: "right",
-                            ticks: { color: "#64748B" },
-                            grid: { drawOnChartArea: false },
-                            title: { display: true, text: "Revenue (k)", color: "#64748B" },
-                        },
+                        ...scales,
+                        y2: { position: "right", ticks: { color: cc.text }, grid: { drawOnChartArea: false } },
                     },
                 },
             });
         }
 
-        // ── 4. Yield % by season horizontal bar ───────────────────────
+        // 4. Yield % by season
         const yieldEl = document.getElementById("agx-chart-yield");
         if (yieldEl && d.yield_by_season.length) {
-            this.state.charts.yield = new Chart(yieldEl, {
+            this.state.charts.yield = new window.Chart(yieldEl, {
                 type: "bar",
                 data: {
                     labels: d.yield_by_season.map(x => x.name),
@@ -279,22 +216,18 @@ class AgxDashboard extends Component {
                     }],
                 },
                 options: {
-                    ...defaults,
+                    ...base,
                     indexAxis: "y",
                     scales: {
-                        x: {
-                            ticks: { color: "#64748B", callback: v => v + "%" },
-                            grid: { color: "#22364F" },
-                            max: 100,
-                        },
-                        y: { ticks: { color: "#64748B" }, grid: { color: "#22364F" } },
+                        x: { ...scales.x, max: 100, ticks: { ...scales.x.ticks, callback: v => v + "%" } },
+                        y: scales.y,
                     },
                 },
             });
         }
     }
 
-    // ── Navigation ───────────────────────────────────────────────────
+    // ── Navigation ────────────────────────────────────────────────────
     async _navigate(model, domain, view = "list") {
         await this.action.doAction({
             type: "ir.actions.act_window",
@@ -314,11 +247,7 @@ class AgxDashboard extends Component {
         this.state.season_id = parseInt(ev.target.value) || false;
         await this._loadData();
     }
-
-    async onDateChange() {
-        await this._loadData();
-    }
-
+    async onDateChange() { await this._loadData(); }
     async onRefresh() {
         await this._loadData();
         this.notification.add("Dashboard refreshed", { type: "success" });
@@ -326,5 +255,4 @@ class AgxDashboard extends Component {
 }
 
 registry.category("actions").add("agx_dashboard_action", AgxDashboard);
-
 export { AgxDashboard };
