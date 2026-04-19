@@ -1,19 +1,4 @@
 # -*- coding: utf-8 -*-
-# Copyright 2025 NextGen Systems — OPL-1
-"""Dashboard data model for Agricultural Export Management.
-
-Models defined here:
-  AgxDashboard — Transient model providing all KPI and chart data via
-                 get_dashboard_data() RPC method.
-
-The OWL component (static/src/js/dashboard.js) calls get_dashboard_data()
-with optional season_id and date_from/date_to filters.
-
-KPIs: revenue, logistics_cost, gross_profit, margin_pct,
-      shipped_count, pending_count, active_batches, open_evaluations
-Charts: revenue_by_season, shipments_by_destination,
-        monthly_shipments, yield_by_season, top_customers
-"""
 """
 dashboard.py — Agricultural Export Dashboard
 =============================================
@@ -266,8 +251,8 @@ class AgxDashboard(models.Model):
 
             # Highlights — top destination and customer by shipment count
             destinations = Counter(
-                shipments.filtered(lambda s: s.destination_country_id).mapped(
-                    "destination_country_id.name"
+                shipments.filtered(lambda s: s.destination_id).mapped(
+                    "destination_id.name"
                 )
             )
             customers = Counter(
@@ -395,7 +380,6 @@ class AgxDashboard(models.Model):
         )
 
     def action_open_profitability(self):
-        """Open a pivot report filtered to shipped shipments for P&L analysis."""
         self.ensure_one()
         return self._action_for_model(
             "agx.shipment",
@@ -405,7 +389,6 @@ class AgxDashboard(models.Model):
         )
 
     def action_open_incoming_receipts(self):
-        """Open incoming receipts waiting for validation."""
         self.ensure_one()
         return self._action_for_model(
             "stock.picking",
@@ -473,7 +456,7 @@ class AgxDashboard(models.Model):
         # ── Shipments by destination ─────────────────────────────────
         dest_counter = {}
         for shp in shipments:
-            dest = shp.destination_country_id.name if shp.destination_country_id else "Other"
+            dest = shp.destination_id.name if shp.destination_id else "Other"
             dest_counter[dest] = dest_counter.get(dest, 0) + 1
         shipments_by_destination = [
             {"name": k, "count": v}

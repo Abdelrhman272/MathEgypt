@@ -65,7 +65,7 @@
                                     </tr>
                                     <tr>
                                         <td><strong>Farm:</strong></td>
-                                        <td t-esc="o.evaluation_id.farm_partner_id.name if o.evaluation_id and o.evaluation_id.farm_partner_id else '-'"/>
+                                        <td t-esc="o.evaluation_id.farm_id.name if o.evaluation_id and o.evaluation_id.farm_id else '-'"/>
                                     </tr>
                                     <tr>
                                         <td><strong>Status:</strong></td>
@@ -274,9 +274,9 @@
                                     <tr>
                                         <td><strong>Destination:</strong></td>
                                         <td>
-                                            <t t-esc="o.destination_country_id.name or '-'"/>
-                                            <t t-if="o.destination_port">
-                                                (<t t-esc="o.destination_port"/>)
+                                            <t t-esc="o.destination_id.name or '-'"/>
+                                            <t t-if="o.destination_id.port_name">
+                                                (<t t-esc="o.destination_id.port_name"/>)
                                             </t>
                                         </td>
                                     </tr>
@@ -473,15 +473,15 @@
                                     </tr>
                                     <tr>
                                         <td><strong>Farm:</strong></td>
-                                        <td t-esc="o.farm_partner_id.display_name if o.farm_partner_id else '-'"/>
+                                        <td t-esc="o.farm_id.display_name"/>
                                     </tr>
                                     <tr>
                                         <td><strong>Vendor:</strong></td>
                                         <td t-esc="o.partner_id.display_name or '-'"/>
                                     </tr>
-                                    <tr t-if="o.crop_category_id">
+                                    <tr t-if="o.crop_id">
                                         <td><strong>Crop:</strong></td>
-                                        <td t-esc="o.crop_category_id.name"/>
+                                        <td t-esc="o.crop_id.name"/>
                                     </tr>
                                     <tr t-if="o.season_id">
                                         <td><strong>Season:</strong></td>
@@ -692,7 +692,7 @@
                                 <t t-if="o.evaluation_ids or o.lot_line_ids">
                                     <div style="font-size:10px; color:#555; margin-top:4px;">
                                         Source:
-                                        <t t-esc="', '.join(set(o.lot_line_ids.mapped('batch_output_id.batch_id.evaluation_id.farm_partner_id.agx_region') or ['Egypt']))"/>
+                                        <t t-esc="', '.join(set(o.lot_line_ids.mapped('batch_output_id.batch_id.evaluation_id.farm_id.region') or ['Egypt']))"/>
                                     </div>
                                 </t>
                             </td>
@@ -703,11 +703,11 @@
                                     4. Country of Destination
                                 </div>
                                 <div style="font-weight:bold;">
-                                    <t t-esc="o.destination_country_id.name if o.destination_country_id else '—'"/>
+                                    <t t-esc="o.destination_id.name if o.destination_id else '—'"/>
                                 </div>
-                                <t t-if="o.destination_port">
+                                <t t-if="o.destination_id and o.destination_id.port_name">
                                     <div style="font-size:10px; color:#555;">
-                                        Port: <t t-esc="o.destination_port"/>
+                                        Port: <t t-esc="o.destination_id.port_name"/>
                                     </div>
                                 </t>
                             </td>
@@ -858,7 +858,7 @@
                                         <td style="padding:5px 8px;"
                                             t-esc="ll.batch_output_id.batch_id.name if ll.batch_output_id else '—'"/>
                                         <td style="padding:5px 8px;"
-                                            t-esc="ll.batch_output_id.batch_id.evaluation_id.farm_partner_id.name if ll.batch_output_id and ll.batch_output_id.batch_id and ll.batch_output_id.batch_id.evaluation_id else '—'"/>
+                                            t-esc="ll.batch_output_id.batch_id.evaluation_id.farm_id.name if ll.batch_output_id and ll.batch_output_id.batch_id and ll.batch_output_id.batch_id.evaluation_id else '—'"/>
                                     </tr>
                                 </t>
                             </tbody>

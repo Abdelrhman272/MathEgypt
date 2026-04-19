@@ -1,18 +1,4 @@
 # -*- coding: utf-8 -*-
-# Copyright 2025 NextGen Systems — OPL-1
-"""Export Shipment models — container booking, lot reservation, costing.
-
-Models defined here:
-  AgxShipment         — The shipment record (ETD/ETA, B/L, vessel)
-  AgxShipmentContainer — Individual containers on the shipment
-  AgxShipmentLine     — Products to ship (Grade × Size × Qty)
-  AgxShipmentLotLine  — Reserved lots with Lot → Carton → Pallet hierarchy
-  AgxShipmentCostLine — Logistics cost lines (manual, vendor bill, landed cost)
-  AgxClaim            — Customer claims linked to shipment + lots + credit notes
-
-Workflow: Draft → Reserved → Shipped (or Cancelled)
-Key constraint: UoM must match product UoM category (enforced by @api.constrains).
-"""
 """
 shipment.py — Export Shipment Models
 ======================================
@@ -108,14 +94,9 @@ class AgxShipment(models.Model):
         string="Customer",
         tracking=True,
     )
-    destination_country_id = fields.Many2one(
-        "res.country",
-        string="Destination Country",
+    destination_id = fields.Many2one(
+        "agx.destination",
         tracking=True,
-    )
-    destination_port = fields.Char(
-        string="Destination Port",
-        help="Port of discharge (e.g. Rotterdam, Hamburg).",
     )
     season_id = fields.Many2one(
         "agx.season",
@@ -148,7 +129,7 @@ class AgxShipment(models.Model):
         string="Vessel",
         help="Name of the vessel carrying this shipment.",
     )
-    voyage_no = fields.Char(help="Voyage number assigned by the shipping line.",
+    voyage_no = fields.Char(
         string="Voyage No",
     )
     etd = fields.Date(
@@ -209,24 +190,41 @@ class AgxShipment(models.Model):
     # ------------------------------------------------------------------
     # Linked documents
     # ------------------------------------------------------------------
-    # Claims
+    # Claims + QC
     claim_count = fields.Integer(compute="_compute_claim_count")
+    qc_count    = fields.Integer(compute="_compute_qc_count_shp")
 
     def _compute_claim_count(self):
         Claim = self.env["agx.claim"]
         for rec in self:
             rec.claim_count = Claim.search_count([("shipment_id", "=", rec.id)])
 
+    def _compute_qc_count_shp(self):
+        QC = self.env["agx.qc.inspection"]
+        for rec in self:
+            rec.qc_count = QC.search_count([("shipment_id", "=", rec.id)])
+
     def action_view_claims(self):
-        """Open Customer Claims linked to this shipment."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
-            "name": "Customer Claims",
+            "name": "Claims",
             "res_model": "agx.claim",
             "view_mode": "list,form",
             "domain": [("shipment_id", "=", self.id)],
             "context": {"default_shipment_id": self.id},
+        }
+
+    def action_view_qc_inspections(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "QC Inspections",
+            "res_model": "agx.qc.inspection",
+            "view_mode": "list,form",
+            "domain": [("shipment_id", "=", self.id)],
+            "context": {"default_shipment_id": self.id,
+                        "default_inspection_type": "pre_shipment"},
         }
 
     sale_order_id = fields.Many2one("sale.order", copy=False)
@@ -1136,7 +1134,6 @@ class AgxShipment(models.Model):
         return self.action_view_sale_order()
 
     def action_view_sale_order(self):
-        """Open the Sale Order generated when this shipment was marked as shipped."""
         self.ensure_one()
         if not self.sale_order_id:
             return False
@@ -1150,7 +1147,6 @@ class AgxShipment(models.Model):
         }
 
     def action_view_delivery(self):
-        """Open the Delivery Order (outgoing picking) for this shipment."""
         self.ensure_one()
         if not self.delivery_picking_id:
             return False
@@ -1302,27 +1298,6 @@ class AgxShipmentLine(models.Model):
                     rec.container_id = first.id
         return records
 
-    @api.constrains("uom_id", "product_id")
-    def _check_uom_matches_product(self):
-        """UoM must be in the same category as the product UoM.
-
-        Prevents the common mistake of entering kg on a line where the
-        finished product is measured in PACK OF 15, which causes
-        'not enough available lots' errors during lot reservation.
-        """
-        for rec in self:
-            if rec.uom_id and rec.product_id:
-                if rec.uom_id.category_id != rec.product_id.uom_id.category_id:
-                    raise ValidationError(
-                        "UoM '%s' is not compatible with product UoM '%s'. "
-                        "Please use a UoM from the '%s' category."
-                        % (
-                            rec.uom_id.name,
-                            rec.product_id.uom_id.name,
-                            rec.product_id.uom_id.category_id.name,
-                        )
-                    )
-
     @api.onchange("product_id")
     def _onchange_product_id(self):
         """Default UoM and auto-fill grade/size from variant attributes."""
@@ -1349,7 +1324,6 @@ class AgxShipmentLine(models.Model):
 
     @api.constrains("container_id", "shipment_id")
     def _check_container_shipment(self):
-        """Prevent the same container from being used in two different shipments."""
         for rec in self:
             if (
                 rec.container_id
@@ -1595,20 +1569,15 @@ class AgxShipmentCostLine(models.Model):
 # ════════════════════════════════════════════════════════════════════
 # Customer Claims / Complaints
 # ════════════════════════════════════════════════════════════════════
-
-
-# ════════════════════════════════════════════════════════════════════
-# Customer Claim — AGX Native
-# Linked to shipment → lots → batch → farm for full traceability
-# ════════════════════════════════════════════════════════════════════
 class AgxClaim(models.Model):
     """Customer claim linked to an Export Shipment.
 
-    AGX-native model (not Helpdesk) because claims need:
-      - Lot-level traceability (which lot caused the issue)
-      - Batch traceability (which batch produced it)
-      - Farm traceability (which farm it came from)
-      - Credit note linkage on the same shipment SO
+    Captures post-delivery quality complaints, quantity discrepancies,
+    and documentation issues — with full traceability back to the
+    shipment, lots, batches, and farm.
+
+    Claim lifecycle:
+      draft → under_review → resolved / rejected / credited
     """
 
     _name = "agx.claim"
@@ -1624,13 +1593,15 @@ class AgxClaim(models.Model):
     )
     company_id = fields.Many2one(
         "res.company", required=True,
-        default=lambda self: self.env.company,
+        default=lambda self: self.env.company, index=True,
     )
     currency_id = fields.Many2one(
         related="company_id.currency_id", store=True, readonly=True
     )
+
     shipment_id = fields.Many2one(
-        "agx.shipment", required=True, tracking=True, index=True
+        "agx.shipment", required=True,
+        string="Shipment", tracking=True, index=True,
     )
     customer_id = fields.Many2one(
         related="shipment_id.customer_id", store=True, readonly=True
@@ -1638,6 +1609,7 @@ class AgxClaim(models.Model):
     season_id = fields.Many2one(
         related="shipment_id.season_id", store=True, readonly=True
     )
+
     claim_type = fields.Selection(
         [
             ("quality",       "Quality / Grade Discrepancy"),
@@ -1659,38 +1631,60 @@ class AgxClaim(models.Model):
         ],
         default="draft", tracking=True,
     )
+
+    # Affected lots
     lot_ids = fields.Many2many(
         "stock.lot", string="Affected Lots",
-        help="Auto-suggested from shipment reserved lots.",
+        help="Which lots are involved in this claim — auto-suggest from shipment.",
     )
-    claimed_qty   = fields.Float()
-    claimed_value = fields.Monetary(help="Value of the claim as stated by the customer.",currency_field="currency_id")
-    agreed_credit = fields.Monetary(currency_field="currency_id", help="Final agreed compensation amount after claim review.", tracking=True)
-    root_cause    = fields.Text()
-    resolution    = fields.Text()
+
+    claimed_qty  = fields.Float(help="Quantity disputed by customer.")
+    claimed_value = fields.Monetary(
+        currency_field="currency_id",
+        help="Financial value of the claim as stated by customer.",
+    )
+    agreed_credit = fields.Monetary(
+        currency_field="currency_id",
+        help="Credit note / compensation amount agreed.",
+        tracking=True,
+    )
+
+    root_cause = fields.Text(help="Root cause analysis.")
+    resolution = fields.Text(help="How the claim was resolved.")
+    note       = fields.Html()
+
+    # Credit note link
     credit_note_id = fields.Many2one(
         "account.move",
         domain="[('move_type','=','out_refund')]",
+        string="Credit Note",
         copy=False, readonly=True,
     )
-    note = fields.Html()
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", _("New")) == _("New"):
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("agx.claim") or _("New")
+                    self.env["ir.sequence"].next_by_code("agx.claim")
+                    or _("New")
                 )
         return super().create(vals_list)
 
     @api.onchange("shipment_id")
     def _onchange_shipment(self):
-        """Pre-populate affected lots from the shipment's reserved lots."""
+        """Pre-fill lots from shipment reserved lots."""
         if self.shipment_id:
             self.lot_ids = self.shipment_id.lot_line_ids.mapped("lot_id")
 
-    def action_review(self):   self.write({"state": "under_review"})
-    def action_resolve(self):  self.write({"state": "resolved"})
-    def action_reject(self):   self.write({"state": "rejected"})
-    def action_credit(self):   self.write({"state": "credited"})
+    def action_review(self):
+        self.write({"state": "under_review"})
+
+    def action_resolve(self):
+        self.write({"state": "resolved"})
+
+    def action_reject(self):
+        self.write({"state": "rejected"})
+
+    def action_credit(self):
+        self.write({"state": "credited"})

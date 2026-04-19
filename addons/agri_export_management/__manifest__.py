@@ -2,87 +2,58 @@
 {
     "name": "Agricultural Export Management",
     "summary": (
-        "Complete farm-to-shipment workflow for agricultural exporters: "
-        "farm evaluations, production batches, lot reservation, cold storage, "
-        "container management, logistics costing, season P&L, and profitability dashboard."
+        "End-to-end agricultural export operations: farm evaluations, "
+        "production batches, lot-level inventory, cold storage, "
+        "shipment management, logistics costing, season analytics, "
+        "and profitability dashboards."
     ),
     "description": """
 Agricultural Export Management
 ================================
 
-A complete end-to-end Odoo 19 vertical solution for agricultural exporters,
-packhouses, and fresh produce trading companies.
+A complete Odoo 19 module for agricultural export companies.
 
-Key Features
-------------
-**Farm Evaluation**
-- Pre-purchase yield assessment per grade and size
-- Expected vs actual comparison with achievement %
-- One-click Purchase Order creation with analytic distribution
+**Core Workflow**
 
-**Production Batch**
-- Raw material → finished goods with lot tracking
-- Scrap/waste recording with 5 types and cost impact
-- Packaging material costs integrated into absorption costing
-- Optional Manufacturing Order (MRP) mode
+Farm Evaluation → Purchase Order → Goods Receipt →
+Production Batch → (Cold Storage) → Export Shipment →
+Sales Order → Delivery
 
-**Export Shipment**
-- Container management with lot-level reservation (FIFO, grade/size filtered)
-- Lot → Carton → Pallet hierarchy
-- Logistics cost allocation (5 allocation bases)
-- Automated Sales Order and Delivery Order generation
-- Business validations (ETD, ETA, duplicate B/L, UoM enforcement)
+**Key Features**
 
-**Season Analytics**
-- Automatic analytic account per season
-- Full P&L per season via Odoo Analytic Reports
-- Dashboard with 8 KPIs and 4 interactive charts
+* **Farm Evaluations** — pre-purchase yield assessment per grade/size
+* **Production Batches** — raw-to-finished goods with automatic stock moves
+* **Cold Storage** — optional refrigerated storage step between packing and export
+* **Export Shipments** — container management, lot reservation, delivery creation
+* **Logistics Costing** — multi-source cost lines with flexible allocation bases
+* **Season Analytics** — analytic account per season for full P&L reporting
+* **Product Variant Bridge** — Grade + Size = stock variant via Initialize wizard
+* **Traceability** — lot → batch → farm → shipment in one click
+* **Profitability Dashboard** — KPIs per period or per season
 
-**Customer Claims**
-- Claims linked to shipment, lots, batch, and farm
-- Full lifecycle with credit note integration
+**Stock Location Map**
 
-**Multi-Company (Intercompany)**
-- Suggestion system for linking intercompany SOs to evaluations
-- No silent auto-linking — user always confirms
+| Location | Purpose |
+|---|---|
+| Raw Material | Incoming produce from farms |
+| Production | Virtual (usage=production); auto-zeros |
+| Finished Goods | Packed cartons after batch |
+| Cold Storage | Refrigerated storage before export |
+| Customer | Virtual destination for shipped goods |
 
-**Reports**
-- Shipment Packing List (customer-facing, no internal costs)
-- Certificate of Origin (customs-ready with lot/batch/farm traceability)
-- Farm Evaluation Report
-- Production Batch Report (inputs, outputs, costing, yield)
+**Configuration**
 
-**Arabic Support**
-- Full Arabic translation (i18n/ar.po, 180+ strings)
+After installation, go to Agricultural Export → Configuration → Settings
+and configure the four stock locations and two picking types.
 
-Standard Odoo Integration
---------------------------
-- Farms: res.partner with "Is Agricultural Farm" flag
-- Crops: product.category with "Is Agricultural Crop" flag
-- Destination: res.country + port field
-- QC Inspections: uses Odoo Quality module (optional)
-
-Required Modules
-----------------
-base, mail, purchase, stock, mrp, sale_management,
-account, analytic, base_setup, stock_landed_costs
-
-Configuration
--------------
-1. Set Raw/Production/Finished Goods/Cold Storage locations in Settings
-2. Mark vendor partners as "Is Agricultural Farm"
-3. Mark product categories as "Is Agricultural Crop"
-4. Run Initialize Product Attributes wizard
-5. Create and activate a Production Season
+Run Configuration → Initialize Product Attributes to link Grade/Size
+to product variants automatically.
     """,
-    "version": "19.0.9.0.0",
+    "version": "19.0.7.0.0",
     "category": "Inventory/Inventory",
-    "license": "OPL-1",
     "author": "NextGen Systems",
-    "website": "https://www.nexgensystems.net",
-    "support": "support@nexgensystems.net",
-    "price": 249.00,
-    "currency": "EUR",
+    "website": "",
+    "license": "LGPL-3",
     "depends": [
         "base",
         "mail",
@@ -108,7 +79,7 @@ Configuration
         "views/purchase_views.xml",
         "wizard/wizard_views.xml",
         "views/settings_views.xml",
-        "views/claim_views.xml",
+        "views/qc_views.xml",
         "report/agx_reports.xml",
     ],
     "test": [
@@ -123,10 +94,8 @@ Configuration
             "agri_export_management/static/src/js/dashboard.js",
         ],
     },
-    "images": [
-        "static/description/banner.png",
-    ],
     "application": True,
     "installable": True,
     "auto_install": False,
+    "images": ["static/description/banner.png"],
 }

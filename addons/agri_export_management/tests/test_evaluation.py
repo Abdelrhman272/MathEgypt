@@ -12,7 +12,7 @@ class TestAgxEvaluation(TransactionCase):
         super().setUp()
         company = self.env.company
 
-        self.crop = self.env['product.category'].create({'name': 'Test Orange', 'is_agx_crop': True})
+        self.crop = self.env['agx.crop'].create({'name': 'Test Orange', 'code': 'TST'})
         self.grade_a = self.env['agx.grade'].create({'name': 'A', 'code': 'A', 'sequence': 1})
         self.grade_b = self.env['agx.grade'].create({'name': 'B', 'code': 'B', 'sequence': 2})
 
@@ -23,12 +23,12 @@ class TestAgxEvaluation(TransactionCase):
         self.vendor = self.env['res.partner'].create({
             'name': 'Test Farm Vendor', 'supplier_rank': 1
         })
-        self.farm = self.env['res.partner'].create({
+        self.farm = self.env['agx.farm'].create({
             'name': 'Test Farm', 'code': 'TF-001', 'partner_id': self.vendor.id
         })
         self.season = self.env['agx.season'].create({
             'name': 'Test Season 2025', 'code': 'TST-25',
-            'crop_category_id': self.crop.id, 'state': 'active',
+            'crop_id': self.crop.id, 'state': 'active',
         })
         self.raw_product = self.env['product.template'].create({
             'name': 'Test Raw Product', 'type': 'consu',
@@ -39,9 +39,9 @@ class TestAgxEvaluation(TransactionCase):
 
     def _make_eval(self, qty=1000.0):
         return self.env['agx.evaluation'].create({
-            'farm_partner_id': self.vendor.id,
+            'farm_id': self.farm.id,
             'partner_id': self.vendor.id,
-            'crop_category_id': self.crop.id,
+            'crop_id': self.crop.id,
             'season_id': self.season.id,
             'evaluation_date': '2025-11-01',
             'farm_expected_qty': qty,

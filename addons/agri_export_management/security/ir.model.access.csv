@@ -1,8 +1,14 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_agx_farm_user,agx.farm user,model_agx_farm,agri_export_management.group_agx_user,1,1,1,0
+access_agx_farm_manager,agx.farm manager,model_agx_farm,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_crop_user,agx.crop user,model_agx_crop,agri_export_management.group_agx_user,1,1,1,0
+access_agx_crop_manager,agx.crop manager,model_agx_crop,agri_export_management.group_agx_manager,1,1,1,1
 access_agx_grade_user,agx.grade user,model_agx_grade,agri_export_management.group_agx_user,1,1,1,0
 access_agx_grade_manager,agx.grade manager,model_agx_grade,agri_export_management.group_agx_manager,1,1,1,1
 access_agx_size_user,agx.size user,model_agx_size,agri_export_management.group_agx_user,1,1,1,0
 access_agx_size_manager,agx.size manager,model_agx_size,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_destination_user,agx.destination user,model_agx_destination,agri_export_management.group_agx_user,1,1,1,0
+access_agx_destination_manager,agx.destination manager,model_agx_destination,agri_export_management.group_agx_manager,1,1,1,1
 access_agx_shipment_cost_type_user,agx.shipment.cost.type user,model_agx_shipment_cost_type,agri_export_management.group_agx_user,1,1,1,0
 access_agx_shipment_cost_type_manager,agx.shipment.cost.type manager,model_agx_shipment_cost_type,agri_export_management.group_agx_manager,1,1,1,1
 access_agx_evaluation_user,agx.evaluation user,model_agx_evaluation,agri_export_management.group_agx_user,1,1,1,0
@@ -38,5 +44,11 @@ access_agx_packaging_material_user,agx.packaging.material user,model_agx_packagi
 access_agx_packaging_material_manager,agx.packaging.material manager,model_agx_packaging_material,agri_export_management.group_agx_manager,1,1,1,1
 access_agx_batch_packaging_line_user,agx.batch.packaging.line user,model_agx_batch_packaging_line,agri_export_management.group_agx_user,1,1,1,0
 access_agx_batch_packaging_line_manager,agx.batch.packaging.line manager,model_agx_batch_packaging_line,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_qc_inspection_user,agx.qc.inspection user,model_agx_qc_inspection,agri_export_management.group_agx_user,1,1,1,0
+access_agx_qc_inspection_manager,agx.qc.inspection manager,model_agx_qc_inspection,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_qc_inspection_line_user,agx.qc.inspection.line user,model_agx_qc_inspection_line,agri_export_management.group_agx_user,1,1,1,0
+access_agx_qc_inspection_line_manager,agx.qc.inspection.line manager,model_agx_qc_inspection_line,agri_export_management.group_agx_manager,1,1,1,1
+access_agx_qc_rejection_user,agx.qc.rejection user,model_agx_qc_rejection,agri_export_management.group_agx_user,1,1,1,0
+access_agx_qc_rejection_manager,agx.qc.rejection manager,model_agx_qc_rejection,agri_export_management.group_agx_manager,1,1,1,1
 access_agx_claim_user,agx.claim user,model_agx_claim,agri_export_management.group_agx_user,1,1,1,0
 access_agx_claim_manager,agx.claim manager,model_agx_claim,agri_export_management.group_agx_manager,1,1,1,1
