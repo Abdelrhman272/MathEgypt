@@ -94,6 +94,15 @@ class AgxShipment(models.Model):
         string="Customer",
         tracking=True,
     )
+    destination_country_id = fields.Many2one(
+        "res.country",
+        string="Destination Country",
+        tracking=True,
+    )
+    destination_port = fields.Char(
+        string="Destination Port",
+        help="Port of discharge (e.g. Rotterdam, Hamburg).",
+    )
     season_id = fields.Many2one(
         "agx.season",
         string="Season",
