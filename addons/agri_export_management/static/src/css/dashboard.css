@@ -5,18 +5,18 @@
 .o_action:has(.agx-dashboard),
 .o_view_controller:has(.agx-dashboard) {
     position: relative !important;
-    overflow: hidden !important;
+    overflow: visible !important;
 }
 
 /* ── Root element — fills parent, scrolls independently ──────────── */
 .agx-dashboard {
     /* Layout */
-    position: absolute;
-    inset: 0;                  /* top:0 right:0 bottom:0 left:0 */
+    position: relative;        /* top:0 right:0 bottom:0 left:0 */
     overflow-y: auto;          /* scroll bar on right side */
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
+    min-height: max-content;
     padding-bottom: 32px;
 
     /* Typography */
@@ -67,9 +67,9 @@ html[data-color-scheme="dark"] .agx-dashboard,
     padding: 8px 16px;
     background: var(--agx-panel);
     border-bottom: 2px solid var(--agx-green);
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    position: relative;
+    top: auto;
+    z-index: 1;
     box-shadow: var(--agx-sh);
     flex-shrink: 0;
 }
