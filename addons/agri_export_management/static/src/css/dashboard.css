@@ -12,7 +12,10 @@
 .agx-dashboard {
     /* Layout */
     position: absolute;
-    inset: 0;                  /* top:0 right:0 bottom:0 left:0 */
+    top: 48px;      
+    right: 0;
+    bottom: 0;
+    left: 0;                 
     overflow-y: auto;          /* scroll bar on right side */
     overflow-x: hidden;
     display: flex;
