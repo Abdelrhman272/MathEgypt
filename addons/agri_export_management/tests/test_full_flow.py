@@ -21,27 +21,29 @@ class TestFullWorkflow(TransactionCase):
         env = cls.env
 
         # ── Master data ──────────────────────────────────────────
-        cls.crop    = env['product.category'].create({'name': 'Flow Orange', 'is_agx_crop': True})
+        cls.crop    = env['agx.crop'].create({'name': 'Flow Orange', 'code': 'FLW'})
         cls.grade_a = env['agx.grade'].create({'name': 'A', 'code': 'FA', 'sequence': 1})
         cls.grade_b = env['agx.grade'].create({'name': 'B', 'code': 'FB', 'sequence': 2})
         cls.size_40 = env['agx.size'].create({'number': 40, 'name': '40', 'sequence': 40})
 
         cls.vendor  = env['res.partner'].create({
-            'name': 'Flow Farm Vendor', 'supplier_rank': 1, 'is_agx_farm': True,
+            'name': 'Flow Farm Vendor', 'supplier_rank': 1,
             'country_id': env.ref('base.eg').id,
         })
         cls.customer = env['res.partner'].create({
             'name': 'Flow Customer NL', 'customer_rank': 1,
             'country_id': env.ref('base.nl').id,
         })
-        cls.farm = env['res.partner'].create({
+        cls.farm = env['agx.farm'].create({
             'name': 'Flow Farm', 'code': 'FF-001', 'partner_id': cls.vendor.id
         })
         cls.season = env['agx.season'].create({
             'name': 'Flow Season 2025', 'code': 'FS-25',
-            'crop_category_id': cls.crop.id, 'state': 'active',
+            'crop_id': cls.crop.id, 'date_start': '2025-01-01', 'state': 'active',
         })
-        cls.destination = env['res.country'].search([('code', '=', 'NL')], limit=1)
+        cls.destination = env['agx.destination'].create({
+            'name': 'Netherlands', 'port_name': 'Rotterdam',
+        })
 
         # ── Products ─────────────────────────────────────────────
         uom_kg   = env.ref('uom.product_uom_kgm')
@@ -71,9 +73,9 @@ class TestFullWorkflow(TransactionCase):
     def test_01_evaluation_lifecycle(self):
         """Full evaluation state machine."""
         ev = self.env['agx.evaluation'].create({
-            'farm_partner_id': self.vendor.id,
+            'farm_id': self.farm.id,
             'partner_id': self.vendor.id,
-            'crop_category_id': self.crop.id,
+            'crop_id': self.crop.id,
             'season_id': self.season.id,
             'evaluation_date': '2025-11-01',
             'farm_expected_qty': 5000.0,
@@ -172,15 +174,89 @@ class TestFullWorkflow(TransactionCase):
         shp._validate_before_reserve()
         self.assertEqual(fin_line.uom_id, self.fin_product.uom_id)
 
+    def test_04_qc_inspection_flow(self):
+        """QC inspection full lifecycle."""
+        batch = self.env['agx.batch'].create({
+            'batch_date': '2025-12-01',
+            'season_id': self.season.id,
+        })
+        qc = self.env['agx.qc.inspection'].create({
+            'batch_id': batch.id,
+            'inspection_type': 'in_process',
+            'line_ids': [
+                (0, 0, {'criterion': 'Colour', 'standard': 'Orange', 'actual_value': 'Orange', 'passed': True,  'score': 95.0}),
+                (0, 0, {'criterion': 'Brix',   'standard': '>=9.5',  'actual_value': '10.2',  'passed': True,  'score': 100.0}),
+                (0, 0, {'criterion': 'Damage',  'standard': '<2%',    'actual_value': '1.5%',  'passed': True,  'score': 90.0}),
+            ],
+        })
+        self.assertEqual(qc.state, 'draft')
+        self.assertAlmostEqual(qc.overall_score, 95.0, places=0)
 
+        qc.action_pass()
+        self.assertEqual(qc.state, 'passed')
 
+    def test_05_qc_with_rejections(self):
+        """QC rejection lines tracked correctly."""
+        shp = self.env['agx.shipment'].create({
+            'customer_id': self.customer.id,
+            'season_id': self.season.id,
+            'shipment_date': fields.Date.today(),
+        })
+        qc = self.env['agx.qc.inspection'].create({
+            'shipment_id': shp.id,
+            'inspection_type': 'pre_shipment',
+            'rejection_ids': [
+                (0, 0, {
+                    'product_id': self.fin_product.id,
+                    'rejection_reason': 'colour_defect',
+                    'rejected_qty': 25.0,
+                    'uom_id': self.env.ref('uom.product_uom_unit').id,
+                    'disposition': 'downgrade',
+                }),
+                (0, 0, {
+                    'product_id': self.fin_product.id,
+                    'rejection_reason': 'damage',
+                    'rejected_qty': 10.0,
+                    'uom_id': self.env.ref('uom.product_uom_unit').id,
+                    'disposition': 'scrap',
+                }),
+            ],
+        })
+        self.assertAlmostEqual(qc.total_rejected_qty, 35.0, places=0)
+        qc.action_fail()
+        self.assertEqual(qc.state, 'failed')
+
+    def test_06_customer_claim_flow(self):
+        """Customer claim lifecycle."""
+        shp = self.env['agx.shipment'].create({
+            'customer_id': self.customer.id,
+            'season_id': self.season.id,
+            'shipment_date': fields.Date.today(),
+        })
+        claim = self.env['agx.claim'].create({
+            'shipment_id': shp.id,
+            'claim_type': 'quality',
+            'claimed_qty': 50.0,
+            'claimed_value': 2500.0,
+        })
+        self.assertEqual(claim.state, 'draft')
+        self.assertEqual(claim.customer_id, self.customer)
+        self.assertEqual(claim.season_id, self.season)
+
+        claim.action_review()
+        self.assertEqual(claim.state, 'under_review')
+
+        claim.agreed_credit = 1500.0
+        claim.action_resolve()
+        self.assertEqual(claim.state, 'resolved')
 
     def test_07_season_analytic_account_created(self):
         """Season auto-creates analytic account on save."""
         season = self.env['agx.season'].create({
             'name': 'Analytic Test Season',
             'code': 'ATS-25',
-            'crop_category_id': self.crop.id,
+            'crop_id': self.crop.id,
+            'date_start': '2025-01-01',
             'state': 'active',
         })
         self.assertTrue(
@@ -229,9 +305,9 @@ class TestFullWorkflow(TransactionCase):
     def test_10_intercompany_so_link(self):
         """Intercompany SO can be linked to evaluation."""
         ev = self.env['agx.evaluation'].create({
-            'farm_partner_id': self.vendor.id,
+            'farm_id': self.farm.id,
             'partner_id': self.vendor.id,
-            'crop_category_id': self.crop.id,
+            'crop_id': self.crop.id,
             'season_id': self.season.id,
             'evaluation_date': '2025-11-01',
             'farm_expected_qty': 1000.0,
