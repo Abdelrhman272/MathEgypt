@@ -373,3 +373,14 @@ body.o_dark_mode,
 /* Let the Odoo action/content area scroll instead of clipping the dashboard */
 .agx-dashboard { height: auto !important; min-height: max-content !important; }
 .o_action .agx-dashboard, .o_content .agx-dashboard { display: block; }
+
+
+/* Keep the same dashboard sizes, but allow extra scroll room at the bottom
+   so the last section (Top 5 Customers) can be fully reached. */
+.agx-dashboard {
+    padding-bottom: 180px !important;
+}
+
+.agx-card-full:last-of-type {
+    margin-bottom: 140px !important;
+}
