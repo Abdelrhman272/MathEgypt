@@ -364,3 +364,7 @@ body.o_dark_mode,
 .agx-dashboard .agx-chart-wrap {
     overflow: visible;
 }
+
+
+/* Keep natural size and let the browser page handle scrolling */
+.agx-dashboard, .agx-card, .agx-card-full, .agx-chart-wrap { overflow: visible !important; }
