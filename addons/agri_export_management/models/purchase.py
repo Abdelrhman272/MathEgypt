@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+# Copyright 2025 NextGen Systems — OPL-1
+"""Purchase and stock model extensions for Agricultural Export Management.
+
+Extensions defined here:
+  StockPicking — Adds auto lot generation on incoming receipt validation
+                 when agx_auto_generate_lot_numbers is enabled in Settings.
+"""
 """
 purchase.py — Odoo Stock / Purchase Model Extensions
 ======================================================

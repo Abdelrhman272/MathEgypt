@@ -10,12 +10,12 @@ class TestAgxBatch(TransactionCase):
 
     def setUp(self):
         super().setUp()
-        self.crop = self.env['agx.crop'].create({'name': 'Test Orange', 'code': 'BTST'})
+        self.crop = self.env['product.category'].create({'name': 'Test Orange', 'is_agx_crop': True})
         self.grade_a = self.env['agx.grade'].create({'name': 'A', 'code': 'BA', 'sequence': 1})
         self.size_36 = self.env['agx.size'].create({'number': 36, 'name': '36', 'sequence': 36})
-        self.vendor = self.env['res.partner'].create({'name': 'Batch Test Vendor', 'supplier_rank': 1})
-        self.farm = self.env['agx.farm'].create({'name': 'Batch Farm', 'code': 'BF-001', 'partner_id': self.vendor.id})
-        self.season = self.env['agx.season'].create({'name': 'Batch Season', 'code': 'BS-25', 'crop_id': self.crop.id, 'state': 'active'})
+        self.vendor = self.env['res.partner'].create({'name': 'Batch Test Vendor', 'supplier_rank': 1, 'is_agx_farm': True})
+        self.farm = self.env['res.partner'].create({'name': 'Batch Farm', 'code': 'BF-001', 'partner_id': self.vendor.id})
+        self.season = self.env['agx.season'].create({'name': 'Batch Season', 'code': 'BS-25', 'crop_category_id': self.crop.id, 'state': 'active'})
         self.raw_product = self.env['product.template'].create({
             'name': 'Batch Raw', 'type': 'consu', 'tracking': 'lot',
             'uom_id': self.env.ref('uom.product_uom_kgm').id,

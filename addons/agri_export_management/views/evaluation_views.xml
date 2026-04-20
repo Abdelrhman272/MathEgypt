@@ -14,7 +14,7 @@
                   decoration-muted="state in ('closed','cancelled')">
                 <field name="name"/>
                 <field name="evaluation_date"/>
-                <field name="farm_id"/>
+                <field name="farm_partner_id"/>
                 <field name="partner_id" optional="show"/>
                 <field name="season_id" optional="show"/>
                 <field name="farm_expected_qty" string="Expected Qty"/>
@@ -39,7 +39,7 @@
         <field name="arch" type="xml">
             <kanban default_group_by="state" class="o_kanban_small_column">
                 <field name="name"/>
-                <field name="farm_id"/>
+                <field name="farm_partner_id"/>
                 <field name="partner_id"/>
                 <field name="season_id"/>
                 <field name="farm_expected_qty"/>
@@ -51,7 +51,7 @@
                     <t t-name="card">
                         <div class="oe_kanban_global_click">
                             <div class="fw-bold fs-5" t-esc="record.name.value"/>
-                            <div class="text-muted small" t-esc="record.farm_id.value"/>
+                            <div class="text-muted small" t-esc="record.farm_partner_id.value"/>
                             <div t-if="record.season_id.value" class="text-muted small">
                                 🌿 <t t-esc="record.season_id.value"/>
                             </div>
@@ -93,19 +93,19 @@
         <field name="arch" type="xml">
             <search string="Search Evaluations">
                 <field name="name" string="Reference"/>
-                <field name="farm_id"/>
+                <field name="farm_partner_id"/>
                 <field name="partner_id"/>
                 <field name="season_id"/>
-                <field name="crop_id"/>
+                <field name="crop_category_id"/>
                 <filter string="Draft"      name="draft"      domain="[('state','=','draft')]"/>
                 <filter string="Approved"   name="approved"   domain="[('state','=','approved')]"/>
                 <filter string="PO Created" name="po_created" domain="[('state','=','po_created')]"/>
                 <filter string="Closed"     name="closed"     domain="[('state','=','closed')]"/>
                 <separator/>
-                <filter string="Farm"    name="gb_farm"    context="{'group_by':'farm_id'}"/>
+                <filter string="Farm"    name="gb_farm"    context="{'group_by':'farm_partner_id'}"/>
                 <filter string="Season"  name="gb_season"  context="{'group_by':'season_id'}"/>
                 <filter string="State"   name="gb_state"   context="{'group_by':'state'}"/>
-                <filter string="Crop"    name="gb_crop"    context="{'group_by':'crop_id'}"/>
+                <filter string="Crop"    name="gb_crop"    context="{'group_by':'crop_category_id'}"/>
             </search>
         </field>
     </record>
@@ -157,9 +157,9 @@
                     <group>
                         <group>
                             <field name="evaluation_date"/>
-                            <field name="farm_id"/>
+                            <field name="farm_partner_id"/>
                             <field name="partner_id"/>
-                            <field name="crop_id"/>
+                            <field name="crop_category_id"/>
                             <field name="season_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="intercompany_so_id"

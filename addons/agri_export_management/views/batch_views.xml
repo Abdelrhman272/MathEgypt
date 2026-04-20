@@ -167,11 +167,6 @@
                                 invisible="stock_move_count == 0">
                             <field name="stock_move_count" widget="statinfo" string="Transfers"/>
                         </button>
-                        <button class="oe_stat_button" type="object"
-                                name="action_view_qc_inspections" icon="fa-check-circle"
-                                invisible="qc_count == 0">
-                            <field name="qc_count" widget="statinfo" string="QC Checks"/>
-                        </button>
                         <button class="oe_stat_button" name="action_view_mrp_production"
                                 type="object" icon="fa-cogs"
                                 invisible="not mrp_production_id">

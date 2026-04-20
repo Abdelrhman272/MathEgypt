@@ -22,7 +22,6 @@ class TestUpgradeSafety(TransactionCase):
             'agx.batch',
             'agx.shipment',
             'agx.season',
-            'agx.qc.inspection',
             'agx.claim',
         ]
         for code in codes:
@@ -45,10 +44,10 @@ class TestUpgradeSafety(TransactionCase):
 
     def test_03_season_cascade_analytic(self):
         """Season creates analytic account — account links back."""
-        crop = self.env['agx.crop'].create({'name': 'Upgrade Crop', 'code': 'UPG'})
+        crop = self.env['product.category'].create({'name': 'Upgrade Crop', 'is_agx_crop': True})
         season = self.env['agx.season'].create({
             'name': 'Upgrade Test Season', 'code': 'UPG-25',
-            'crop_id': crop.id, 'state': 'active',
+            'crop_category_id': crop.id, 'state': 'active',
         })
         # Analytic account should exist
         if season.analytic_account_id:
@@ -126,17 +125,6 @@ class TestUpgradeSafety(TransactionCase):
             self.env['agx.shipment.line'].search([('id', '=', line_id)])
         )
 
-    def test_08_qc_cascade_delete(self):
-        """Deleting QC inspection cascades to lines and rejections."""
-        qc = self.env['agx.qc.inspection'].create({
-            'inspection_type': 'incoming',
-            'line_ids': [(0, 0, {'criterion': 'Test', 'passed': True, 'score': 90})],
-        })
-        line_id = qc.line_ids[0].id
-        qc.unlink()
-        self.assertFalse(
-            self.env['agx.qc.inspection.line'].search([('id', '=', line_id)])
-        )
 
     def test_09_size_name_not_null_handled(self):
         """AgxSize can be created without explicit name (computed after insert)."""

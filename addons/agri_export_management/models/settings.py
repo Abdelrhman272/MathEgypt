@@ -1,4 +1,16 @@
 # -*- coding: utf-8 -*-
+# Copyright 2025 NextGen Systems — OPL-1
+"""Settings and configuration for Agricultural Export Management.
+
+Models defined here:
+  ResCompany      — Extension: adds all AGX settings fields
+  ResConfigSettings — Extension: exposes company settings in the UI
+  SaleOrder       — Extension: triggers intercompany evaluation suggestions
+
+Intercompany flow:
+  UAE PO → Odoo auto-creates Egypt SO → AGX posts candidate evaluations
+  in Chatter → user confirms via 'Link Intercompany SO' button.
+"""
 """
 settings.py — Company-level configuration for Agricultural Export Management
 =============================================================================
@@ -46,13 +58,14 @@ class ResCompany(models.Model):
     )
     agx_so_line_prefix = fields.Char(
         default="Shipment",
-        help="Prefix text used in the Sales Order line description.",
+        help="Prefix added to sale order line descriptions (e.g. AGX-EXPORT). Leave blank to use default.",
     )
 
     # ------------------------------------------------------------------
     # Costing settings
     # ------------------------------------------------------------------
     agx_default_logistics_basis = fields.Selection(
+        # Allocation basis used when no specific basis is set on cost type
         [
             ("qty", "By Quantity"),
             ("carton", "By Cartons"),
@@ -65,15 +78,15 @@ class ResCompany(models.Model):
     )
     agx_allow_vendor_bill_cost_source = fields.Boolean(
         default=True,
-        help="Allow importing costs from Vendor Bills on shipments.",
+        help="Allow importing logistics costs from Vendor Bills onto shipment cost lines.",
     )
     agx_allow_landed_cost_source = fields.Boolean(
         default=True,
-        help="Allow importing costs from Landed Costs on shipments.",
+        help="Allow importing logistics costs from Odoo Landed Costs onto shipment cost lines.",
     )
     agx_margin_precision = fields.Integer(
         default=2,
-        help="Decimal precision used for margin % display.",
+        help="Number of decimal places shown in margin percentage calculations (default: 2).",
     )
 
     # ------------------------------------------------------------------
@@ -261,40 +274,85 @@ class SaleOrder(models.Model):
 
     _inherit = "sale.order"
 
-    def _agx_auto_link_evaluation(self):
-        """Find and link matching AGX evaluation after intercompany SO creation."""
+    def _agx_suggest_evaluation_link(self):
+        """Suggest matching AGX evaluations for intercompany SOs.
+
+        Instead of auto-linking (which can silently pick the wrong evaluation),
+        this method finds candidates and posts a chatter message on the SO
+        with a direct link so the user can confirm the correct evaluation.
+
+        The user then opens the suggested Evaluation and manually sets
+        the "Intercompany Sale Order" field — or uses the
+        "Link Intercompany SO" wizard on the Evaluation form.
+
+        Matching candidates (in priority order):
+          1. Same company
+          2. State = approved, intercompany_so_id not yet set
+          3. Same farm_partner (vendor on SO)
+          4. Active season
+          5. Crop category matches SO product categories (if any is_agx_crop)
+        """
         for so in self:
-            # Only process intercompany SOs (have auto_purchase_order_id)
             if not getattr(so, 'auto_purchase_order_id', False):
                 continue
-            # Already linked
+            # Already linked — skip
             if self.env['agx.evaluation'].search(
                 [('intercompany_so_id', '=', so.id)], limit=1
             ):
                 continue
-            # Find evaluation: same company, approved, same partner, active season
-            eval_rec = self.env['agx.evaluation'].search(
-                [
-                    ('company_id', '=', so.company_id.id),
-                    ('state', '=', 'approved'),
-                    ('partner_id', '=', so.partner_id.id),
-                    ('season_id.state', '=', 'active'),
-                    ('intercompany_so_id', '=', False),
-                ],
-                limit=1,
-                order='evaluation_date desc',
+
+            domain = [
+                ('company_id', '=', so.company_id.id),
+                ('state', '=', 'approved'),
+                ('partner_id', '=', so.partner_id.id),
+                ('season_id.state', '=', 'active'),
+                ('intercompany_so_id', '=', False),
+            ]
+            so_categories = so.order_line.mapped(
+                'product_id.categ_id'
+            ).filtered(lambda c: c.is_agx_crop)
+            if so_categories:
+                domain.append(('crop_category_id', 'in', so_categories.ids))
+
+            candidates = self.env['agx.evaluation'].search(
+                domain, limit=5, order='evaluation_date desc'
             )
-            if eval_rec:
-                eval_rec.intercompany_so_id = so.id
-                eval_rec.message_post(
+
+            if candidates:
+                # Build suggestion message
+                lines = [
+                    "AGX: Intercompany SO created. "
+                    "Please confirm which Farm Evaluation to link:",
+                    "",
+                ]
+                for ev in candidates:
+                    lines.append(
+                        "  - %s  |  Farm: %s  |  Season: %s  |  Date: %s"
+                        % (
+                            ev.name,
+                            ev.farm_partner_id.name if ev.farm_partner_id else "-",
+                            ev.season_id.name if ev.season_id else "-",
+                            ev.evaluation_date or "-",
+                        )
+                    )
+                lines += [
+                    "",
+                    "To confirm: open the Evaluation → set "
+                    "'Intercompany Sale Order' = %s" % so.name,
+                ]
+                so.message_post(body="  ".join(lines))
+            else:
+                so.message_post(
                     body=(
-                        "Intercompany Sale Order %s auto-linked from company %s."
-                        % (so.name, so.company_id.name)
+                        "AGX: No matching Farm Evaluation found for SO %s. "
+                        "Link manually: Farm Evaluations -> Intercompany SO field."
+                        % so.name
                     )
                 )
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Override to trigger intercompany evaluation suggestion after SO creation."""
         records = super().create(vals_list)
-        records._agx_auto_link_evaluation()
+        records._agx_suggest_evaluation_link()
         return records

@@ -72,10 +72,6 @@ body.o_dark_mode,
     font-family: var(--agx-font);
     background: transparent;
     min-height: 100vh;
-    height: calc(100vh - 56px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-gutter: stable;
     padding: 0 0 16px 0;
     color: var(--agx-white);
 }
@@ -386,16 +382,3 @@ body.o_dark_mode,
 }
 
 
-/* Keep the dashboard large, but allow scrolling inside the dashboard area */
-.agx-card,
-.agx-card-full {
-    min-width: 0;
-}
-
-.agx-chart-wrap {
-    overflow: auto;
-}
-
-.agx-card-full {
-    overflow: auto;
-}
