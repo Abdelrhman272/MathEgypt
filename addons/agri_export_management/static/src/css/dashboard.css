@@ -368,3 +368,8 @@ body.o_dark_mode,
 
 /* Keep natural size and let the browser page handle scrolling */
 .agx-dashboard, .agx-card, .agx-card-full, .agx-chart-wrap { overflow: visible !important; }
+
+
+/* Let the Odoo action/content area scroll instead of clipping the dashboard */
+.agx-dashboard { height: auto !important; min-height: max-content !important; }
+.o_action .agx-dashboard, .o_content .agx-dashboard { display: block; }

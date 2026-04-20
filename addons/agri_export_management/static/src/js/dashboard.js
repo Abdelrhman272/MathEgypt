@@ -32,11 +32,42 @@ class AgxDashboard extends Component {
             charts: {},
         });
 
-        onMounted(() => this._loadData());
-        onWillUnmount(() => this._destroyCharts());
+        onMounted(() => {
+            this._enablePageScroll();
+            this._loadData();
+        });
+        onWillUnmount(() => {
+            this._restorePageScroll();
+            this._destroyCharts();
+        });
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
+
+    _enablePageScroll() {
+        const root = this.el;
+        const action = root?.closest?.(".o_action") || root?.parentElement;
+        const content = root?.closest?.(".o_content") || action?.querySelector?.(".o_content");
+        this._agxScrollTargets = [content, action].filter(Boolean);
+        for (const el of this._agxScrollTargets) {
+            if (!el) continue;
+            el.dataset.agxPrevOverflowY = el.style.overflowY || "";
+            el.dataset.agxPrevOverflow = el.style.overflow || "";
+            el.style.overflowY = "auto";
+            el.style.overflowX = "hidden";
+        }
+    }
+
+    _restorePageScroll() {
+        for (const el of this._agxScrollTargets || []) {
+            if (!el) continue;
+            el.style.overflowY = el.dataset.agxPrevOverflowY || "";
+            el.style.overflow = el.dataset.agxPrevOverflow || "";
+            delete el.dataset.agxPrevOverflowY;
+            delete el.dataset.agxPrevOverflow;
+        }
+        this._agxScrollTargets = [];
+    }
     _today() {
         return new Date().toISOString().split("T")[0];
     }
