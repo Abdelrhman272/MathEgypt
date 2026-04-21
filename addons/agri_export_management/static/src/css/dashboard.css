@@ -35,6 +35,12 @@ html[data-color-scheme="dark"] .agx-dashboard,
     color: var(--agx-text);
 
     /* KEY: normal flow — Odoo scrolls the page, not us */
+    
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+
     display: flex;
     flex-direction: column;
     padding-bottom: 32px;
