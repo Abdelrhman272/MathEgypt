@@ -689,7 +689,7 @@
                                     3. Country of Origin
                                 </div>
                                 <div style="font-weight:bold;">Arab Republic of Egypt</div>
-                                <t t-if="o.evaluation_ids or o.lot_line_ids">
+                                <t t-if="o.lot_line_ids">
                                     <div style="font-size:10px; color:#555; margin-top:4px;">
                                         Source:
                                         <t t-esc="', '.join(set(o.lot_line_ids.mapped('batch_output_id.batch_id.evaluation_id.farm_partner_id.agx_region') or ['Egypt']))"/>
