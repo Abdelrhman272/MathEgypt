@@ -232,6 +232,9 @@
                                     <field name="sequence" widget="handle"/>
                                     <field name="material_id"/>
                                     <field name="material_type" readonly="1"/>
+                                    <field name="product_id" readonly="1" optional="show"
+                                           string="Linked Product"
+                                           help="If set, stock will be deducted on batch completion"/>
                                     <field name="qty"/>
                                     <field name="uom_id"/>
                                     <field name="unit_cost"/>

@@ -756,8 +756,76 @@ class AgxBatch(models.Model):
             rec._ensure_output_lots()
             rec._validate_stock_posting()
             rec._post_stock_pickings()
+            rec._consume_packaging_materials()
             rec.state = "done"
         return True
+
+    def _consume_packaging_materials(self):
+        """Create stock moves to deduct packaging materials from inventory.
+
+        For each packaging line that has a linked product (via material_id.product_id),
+        creates a stock move from the Raw Material location to the Production location.
+        Lines without a linked product are skipped (cost-only mode).
+
+        Called automatically by action_done().
+        """
+        self.ensure_one()
+
+        lines_with_product = self.packaging_line_ids.filtered(
+            lambda l: l.material_id.product_id and l.qty > 0
+        )
+        if not lines_with_product:
+            return
+
+        # Get locations
+        source_loc = (
+            self.company_id.agx_raw_material_location_id
+            or self.env.ref("stock.stock_location_stock", raise_if_not_found=False)
+        )
+        dest_loc = (
+            self.company_id.agx_production_location_id
+            or self.env.ref("stock.location_production", raise_if_not_found=False)
+        )
+        if not source_loc or not dest_loc:
+            return
+
+        picking_type = self._get_internal_picking_type()
+        if not picking_type:
+            return
+
+        picking = self._create_picking(
+            picking_type=picking_type,
+            location_id=source_loc,
+            location_dest_id=dest_loc,
+            origin="{} / Packaging".format(self.name),
+            flow_type="batch_consume",
+        )
+
+        Move = self.env["stock.move"]
+        for line in lines_with_product:
+            product = line.material_id.product_id
+            Move.create({
+                "name": "{} / {} / {}".format(
+                    self.name, _("Packaging"), product.display_name
+                ),
+                "description_picking": _("Packaging: {}").format(product.display_name),
+                "company_id": self.company_id.id,
+                "picking_id": picking.id,
+                "product_id": product.id,
+                "product_uom": line.uom_id.id or product.uom_id.id,
+                "product_uom_qty": line.qty,
+                "location_id": source_loc.id,
+                "location_dest_id": dest_loc.id,
+                "origin": self.name,
+            })
+
+        if picking.move_ids:
+            picking.action_confirm()
+            picking.action_assign()
+            # Validate immediately — packaging materials are consumed at batch completion
+            for move in picking.move_ids:
+                move.quantity = move.product_uom_qty
+            picking._action_done()
 
     def action_cancel(self):
         """Cancel the batch. Allowed only in draft or in_progress state."""
@@ -1595,6 +1663,20 @@ class AgxPackagingMaterial(models.Model):
     )
     uom_id = fields.Many2one("uom.uom")
     note   = fields.Char()
+    stock_qty = fields.Float(
+        string="On Hand",
+        compute="_compute_stock_qty",
+        help="Current on-hand quantity of the linked Odoo product.",
+    )
+
+    @api.depends("product_id")
+    def _compute_stock_qty(self):
+        """Show current stock of the linked product for quick reference."""
+        for rec in self:
+            if rec.product_id:
+                rec.stock_qty = rec.product_id.qty_available
+            else:
+                rec.stock_qty = 0.0
 
 
 class AgxBatchPackagingLine(models.Model):
@@ -1623,6 +1705,13 @@ class AgxBatchPackagingLine(models.Model):
     )
     material_type = fields.Selection(
         related="material_id.material_type", store=True, readonly=True
+    )
+    product_id = fields.Many2one(
+        "product.product",
+        related="material_id.product_id",
+        store=True,
+        readonly=True,
+        help="Linked Odoo product — if set, stock is deducted on batch completion.",
     )
     qty     = fields.Float(required=True, default=1.0)
     uom_id  = fields.Many2one("uom.uom")

@@ -81,8 +81,8 @@ Configuration
     "author": "NextGen Systems",
     "website": "https://www.nexgensystems.net",
     "support": "support@nexgensystems.net",
-    "price": 249.00,
-    "currency": "EUR",
+    "price": 100.0,
+    "currency": "USD",
     "depends": [
         "base",
         "mail",
