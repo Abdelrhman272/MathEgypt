@@ -75,14 +75,14 @@ Configuration
 4. Run Initialize Product Attributes wizard
 5. Create and activate a Production Season
     """,
-    "version": "19.0.9.0.1",
+    "version": "19.0.9.0.0",
     "category": "Inventory/Inventory",
     "license": "OPL-1",
     "author": "NextGen Systems",
-    "website": "https://www.nextgensystems.net",
+    "website": "https://www.nexgensystems.net",
     "support": "support@nexgensystems.net",
-    "price": 150.00,
-    "currency": "USD",
+    "price": 249.00,
+    "currency": "EUR",
     "depends": [
         "base",
         "mail",
@@ -118,6 +118,7 @@ Configuration
     ],
     "assets": {
         "web.assets_backend": [
+            "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js",
             "agri_export_management/static/src/css/dashboard.css",
             "agri_export_management/static/src/xml/dashboard.xml",
             "agri_export_management/static/src/js/dashboard.js",
@@ -125,6 +126,11 @@ Configuration
     },
     "images": [
         "static/description/banner.png",
+    ],
+    "demo": [
+        "demo/demo_master.xml",
+        "demo/demo_operations.xml",
+        "demo/demo_shipments.xml",
     ],
     "application": True,
     "installable": True,

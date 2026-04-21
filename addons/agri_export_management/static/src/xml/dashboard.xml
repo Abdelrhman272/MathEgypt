@@ -21,10 +21,10 @@
       </select>
       <t t-if="!state.season_id">
         <input class="agx-input" type="date" t-att-value="state.date_from"
-               t-on-change="(e) => { state.date_from = e.target.value; onDateChange(); }"/>
+               t-on-change="onDateFromChange"/>
         <span class="agx-sep">&#8594;</span>
         <input class="agx-input" type="date" t-att-value="state.date_to"
-               t-on-change="(e) => { state.date_to = e.target.value; onDateChange(); }"/>
+               t-on-change="onDateToChange"/>
       </t>
       <button class="agx-btn-refresh" t-on-click="onRefresh">
         <i class="fa fa-refresh"/> Refresh

@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+<!--
+    AGX Demo Data — Master Data
+    Grades, Sizes, Seasons, Cost Types
+    Mirrors Odoo's standard demo data style: realistic, named after
+    common agricultural export scenarios.
+-->
+
+    <!-- ============================================================
+         GRADES
+    ============================================================ -->
+    <record id="grade_export_a" model="agx.grade">
+        <field name="name">Grade A — Export</field>
+        <field name="code">A</field>
+        <field name="sequence">1</field>
+    </record>
+
+    <record id="grade_export_b" model="agx.grade">
+        <field name="name">Grade B — Local Premium</field>
+        <field name="code">B</field>
+        <field name="sequence">2</field>
+    </record>
+
+    <record id="grade_export_c" model="agx.grade">
+        <field name="name">Grade C — Processing</field>
+        <field name="code">C</field>
+        <field name="sequence">3</field>
+    </record>
+
+    <!-- ============================================================
+         SIZES
+    ============================================================ -->
+    <record id="size_36" model="agx.size">
+        <field name="number">36</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="size_40" model="agx.size">
+        <field name="number">40</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="size_48" model="agx.size">
+        <field name="number">48</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="size_56" model="agx.size">
+        <field name="number">56</field>
+        <field name="sequence">40</field>
+    </record>
+
+    <!-- ============================================================
+         SHIPMENT COST TYPES
+    ============================================================ -->
+    <record id="cost_type_inland" model="agx.shipment.cost.type">
+        <field name="name">Inland Transport</field>
+        <field name="code">inland</field>
+        <field name="default_allocation_basis">net_weight</field>
+        <field name="sequence">1</field>
+    </record>
+
+    <record id="cost_type_port" model="agx.shipment.cost.type">
+        <field name="name">Port Charges</field>
+        <field name="code">port</field>
+        <field name="default_allocation_basis">carton</field>
+        <field name="sequence">2</field>
+    </record>
+
+    <record id="cost_type_ocean" model="agx.shipment.cost.type">
+        <field name="name">Ocean Freight</field>
+        <field name="code">ocean</field>
+        <field name="default_allocation_basis">net_weight</field>
+        <field name="sequence">3</field>
+    </record>
+
+    <record id="cost_type_customs" model="agx.shipment.cost.type">
+        <field name="name">Customs Clearance</field>
+        <field name="code">customs</field>
+        <field name="default_allocation_basis">equal</field>
+        <field name="sequence">4</field>
+    </record>
+
+    <record id="cost_type_inspection" model="agx.shipment.cost.type">
+        <field name="name">Phytosanitary Inspection</field>
+        <field name="code">other</field>
+        <field name="default_allocation_basis">equal</field>
+        <field name="sequence">5</field>
+    </record>
+
+    <!-- ============================================================
+         SEASONS — Navel Orange season (current active)
+    ============================================================ -->
+    <record id="season_navel_2025" model="agx.season">
+        <field name="name">Navel Orange Season 2025</field>
+        <field name="code">NVL-25</field>
+        <field name="date_start">2025-11-01</field>
+        <field name="date_end">2026-02-28</field>
+        <field name="state">active</field>
+        <field name="note">&lt;p&gt;Main navel orange export season. Target markets: Netherlands, Germany, UK.&lt;/p&gt;</field>
+    </record>
+
+    <record id="season_valencia_2025" model="agx.season">
+        <field name="name">Valencia Orange Season 2025</field>
+        <field name="code">VLC-25</field>
+        <field name="date_start">2025-04-01</field>
+        <field name="date_end">2025-08-31</field>
+        <field name="state">closed</field>
+    </record>
+
+    <record id="season_navel_2026" model="agx.season">
+        <field name="name">Navel Orange Season 2026</field>
+        <field name="code">NVL-26</field>
+        <field name="date_start">2026-11-01</field>
+        <field name="date_end">2027-02-28</field>
+        <field name="state">draft</field>
+    </record>
+
+    <!-- ============================================================
+         FARMS — extend res.partner
+    ============================================================ -->
+    <record id="farm_nile_delta" model="res.partner">
+        <field name="name">Nile Delta Agricultural Farm</field>
+        <field name="is_company">True</field>
+        <field name="supplier_rank">1</field>
+        <field name="is_agx_farm">True</field>
+        <field name="agx_farm_code">EG-ND-001</field>
+        <field name="agx_region">Nile Delta — Beheira</field>
+    </record>
+
+    <record id="farm_fayoum" model="res.partner">
+        <field name="name">Fayoum Citrus Growers</field>
+        <field name="is_company">True</field>
+        <field name="supplier_rank">1</field>
+        <field name="is_agx_farm">True</field>
+        <field name="agx_farm_code">EG-FY-002</field>
+        <field name="agx_region">Fayoum — Upper Egypt</field>
+    </record>
+
+    <record id="farm_minya" model="res.partner">
+        <field name="name">Minya Fresh Produce LLC</field>
+        <field name="is_company">True</field>
+        <field name="supplier_rank">1</field>
+        <field name="is_agx_farm">True</field>
+        <field name="agx_farm_code">EG-MN-003</field>
+        <field name="agx_region">Minya — Upper Egypt</field>
+    </record>
+
+    <!-- ============================================================
+         CROP CATEGORIES — extend product.category
+    ============================================================ -->
+    <record id="crop_navel_orange" model="product.category">
+        <field name="name">Navel Orange</field>
+        <field name="is_agx_crop">True</field>
+    </record>
+
+    <record id="crop_valencia_orange" model="product.category">
+        <field name="name">Valencia Orange</field>
+        <field name="is_agx_crop">True</field>
+    </record>
+
+    <record id="crop_mandarin" model="product.category">
+        <field name="name">Mandarin / Clementine</field>
+        <field name="is_agx_crop">True</field>
+    </record>
+
+    <!-- ============================================================
+         CUSTOMERS (importers)
+    ============================================================ -->
+    <record id="customer_rotterdam" model="res.partner">
+        <field name="name">Van der Berg Fresh B.V.</field>
+        <field name="is_company">True</field>
+        <field name="customer_rank">1</field>
+        <field name="country_id" ref="base.nl"/>
+        <field name="city">Rotterdam</field>
+    </record>
+
+    <record id="customer_hamburg" model="res.partner">
+        <field name="name">Hamburg Citrus Import GmbH</field>
+        <field name="is_company">True</field>
+        <field name="customer_rank">1</field>
+        <field name="country_id" ref="base.de"/>
+        <field name="city">Hamburg</field>
+    </record>
+
+    <record id="customer_london" model="res.partner">
+        <field name="name">London Fresh Markets Ltd</field>
+        <field name="is_company">True</field>
+        <field name="customer_rank">1</field>
+        <field name="country_id" ref="base.gb"/>
+        <field name="city">London</field>
+    </record>
+
+</odoo>

@@ -284,7 +284,7 @@ class AgxTraceabilityWizard(models.TransientModel):
         )
         parts.append(
             "<li>Destination: {}</li>".format(
-                self._fmt(shipment.destination_id.display_name)
+                self._fmt(shipment.destination_country_id.name or shipment.destination_port or "-")
             )
         )
         parts.append(
@@ -498,17 +498,39 @@ class AgxTraceabilityWizard(models.TransientModel):
         return "".join(parts)
 
     def action_generate(self):
-        """Generate the traceability HTML report."""
+        """Generate the full traceability chain starting from shipment.
+
+        When a shipment is selected, automatically follows the chain:
+          Shipment → Lots → Batch Outputs → Batches → Evaluations → Farms
+
+        If batch_id or lot_id are also set, appends their blocks too.
+        """
         self.ensure_one()
         parts = []
+
         if self.shipment_id:
+            # Full chain from shipment
             parts.append(self._render_shipment_block(self.shipment_id))
-        if self.batch_id:
+
+            # For each lot line → trace back to batch → evaluation → farm
+            batches_seen = set()
+            for lot_line in self.shipment_id.lot_line_ids:
+                batch = lot_line.batch_output_id.batch_id if lot_line.batch_output_id else False
+                if batch and batch.id not in batches_seen:
+                    batches_seen.add(batch.id)
+                    parts.append(self._render_batch_block(batch))
+
+        if self.batch_id and (not self.shipment_id or self.batch_id.id not in
+                              {ll.batch_output_id.batch_id.id
+                               for ll in (self.shipment_id.lot_line_ids if self.shipment_id else [])
+                               if ll.batch_output_id}):
             parts.append(self._render_batch_block(self.batch_id))
+
         if self.lot_id:
             parts.append(self._render_lot_block(self.lot_id))
+
         self.result_html = (
-            "".join(parts) if parts else "<p>No data selected.</p>"
+            "".join(parts) if parts else "<p>No data selected. Please choose a Shipment.</p>"
         )
         return {
             "type": "ir.actions.act_window",

@@ -1,52 +1,4 @@
-/* AGX Dashboard — self-scrolling, adapts to Odoo light/dark mode */
-
-/* ── Odoo container: positioning context for our absolute element ── */
-.o_content:has(.agx-dashboard),
-.o_action:has(.agx-dashboard),
-.o_view_controller:has(.agx-dashboard) {
-    position: relative !important;
-    overflow: visible !important;
-}
-
-/* ── Root element — fills parent, scrolls independently ──────────── */
-.agx-dashboard {
-    /* Layout */
-    position: absolute;
-    top: 48px;      
-    right: 0;
-    bottom: 0;
-    left: 0;                 
-    overflow-y: auto;          /* scroll bar on right side */
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 32px;
-
-    /* Typography */
-    font-family: inherit;
-    font-size: 13px;
-
-    /* Light mode colors (Odoo CSS variables) */
-    --agx-bg:     var(--o-view-background-color, #FFFFFF);
-    --agx-panel:  var(--card-bg, #F8F9FA);
-    --agx-lift:   var(--dropdown-bg, #FFFFFF);
-    --agx-border: var(--border-color, #DEE2E6);
-    --agx-text:   var(--body-color, #212529);
-    --agx-muted:  var(--text-muted, #6C757D);
-
-    /* Brand colors — same in both modes */
-    --agx-green:  #22C55E;
-    --agx-blue:   #60A5FA;
-    --agx-amber:  #FBBF24;
-    --agx-purple: #A78BFA;
-    --agx-teal:   #14B8A6;
-    --agx-red:    #F87171;
-    --agx-r:      8px;
-    --agx-sh:     0 1px 4px rgba(0,0,0,0.07);
-
-    background: var(--agx-bg);
-    color: var(--agx-text);
-}
+/* AGX Dashboard — scrollable within Odoo content area */
 
 /* ── Dark mode ──────────────────────────────────────────────────── */
 html[data-color-scheme="dark"] .agx-dashboard,
@@ -60,6 +12,36 @@ html[data-color-scheme="dark"] .agx-dashboard,
     --agx-sh:     0 2px 10px rgba(0,0,0,0.3);
 }
 
+/* ── Root ───────────────────────────────────────────────────────── */
+.agx-dashboard {
+    --agx-bg:     var(--o-view-background-color, #FFFFFF);
+    --agx-panel:  var(--card-bg, #F8F9FA);
+    --agx-lift:   var(--dropdown-bg, #FFFFFF);
+    --agx-border: var(--border-color, #DEE2E6);
+    --agx-text:   var(--body-color, #212529);
+    --agx-muted:  var(--text-muted, #6C757D);
+    --agx-green:  #22C55E;
+    --agx-blue:   #60A5FA;
+    --agx-amber:  #FBBF24;
+    --agx-purple: #A78BFA;
+    --agx-teal:   #14B8A6;
+    --agx-red:    #F87171;
+    --agx-r:      8px;
+    --agx-sh:     0 1px 4px rgba(0,0,0,0.07);
+
+    font-family: inherit;
+    font-size: 13px;
+    background: var(--agx-bg);
+    color: var(--agx-text);
+
+    /* KEY: normal flow — Odoo scrolls the page, not us */
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 32px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
 /* ── Toolbar ────────────────────────────────────────────────────── */
 .agx-toolbar {
     display: flex;
@@ -70,11 +52,12 @@ html[data-color-scheme="dark"] .agx-dashboard,
     padding: 8px 16px;
     background: var(--agx-panel);
     border-bottom: 2px solid var(--agx-green);
+    box-shadow: var(--agx-sh);
+    flex-shrink: 0;
+    /* sticky relative to the Odoo scroll container */
     position: sticky;
     top: 0;
     z-index: 10;
-    box-shadow: var(--agx-sh);
-    flex-shrink: 0;
 }
 .agx-toolbar-left  { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .agx-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -120,7 +103,6 @@ html[data-color-scheme="dark"] .agx-dashboard,
 .agx-body {
     display: flex; flex-direction: column;
     gap: 10px; padding: 12px 16px 0;
-    flex: 1;
 }
 
 /* ── KPI row ────────────────────────────────────────────────────── */
@@ -150,8 +132,7 @@ html[data-color-scheme="dark"] .agx-dashboard,
 .agx-kpi-icon { font-size: 18px; flex-shrink: 0; color: var(--agx-muted); }
 .agx-kpi-body { flex: 1; min-width: 0; }
 .agx-kpi-value {
-    font-size: 16px; font-weight: 700; line-height: 1.2;
-    color: var(--agx-text);
+    font-size: 16px; font-weight: 700; line-height: 1.2; color: var(--agx-text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .agx-kpi-green  .agx-kpi-value { color: var(--agx-green); }

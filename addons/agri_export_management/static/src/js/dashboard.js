@@ -247,6 +247,14 @@ class AgxDashboard extends Component {
         this.state.season_id = parseInt(ev.target.value) || false;
         await this._loadData();
     }
+    async onDateFromChange(ev) {
+        this.state.date_from = ev.target.value;
+        await this._loadData();
+    }
+    async onDateToChange(ev) {
+        this.state.date_to = ev.target.value;
+        await this._loadData();
+    }
     async onDateChange() { await this._loadData(); }
     async onRefresh() {
         await this._loadData();

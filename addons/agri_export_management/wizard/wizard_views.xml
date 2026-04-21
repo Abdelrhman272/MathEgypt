@@ -46,18 +46,33 @@
         <field name="name">agx.traceability.wizard.form</field>
         <field name="model">agx.traceability.wizard</field>
         <field name="arch" type="xml">
-            <form string="Traceability Report">
-                <group>
-                    <field name="shipment_id"/>
-                    <field name="batch_id"/>
-                    <field name="lot_id"/>
+            <form string="Shipment Traceability — Farm to Customer">
+                <group string="Select Shipment to Trace">
+                    <field name="shipment_id"
+                           placeholder="Select a shipment to trace the full chain..."
+                           help="Select a shipment to trace: Shipment → Lots → Batches → Evaluations → Farms"/>
                 </group>
+                <group string="Optional — Additional Filters" col="2">
+                    <field name="batch_id"
+                           help="Optionally filter to a specific batch"/>
+                    <field name="lot_id"
+                           help="Optionally trace a specific lot"/>
+                </group>
+                <div class="alert alert-info" role="alert"
+                     invisible="shipment_id">
+                    <strong>How to use:</strong>
+                    Select a Shipment above, then click Generate Report.
+                    The system will automatically trace:
+                    Shipment → Reserved Lots → Production Batches → Farm Evaluations → Farms.
+                </div>
                 <footer>
-                    <button name="action_generate" string="Generate Report"
+                    <button name="action_generate"
+                            string="Generate Traceability Report"
                             type="object" class="btn-primary"/>
                     <button string="Close" class="btn-secondary" special="cancel"/>
                 </footer>
-                <group invisible="not result_html">
+                <group invisible="not result_html"
+                       string="Traceability Chain">
                     <field name="result_html" nolabel="1" colspan="2"/>
                 </group>
             </form>

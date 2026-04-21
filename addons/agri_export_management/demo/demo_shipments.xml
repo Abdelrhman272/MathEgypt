@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+<!--
+    AGX Demo Data — Shipments & Claims
+    Two shipments: one Shipped (with costs), one Draft (reserved)
+    Shows the dashboard with real revenue/cost numbers
+-->
+
+    <!-- ============================================================
+         SHIPMENT 1 — SHIPPED (Rotterdam)
+         Shows in dashboard revenue + completed delivery
+    ============================================================ -->
+    <record id="shipment_rotterdam_01" model="agx.shipment">
+        <field name="customer_id" ref="demo_operations.customer_rotterdam"/>
+        <field name="destination_country_id" ref="base.nl"/>
+        <field name="destination_port">Port of Rotterdam</field>
+        <field name="season_id" ref="demo_master.season_navel_2025"/>
+        <field name="shipment_date">2025-12-10</field>
+        <field name="vessel_name">MSC Diana</field>
+        <field name="voyage_no">MSC-2025-11-42</field>
+        <field name="etd">2025-12-10</field>
+        <field name="eta">2025-12-24</field>
+        <field name="bl_number">MSCUBL2025112401</field>
+        <field name="state">shipped</field>
+    </record>
+
+    <!-- Container on shipment 1 -->
+    <record id="container_rotterdam_01_a" model="agx.shipment.container">
+        <field name="shipment_id" ref="shipment_rotterdam_01"/>
+        <field name="container_no">MSCU1234567</field>
+        <field name="seal_no">SEA-2025-001</field>
+        <field name="container_type">40ft</field>
+    </record>
+
+    <record id="container_rotterdam_01_b" model="agx.shipment.container">
+        <field name="shipment_id" ref="shipment_rotterdam_01"/>
+        <field name="container_no">MSCU7654321</field>
+        <field name="seal_no">SEA-2025-002</field>
+        <field name="container_type">40ft</field>
+    </record>
+
+    <!-- Logistics costs on shipment 1 -->
+    <record id="cost_rotterdam_inland" model="agx.shipment.cost.line">
+        <field name="shipment_id" ref="shipment_rotterdam_01"/>
+        <field name="cost_type_id" ref="demo_master.cost_type_inland"/>
+        <field name="name">Inland Transport — Alexandria Port</field>
+        <field name="cost_source">manual</field>
+        <field name="manual_amount">12000.0</field>
+        <field name="allocation_basis">net_weight</field>
+    </record>
+
+    <record id="cost_rotterdam_port" model="agx.shipment.cost.line">
+        <field name="shipment_id" ref="shipment_rotterdam_01"/>
+        <field name="cost_type_id" ref="demo_master.cost_type_port"/>
+        <field name="name">Port Charges — Alexandria</field>
+        <field name="cost_source">manual</field>
+        <field name="manual_amount">8500.0</field>
+        <field name="allocation_basis">carton</field>
+    </record>
+
+    <record id="cost_rotterdam_ocean" model="agx.shipment.cost.line">
+        <field name="shipment_id" ref="shipment_rotterdam_01"/>
+        <field name="cost_type_id" ref="demo_master.cost_type_ocean"/>
+        <field name="name">Ocean Freight — MSC Alexandria/Rotterdam</field>
+        <field name="cost_source">manual</field>
+        <field name="manual_amount">42000.0</field>
+        <field name="allocation_basis">net_weight</field>
+    </record>
+
+    <record id="cost_rotterdam_customs" model="agx.shipment.cost.line">
+        <field name="shipment_id" ref="shipment_rotterdam_01"/>
+        <field name="cost_type_id" ref="demo_master.cost_type_customs"/>
+        <field name="name">Customs Clearance &amp; Phytosanitary</field>
+        <field name="cost_source">manual</field>
+        <field name="manual_amount">3200.0</field>
+        <field name="allocation_basis">equal</field>
+    </record>
+
+    <!-- ============================================================
+         SHIPMENT 2 — RESERVED (Hamburg)
+         Draft shipment being prepared — shows in pending KPI
+    ============================================================ -->
+    <record id="shipment_hamburg_01" model="agx.shipment">
+        <field name="customer_id" ref="demo_operations.customer_hamburg"/>
+        <field name="destination_country_id" ref="base.de"/>
+        <field name="destination_port">Port of Hamburg</field>
+        <field name="season_id" ref="demo_master.season_navel_2025"/>
+        <field name="shipment_date">2026-01-20</field>
+        <field name="vessel_name">Cosco Glory</field>
+        <field name="voyage_no">COG-2026-01-11</field>
+        <field name="etd">2026-01-20</field>
+        <field name="eta">2026-02-03</field>
+        <field name="bl_number">COSBBL2026012001</field>
+        <field name="state">reserved</field>
+    </record>
+
+    <record id="container_hamburg_01" model="agx.shipment.container">
+        <field name="shipment_id" ref="shipment_hamburg_01"/>
+        <field name="container_no">COSU9876543</field>
+        <field name="seal_no">SEA-2026-001</field>
+        <field name="container_type">40ft</field>
+    </record>
+
+    <!-- Cost lines for Hamburg -->
+    <record id="cost_hamburg_inland" model="agx.shipment.cost.line">
+        <field name="shipment_id" ref="shipment_hamburg_01"/>
+        <field name="cost_type_id" ref="demo_master.cost_type_inland"/>
+        <field name="name">Inland Transport — Alexandria Port</field>
+        <field name="cost_source">manual</field>
+        <field name="manual_amount">9500.0</field>
+        <field name="allocation_basis">net_weight</field>
+    </record>
+
+    <record id="cost_hamburg_ocean" model="agx.shipment.cost.line">
+        <field name="shipment_id" ref="shipment_hamburg_01"/>
+        <field name="cost_type_id" ref="demo_master.cost_type_ocean"/>
+        <field name="name">Ocean Freight — Alexandria/Hamburg</field>
+        <field name="cost_source">manual</field>
+        <field name="manual_amount">38500.0</field>
+        <field name="allocation_basis">net_weight</field>
+    </record>
+
+    <!-- ============================================================
+         SHIPMENT 3 — DRAFT (London)
+         Just created — shows open/pending state
+    ============================================================ -->
+    <record id="shipment_london_01" model="agx.shipment">
+        <field name="customer_id" ref="demo_operations.customer_london"/>
+        <field name="destination_country_id" ref="base.gb"/>
+        <field name="destination_port">Tilbury Docks</field>
+        <field name="season_id" ref="demo_master.season_navel_2025"/>
+        <field name="shipment_date">2026-02-05</field>
+        <field name="vessel_name">CMA CGM Liberty</field>
+        <field name="voyage_no">CMA-2026-02-07</field>
+        <field name="etd">2026-02-05</field>
+        <field name="eta">2026-02-19</field>
+        <field name="state">draft</field>
+    </record>
+
+    <!-- ============================================================
+         CUSTOMER CLAIM — on Rotterdam shipment
+         Shows claim workflow: quality issue on Grade A lots
+    ============================================================ -->
+    <record id="claim_rotterdam_quality" model="agx.claim">
+        <field name="shipment_id" ref="shipment_rotterdam_01"/>
+        <field name="claim_date">2026-01-05</field>
+        <field name="claim_type">quality</field>
+        <field name="claimed_qty">120.0</field>
+        <field name="claimed_value">14400.0</field>
+        <field name="agreed_credit">9600.0</field>
+        <field name="state">resolved</field>
+        <field name="root_cause">High temperature during last leg of transport (customer-side cold chain issue confirmed by inspection report)</field>
+        <field name="resolution">Agreed 40% credit on affected cartons (120 PACK × 80 EGP = 9,600 EGP credit note)</field>
+    </record>
+
+</odoo>

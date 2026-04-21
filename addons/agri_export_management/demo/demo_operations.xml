@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+<!--
+    AGX Demo Data — Operations
+    Farm Evaluations, Production Batches, Export Shipments
+    Three complete cycles at different stages so the demo shows
+    a realistic snapshot: one done, one in progress, one draft.
+-->
+
+    <!-- ============================================================
+         PRODUCTS — Raw materials and finished goods
+    ============================================================ -->
+
+    <!-- UoM: PACK OF 15 (15 kg per carton) -->
+    <record id="uom_pack15" model="uom.uom">
+        <field name="name">PACK OF 15</field>
+        <field name="category_id" ref="uom.product_uom_categ_unit"/>
+        <field name="factor_inv">15</field>
+        <field name="uom_type">bigger</field>
+        <field name="rounding">1.0</field>
+    </record>
+
+    <!-- Raw Navel Orange -->
+    <record id="product_raw_navel" model="product.template">
+        <field name="name">Raw Navel Orange</field>
+        <field name="type">product</field>
+        <field name="tracking">lot</field>
+        <field name="purchase_ok">True</field>
+        <field name="sale_ok">False</field>
+        <field name="uom_id" ref="uom.product_uom_kgm"/>
+        <field name="uom_po_id" ref="uom.product_uom_kgm"/>
+        <field name="categ_id" ref="demo_master.crop_navel_orange"/>
+        <field name="description_picking">Raw navel orange from certified farms — handle with care</field>
+    </record>
+
+    <!-- Packed Navel Orange (finished goods) -->
+    <record id="product_packed_navel" model="product.template">
+        <field name="name">Navel Orange — Export Packed</field>
+        <field name="type">product</field>
+        <field name="tracking">lot</field>
+        <field name="purchase_ok">False</field>
+        <field name="sale_ok">True</field>
+        <field name="uom_id" ref="demo_operations.uom_pack15"/>
+        <field name="uom_po_id" ref="demo_operations.uom_pack15"/>
+        <field name="categ_id" ref="demo_master.crop_navel_orange"/>
+        <field name="list_price">120.0</field>
+        <field name="standard_price">85.0</field>
+        <field name="description_picking">Export-grade navel orange, packed 15 kg per carton</field>
+    </record>
+
+    <!-- Packaging Materials -->
+    <record id="material_carton" model="agx.packaging.material">
+        <field name="name">Export Carton 15kg</field>
+        <field name="material_type">carton</field>
+        <field name="standard_unit_cost">3.50</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+    </record>
+
+    <record id="material_label" model="agx.packaging.material">
+        <field name="name">Country of Origin Label</field>
+        <field name="material_type">label</field>
+        <field name="standard_unit_cost">0.25</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+    </record>
+
+    <record id="material_pallet" model="agx.packaging.material">
+        <field name="name">Export Pallet (EPAL)</field>
+        <field name="material_type">pallet</field>
+        <field name="standard_unit_cost">45.0</field>
+        <field name="uom_id" ref="uom.product_uom_unit"/>
+    </record>
+
+    <!-- ============================================================
+         CYCLE 1 — COMPLETED (Nile Delta Farm)
+         Evaluation → Batch done → Shipment shipped
+         Shows full history with real numbers
+    ============================================================ -->
+
+    <record id="eval_nile_delta_nvl25" model="agx.evaluation">
+        <field name="farm_partner_id" ref="demo_master.farm_nile_delta"/>
+        <field name="crop_category_id" ref="demo_master.crop_navel_orange"/>
+        <field name="season_id" ref="demo_master.season_navel_2025"/>
+        <field name="evaluation_date">2025-11-10</field>
+        <field name="farm_expected_qty">12000.0</field>
+        <field name="state">po_created</field>
+    </record>
+
+    <record id="eval_line_nd_a36" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_nile_delta_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_a"/>
+        <field name="size_id" ref="demo_master.size_36"/>
+        <field name="expected_ratio">25.0</field>
+        <field name="estimated_unit_price">3.80</field>
+    </record>
+
+    <record id="eval_line_nd_a40" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_nile_delta_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_a"/>
+        <field name="size_id" ref="demo_master.size_40"/>
+        <field name="expected_ratio">20.0</field>
+        <field name="estimated_unit_price">3.60</field>
+    </record>
+
+    <record id="eval_line_nd_b36" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_nile_delta_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_b"/>
+        <field name="size_id" ref="demo_master.size_36"/>
+        <field name="expected_ratio">30.0</field>
+        <field name="estimated_unit_price">2.80</field>
+    </record>
+
+    <record id="eval_line_nd_b40" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_nile_delta_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_b"/>
+        <field name="size_id" ref="demo_master.size_40"/>
+        <field name="expected_ratio">15.0</field>
+        <field name="estimated_unit_price">2.60</field>
+    </record>
+
+    <record id="eval_line_nd_c" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_nile_delta_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_c"/>
+        <field name="size_id" ref="demo_master.size_48"/>
+        <field name="expected_ratio">10.0</field>
+        <field name="estimated_unit_price">1.50</field>
+    </record>
+
+    <!-- Batch 1 — Done -->
+    <record id="batch_nile_delta_01" model="agx.batch">
+        <field name="batch_date">2025-11-25</field>
+        <field name="season_id" ref="demo_master.season_navel_2025"/>
+        <field name="evaluation_id" ref="eval_nile_delta_nvl25"/>
+        <field name="state">done</field>
+        <field name="manual_operation_cost">8500.0</field>
+        <field name="costing_status">manual</field>
+    </record>
+
+    <record id="batch_pkg_carton_01" model="agx.batch.packaging.line">
+        <field name="batch_id" ref="batch_nile_delta_01"/>
+        <field name="material_id" ref="material_carton"/>
+        <field name="qty">540</field>
+        <field name="unit_cost">3.50</field>
+    </record>
+
+    <record id="batch_pkg_label_01" model="agx.batch.packaging.line">
+        <field name="batch_id" ref="batch_nile_delta_01"/>
+        <field name="material_id" ref="material_label"/>
+        <field name="qty">540</field>
+        <field name="unit_cost">0.25</field>
+    </record>
+
+    <record id="batch_pkg_pallet_01" model="agx.batch.packaging.line">
+        <field name="batch_id" ref="batch_nile_delta_01"/>
+        <field name="material_id" ref="material_pallet"/>
+        <field name="qty">15</field>
+        <field name="unit_cost">45.0</field>
+    </record>
+
+    <!-- ============================================================
+         CYCLE 2 — APPROVED (Fayoum Farm)
+         Evaluation approved, waiting for PO creation
+    ============================================================ -->
+
+    <record id="eval_fayoum_nvl25" model="agx.evaluation">
+        <field name="farm_partner_id" ref="demo_master.farm_fayoum"/>
+        <field name="crop_category_id" ref="demo_master.crop_navel_orange"/>
+        <field name="season_id" ref="demo_master.season_navel_2025"/>
+        <field name="evaluation_date">2025-12-05</field>
+        <field name="farm_expected_qty">8000.0</field>
+        <field name="state">approved</field>
+    </record>
+
+    <record id="eval_line_fy_a36" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_fayoum_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_a"/>
+        <field name="size_id" ref="demo_master.size_36"/>
+        <field name="expected_ratio">35.0</field>
+        <field name="estimated_unit_price">3.90</field>
+    </record>
+
+    <record id="eval_line_fy_a40" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_fayoum_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_a"/>
+        <field name="size_id" ref="demo_master.size_40"/>
+        <field name="expected_ratio">30.0</field>
+        <field name="estimated_unit_price">3.70</field>
+    </record>
+
+    <record id="eval_line_fy_b" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_fayoum_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_b"/>
+        <field name="size_id" ref="demo_master.size_48"/>
+        <field name="expected_ratio">35.0</field>
+        <field name="estimated_unit_price">2.50</field>
+    </record>
+
+    <!-- ============================================================
+         CYCLE 3 — DRAFT (Minya Farm)
+         New evaluation just created
+    ============================================================ -->
+
+    <record id="eval_minya_nvl25" model="agx.evaluation">
+        <field name="farm_partner_id" ref="demo_master.farm_minya"/>
+        <field name="crop_category_id" ref="demo_master.crop_navel_orange"/>
+        <field name="season_id" ref="demo_master.season_navel_2025"/>
+        <field name="evaluation_date">2026-01-10</field>
+        <field name="farm_expected_qty">6000.0</field>
+        <field name="state">draft</field>
+    </record>
+
+    <record id="eval_line_mn_a" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_minya_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_a"/>
+        <field name="size_id" ref="demo_master.size_36"/>
+        <field name="expected_ratio">40.0</field>
+        <field name="estimated_unit_price">3.75</field>
+    </record>
+
+    <record id="eval_line_mn_b" model="agx.evaluation.line">
+        <field name="evaluation_id" ref="eval_minya_nvl25"/>
+        <field name="product_id" ref="product_raw_navel"/>
+        <field name="grade_id" ref="demo_master.grade_export_b"/>
+        <field name="size_id" ref="demo_master.size_40"/>
+        <field name="expected_ratio">60.0</field>
+        <field name="estimated_unit_price">2.70</field>
+    </record>
+
+    <!-- ============================================================
+         BATCH 2 — IN PROGRESS (Fayoum)
+    ============================================================ -->
+    <record id="batch_fayoum_01" model="agx.batch">
+        <field name="batch_date">2026-01-05</field>
+        <field name="season_id" ref="demo_master.season_navel_2025"/>
+        <field name="evaluation_id" ref="eval_fayoum_nvl25"/>
+        <field name="state">in_progress</field>
+        <field name="manual_operation_cost">6200.0</field>
+        <field name="costing_status">manual</field>
+    </record>
+
+</odoo>
