@@ -34,10 +34,13 @@ html[data-color-scheme="dark"] .agx-dashboard,
     background: var(--agx-bg);
     color: var(--agx-text);
 
-    /* KEY: normal flow — Odoo scrolls the page, not us */
-    
+    /* KEY: normal flow — scrolls the page, not us */
+
     position: absolute;
-    inset: 0;
+    top: 48px;   
+    right: 0;
+    bottom: 0;
+    left: 0;
     overflow-y: auto;
     overflow-x: hidden;
 
