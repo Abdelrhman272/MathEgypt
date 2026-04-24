@@ -137,8 +137,8 @@ class TestFullWorkflow(TransactionCase):
             'destination_country_id': self.destination.id,
             'season_id': self.season.id,
             'shipment_date': fields.Date.today(),
-            'etd': '2025-12-20',
-            'eta': '2025-12-28',
+            'etd': '2027-12-20',
+            'eta': '2027-12-28',
             'container_no': 'TSTU1234567',
             'bl_number': 'BL-FLOW-001'})
         fin_line = self.env['agx.shipment.line'].create({
@@ -150,7 +150,7 @@ class TestFullWorkflow(TransactionCase):
             'gross_weight': 1650.0})
         # Should not raise
         shp._validate_before_reserve()
-        self.assertEqual(fin_line.uom_id, self.fin_product.uom_id)
+        self.assertEqual(fin_line.uom_id.id, self.fin_product.uom_id.id)
 
 
 
