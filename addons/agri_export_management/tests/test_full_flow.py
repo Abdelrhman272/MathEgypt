@@ -22,26 +22,22 @@ class TestFullWorkflow(TransactionCase):
 
         # ── Master data ──────────────────────────────────────────
         cls.crop    = env['product.category'].create({'name': 'Flow Orange', 'is_agx_crop': True})
-        cls.grade_a = env['agx.grade'].create({'name': 'A', 'code': 'FA', 'sequence': 1})
-        cls.grade_b = env['agx.grade'].create({'name': 'B', 'code': 'FB', 'sequence': 2})
+        cls.grade_a = env['agx.grade'].create({'name': 'A', 'sequence': 1})
+        cls.grade_b = env['agx.grade'].create({'name': 'B', 'sequence': 2})
         cls.size_40 = env['agx.size'].create({'number': 40, 'name': '40', 'sequence': 40})
 
         cls.vendor  = env['res.partner'].create({
             'name': 'Flow Farm Vendor', 'supplier_rank': 1, 'is_agx_farm': True,
-            'country_id': env.ref('base.eg').id,
-        })
+            'country_id': env.ref('base.eg').id})
         cls.customer = env['res.partner'].create({
             'name': 'Flow Customer NL', 'customer_rank': 1,
-            'country_id': env.ref('base.nl').id,
-        })
+            'country_id': env.ref('base.nl').id})
         cls.farm = env['res.partner'].create({
-            'name': 'Flow Farm', 'code': 'FF-001', 'partner_id': cls.vendor.id
-        })
+            'name': 'Flow Farm'})
         cls.season = env['agx.season'].create({
-            'name': 'Flow Season 2025', 'code': 'FS-25',
+            'name': 'Flow Season 2025',
             'crop_category_id': cls.crop.id, 'state': 'active',
-            'date_start': '2025-11-01',
-        })
+            'date_start': '2025-11-01'})
         cls.destination = env['res.country'].search([('code', '=', 'NL')], limit=1)
 
         # ── Products ─────────────────────────────────────────────
@@ -51,19 +47,16 @@ class TestFullWorkflow(TransactionCase):
         cls.raw_product = env['product.template'].create({
             'name': 'Flow Raw Orange', 'type': 'consu',
             'tracking': 'lot', 'purchase_ok': True, 'sale_ok': False,
-            'uom_id': uom_kg.id,
-        }).product_variant_id
+            'uom_id': uom_kg.id}).product_variant_id
 
         cls.fin_product = env['product.template'].create({
             'name': 'Flow Packed Orange', 'type': 'consu',
             'tracking': 'lot', 'sale_ok': True,
-            'uom_id': uom_unit.id,
-        }).product_variant_id
+            'uom_id': uom_unit.id}).product_variant_id
 
         cls.svc_product = env['product.template'].create({
             'name': 'Flow Container Service', 'type': 'service',
-            'sale_ok': True, 'uom_id': uom_unit.id,
-        }).product_variant_id
+            'sale_ok': True, 'uom_id': uom_unit.id}).product_variant_id
 
         # ── Company settings ──────────────────────────────────────
         company = env.company
@@ -73,7 +66,6 @@ class TestFullWorkflow(TransactionCase):
         """Full evaluation state machine."""
         ev = self.env['agx.evaluation'].create({
             'farm_partner_id': self.vendor.id,
-            'partner_id': self.vendor.id,
             'crop_category_id': self.crop.id,
             'season_id': self.season.id,
             'evaluation_date': '2025-11-01',
@@ -83,16 +75,13 @@ class TestFullWorkflow(TransactionCase):
                     'product_id': self.raw_product.id,
                     'grade_id': self.grade_a.id,
                     'expected_ratio': 60.0,
-                    'estimated_unit_price': 3.0,
-                }),
+                    'estimated_unit_price': 3.0}),
                 (0, 0, {
                     'product_id': self.raw_product.id,
                     'grade_id': self.grade_b.id,
                     'expected_ratio': 40.0,
-                    'estimated_unit_price': 2.0,
-                }),
-            ],
-        })
+                    'estimated_unit_price': 2.0}),
+            ]})
         self.assertEqual(ev.state, 'draft')
 
         # Expected qty calculation
@@ -120,8 +109,7 @@ class TestFullWorkflow(TransactionCase):
         """Batch costing includes scrap + packaging."""
         batch = self.env['agx.batch'].create({
             'batch_date': '2025-12-01',
-            'season_id': self.season.id,
-        })
+            'season_id': self.season.id})
         batch.action_start()
         self.assertEqual(batch.state, 'in_progress')
 
@@ -130,14 +118,12 @@ class TestFullWorkflow(TransactionCase):
             'name': 'Test Carton 15kg',
             'material_type': 'carton',
             'standard_unit_cost': 2.5,
-            'uom_id': self.env.ref('uom.product_uom_unit').id,
-        })
+            'uom_id': self.env.ref('uom.product_uom_unit').id})
         self.env['agx.batch.packaging.line'].create({
             'batch_id': batch.id,
             'material_id': pack_mat.id,
             'qty': 200,
-            'unit_cost': 2.5,
-        })
+            'unit_cost': 2.5})
         self.assertAlmostEqual(batch.total_packaging_cost, 500.0, places=1)
 
         # Add scrap
@@ -145,8 +131,7 @@ class TestFullWorkflow(TransactionCase):
             'batch_id': batch.id,
             'scrap_type': 'natural_loss',
             'scrap_qty': 150.0,
-            'uom_id': self.env.ref('uom.product_uom_kgm').id,
-        })
+            'uom_id': self.env.ref('uom.product_uom_kgm').id})
         self.assertAlmostEqual(batch.total_scrap_qty, 150.0, places=1)
 
     def test_03_shipment_validations_pass(self):
@@ -159,16 +144,14 @@ class TestFullWorkflow(TransactionCase):
             'etd': '2025-12-20',
             'eta': '2025-12-28',
             'container_no': 'TSTU1234567',
-            'bl_number': 'BL-FLOW-001',
-        })
+            'bl_number': 'BL-FLOW-001'})
         fin_line = self.env['agx.shipment.line'].create({
             'shipment_id': shp.id,
             'product_id': self.fin_product.id,
             'product_qty': 100.0,
             'carton_qty': 100.0,
             'net_weight': 1500.0,
-            'gross_weight': 1650.0,
-        })
+            'gross_weight': 1650.0})
         # Should not raise
         shp._validate_before_reserve()
         self.assertEqual(fin_line.uom_id, self.fin_product.uom_id)
@@ -180,10 +163,9 @@ class TestFullWorkflow(TransactionCase):
         """Season auto-creates analytic account on save."""
         season = self.env['agx.season'].create({
             'name': 'Analytic Test Season',
-            'code': 'ATS-25',
             'crop_category_id': self.crop.id,
             'state': 'active',
-            'date_start': '2025-11-01',})
+            'date_start': '2025-11-01'})
         self.assertTrue(
             season.analytic_account_id,
             "Season should auto-create analytic account"
@@ -195,8 +177,7 @@ class TestFullWorkflow(TransactionCase):
         shp = self.env['agx.shipment'].create({
             'customer_id': self.customer.id,
             'season_id': self.season.id,
-            'shipment_date': fields.Date.today(),
-        })
+            'shipment_date': fields.Date.today()})
         shp.action_create_sale_order()
         self.assertTrue(shp.sale_order_id)
         if shp.season_id.analytic_account_id:
@@ -211,18 +192,15 @@ class TestFullWorkflow(TransactionCase):
         batch = self.env['agx.batch'].create({
             'batch_date': '2025-12-01',
             'season_id': self.season.id,
-            'manual_operation_cost': 1000.0,
-        })
+            'manual_operation_cost': 1000.0})
         pack_mat = self.env['agx.packaging.material'].create({
             'name': 'Test Pallet', 'material_type': 'pallet',
             'standard_unit_cost': 50.0,
-            'uom_id': self.env.ref('uom.product_uom_unit').id,
-        })
+            'uom_id': self.env.ref('uom.product_uom_unit').id})
         self.env['agx.batch.packaging.line'].create({
             'batch_id': batch.id,
             'material_id': pack_mat.id,
-            'qty': 10, 'unit_cost': 50.0,
-        })
+            'qty': 10, 'unit_cost': 50.0})
         # effective = manual_op + manual_other + packaging (no actual receipts)
         expected = 1000.0 + 500.0  # operation + packaging
         self.assertAlmostEqual(batch.effective_allocable_cost, expected, places=0)
@@ -231,14 +209,11 @@ class TestFullWorkflow(TransactionCase):
         """Intercompany SO can be linked to evaluation."""
         ev = self.env['agx.evaluation'].create({
             'farm_partner_id': self.vendor.id,
-            'partner_id': self.vendor.id,
             'crop_category_id': self.crop.id,
             'season_id': self.season.id,
             'evaluation_date': '2025-11-01',
-            'farm_expected_qty': 1000.0,
-        })
+            'farm_expected_qty': 1000.0})
         so = self.env['sale.order'].create({
-            'partner_id': self.customer.id,
         })
         ev.intercompany_so_id = so.id
         self.assertEqual(ev.intercompany_so_id.id, so.id)

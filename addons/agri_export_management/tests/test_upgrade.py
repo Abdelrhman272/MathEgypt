@@ -46,9 +46,9 @@ class TestUpgradeSafety(TransactionCase):
         """Season creates analytic account — account links back."""
         crop = self.env['product.category'].create({'name': 'Upgrade Crop', 'is_agx_crop': True})
         season = self.env['agx.season'].create({
-            'name': 'Upgrade Test Season', 'code': 'UPG-25',
+            'name': 'Upgrade Test Season',
             'crop_category_id': crop.id, 'state': 'active',
-            'date_start': '2025-11-01',})
+            'date_start': '2025-11-01'})
         # Analytic account should exist
         if season.analytic_account_id:
             # Account name should reference season
@@ -64,16 +64,14 @@ class TestUpgradeSafety(TransactionCase):
     def test_05_batch_scrap_cascade_delete(self):
         """Deleting a batch cascades to scrap lines."""
         season = self.env['agx.season'].create({
-            'name': 'Cascade Season', 'code': 'CS-25', 'state': 'active',
-            'date_start': '2025-11-01',})
+            'name': 'Cascade Season', 'state': 'active',
+            'date_start': '2025-11-01'})
         batch = self.env['agx.batch'].create({
-            'batch_date': '2025-12-01', 'season_id': season.id,
-        })
+            'batch_date': '2025-12-01', 'season_id': season.id})
         scrap = self.env['agx.batch.scrap'].create({
             'batch_id': batch.id, 'scrap_type': 'natural_loss',
             'scrap_qty': 50.0,
-            'uom_id': self.env.ref('uom.product_uom_kgm').id,
-        })
+            'uom_id': self.env.ref('uom.product_uom_kgm').id})
         scrap_id = scrap.id
         batch.unlink()
         # Scrap should be deleted by cascade
@@ -82,20 +80,17 @@ class TestUpgradeSafety(TransactionCase):
     def test_06_packaging_line_cascade_delete(self):
         """Deleting a batch cascades to packaging lines."""
         season = self.env['agx.season'].create({
-            'name': 'Pkg Cascade Season', 'code': 'PCS-25', 'state': 'active',
-            'date_start': '2025-11-01',})
+            'name': 'Pkg Cascade Season', 'state': 'active',
+            'date_start': '2025-11-01'})
         batch = self.env['agx.batch'].create({
-            'batch_date': '2025-12-01', 'season_id': season.id,
-        })
+            'batch_date': '2025-12-01', 'season_id': season.id})
         mat = self.env['agx.packaging.material'].create({
             'name': 'Cascade Carton', 'material_type': 'carton',
             'standard_unit_cost': 1.0,
-            'uom_id': self.env.ref('uom.product_uom_unit').id,
-        })
+            'uom_id': self.env.ref('uom.product_uom_unit').id})
         pkg = self.env['agx.batch.packaging.line'].create({
             'batch_id': batch.id, 'material_id': mat.id,
-            'qty': 100, 'unit_cost': 1.0,
-        })
+            'qty': 100, 'unit_cost': 1.0})
         pkg_id = pkg.id
         batch.unlink()
         self.assertFalse(
@@ -107,17 +102,14 @@ class TestUpgradeSafety(TransactionCase):
         customer = self.env['res.partner'].create({'name': 'Cascade Customer'})
         shp = self.env['agx.shipment'].create({
             'customer_id': customer.id,
-            'shipment_date': '2025-12-01',
-        })
+            'shipment_date': '2025-12-01'})
         shp_id = shp.id
         line = self.env['agx.shipment.line'].create({
             'shipment_id': shp.id,
             'product_id': self.env['product.template'].create({
                 'name': 'Cascade Product', 'type': 'consu',
-                'uom_id': self.env.ref('uom.product_uom_unit').id,
-            }).product_variant_id.id,
-            'product_qty': 10.0,
-        })
+                'uom_id': self.env.ref('uom.product_uom_unit').id}).product_variant_id.id,
+            'product_qty': 10.0})
         line_id = line.id
         shp.unlink()
         self.assertFalse(

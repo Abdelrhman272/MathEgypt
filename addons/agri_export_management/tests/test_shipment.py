@@ -12,20 +12,18 @@ class TestAgxShipment(TransactionCase):
     def setUp(self):
         super().setUp()
         self.customer = self.env['res.partner'].create({'name': 'Test Customer NL', 'customer_rank': 1})
-        self.dest = self.env['res.country'].search([('code', '=', 'NL')], limit=1) or self.env['res.country'].create({'name': 'Netherlands', 'code': 'NL'})
+        self.dest = self.env['res.country'].search([('code', '=', 'NL')], limit=1) or self.env['res.country'].create({'name': 'Netherlands'})
         self.season = self.env['agx.season'].create({
             'name': 'Ship Test Season',
-            'code': 'STS-25',
             'state': 'active',
-            'date_start': '2025-11-01',})
+            'date_start': '2025-11-01'})
 
     def _make_shipment(self, **kwargs):
         vals = {
             'customer_id': self.customer.id,
             'destination_country_id': self.dest.id,
             'season_id': self.season.id,
-            'shipment_date': fields.Date.today(),
-        }
+            'shipment_date': fields.Date.today()}
         vals.update(kwargs)
         return self.env['agx.shipment'].create(vals)
 
@@ -84,8 +82,7 @@ class TestAgxShipment(TransactionCase):
         product = self.env['product.template'].create({
             'name': 'Test Packed',
             'type': 'consu',
-            'uom_id': self.env.ref('uom.product_uom_unit').id,
-        }).product_variant_id
+            'uom_id': self.env.ref('uom.product_uom_unit').id}).product_variant_id
         shp = self._make_shipment()
         line = self.env['agx.shipment.line'].create({
             'shipment_id': shp.id,

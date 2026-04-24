@@ -13,8 +13,8 @@ class TestAgxEvaluation(TransactionCase):
         company = self.env.company
 
         self.crop = self.env['product.category'].create({'name': 'Test Orange', 'is_agx_crop': True})
-        self.grade_a = self.env['agx.grade'].create({'name': 'A', 'code': 'A', 'sequence': 1})
-        self.grade_b = self.env['agx.grade'].create({'name': 'B', 'code': 'B', 'sequence': 2})
+        self.grade_a = self.env['agx.grade'].create({'name': 'A', 'sequence': 1})
+        self.grade_b = self.env['agx.grade'].create({'name': 'B', 'sequence': 2})
 
         for num in [36, 40]:
             self.env['agx.size'].create({'number': num, 'name': str(num), 'sequence': num})
@@ -24,22 +24,19 @@ class TestAgxEvaluation(TransactionCase):
             'name': 'Test Farm Vendor', 'supplier_rank': 1
         })
         self.farm = self.env['res.partner'].create({
-            'name': 'Test Farm', 'code': 'TF-001', 'partner_id': self.vendor.id
-        })
+            'name': 'Test Farm'})
         self.season = self.env['agx.season'].create({
-            'name': 'Test Season 2025', 'code': 'TST-25',
+            'name': 'Test Season 2025',
             'crop_category_id': self.crop.id, 'state': 'active',
-            'date_start': '2025-11-01',})
+            'date_start': '2025-11-01'})
         self.raw_product = self.env['product.template'].create({
             'name': 'Test Raw Product', 'type': 'consu',
             'tracking': 'lot',
-            'uom_id': self.env.ref('uom.product_uom_kgm').id,
-        }).product_variant_id
+            'uom_id': self.env.ref('uom.product_uom_kgm').id}).product_variant_id
 
     def _make_eval(self, qty=1000.0):
         return self.env['agx.evaluation'].create({
             'farm_partner_id': self.vendor.id,
-            'partner_id': self.vendor.id,
             'crop_category_id': self.crop.id,
             'season_id': self.season.id,
             'evaluation_date': '2025-11-01',
@@ -49,16 +46,13 @@ class TestAgxEvaluation(TransactionCase):
                     'product_id': self.raw_product.id,
                     'grade_id': self.grade_a.id,
                     'expected_ratio': 60.0,
-                    'estimated_unit_price': 2.5,
-                }),
+                    'estimated_unit_price': 2.5}),
                 (0, 0, {
                     'product_id': self.raw_product.id,
                     'grade_id': self.grade_b.id,
                     'expected_ratio': 40.0,
-                    'estimated_unit_price': 2.0,
-                }),
-            ],
-        })
+                    'estimated_unit_price': 2.0}),
+            ]})
 
     def test_01_create_evaluation(self):
         """Evaluation is created in draft state."""
@@ -117,7 +111,6 @@ class TestAgxEvaluation(TransactionCase):
         """intercompany_so_id is settable on evaluation."""
         ev = self._make_eval()
         so = self.env['sale.order'].create({
-            'partner_id': self.vendor.id,
         })
         ev.intercompany_so_id = so.id
         self.assertEqual(ev.intercompany_so_id, so)

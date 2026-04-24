@@ -28,28 +28,23 @@ class TestE2EWorkflow(TransactionCase):
             'supplier_rank': 1,
             'is_agx_farm': True,
             'agx_farm_code': 'IT-001',
-            'agx_region': 'Test Region',
-        })
+            'agx_region': 'Test Region'})
         cls.customer = env['res.partner'].create({
             'name': 'Integration Test Customer',
             'customer_rank': 1,
-            'country_id': env.ref('base.nl').id,
-        })
+            'country_id': env.ref('base.nl').id})
 
         # ── Crop category ─────────────────────────────────────────
         cls.crop_cat = env['product.category'].create({
             'name': 'Integration Orange',
-            'is_agx_crop': True,
-        })
+            'is_agx_crop': True})
 
         # ── Season ────────────────────────────────────────────────
         cls.season = env['agx.season'].create({
             'name': 'Integration Season 2025',
-            'code': 'INT-25',
             'crop_category_id': cls.crop_cat.id,
             'state': 'active',
-            'date_start': '2025-11-01',
-        })
+            'date_start': '2025-11-01'})
 
         # ── Products ──────────────────────────────────────────────
         uom_kg   = env.ref('uom.product_uom_kgm')
@@ -60,26 +55,23 @@ class TestE2EWorkflow(TransactionCase):
             'type': 'product',       # STORABLE — required for lot tracking
             'tracking': 'lot',
             'purchase_ok': True,
-            'uom_id': uom_kg.id,
-        }).product_variant_id
+            'uom_id': uom_kg.id}).product_variant_id
 
         cls.fin_product = env['product.template'].create({
             'name': 'Integration Packed Orange',
             'type': 'product',       # STORABLE — required for lot tracking
             'tracking': 'lot',
             'sale_ok': True,
-            'uom_id': uom_unit.id,
-        }).product_variant_id
+            'uom_id': uom_unit.id}).product_variant_id
 
         cls.svc_product = env['product.template'].create({
             'name': 'Integration Container Svc',
             'type': 'service',
             'sale_ok': True,
-            'uom_id': uom_unit.id,
-        }).product_variant_id
+            'uom_id': uom_unit.id}).product_variant_id
 
         # ── Grade / Size ──────────────────────────────────────────
-        cls.grade_a = env['agx.grade'].create({'name': 'A', 'code': 'A', 'sequence': 1})
+        cls.grade_a = env['agx.grade'].create({'name': 'A', 'sequence': 1})
         cls.size_36 = env['agx.size'].create({'number': 36, 'name': '36', 'sequence': 36})
 
         # ── Settings ──────────────────────────────────────────────
@@ -100,9 +92,7 @@ class TestE2EWorkflow(TransactionCase):
                 'product_id': self.raw_product.id,
                 'grade_id': self.grade_a.id,
                 'expected_ratio': 100.0,
-                'estimated_unit_price': 3.0,
-            })],
-        })
+                'estimated_unit_price': 3.0})]})
         ev.action_approve()
         return ev
 
@@ -147,20 +137,17 @@ class TestE2EWorkflow(TransactionCase):
         batch = self.env['agx.batch'].create({
             'batch_date': '2025-12-01',
             'season_id': self.season.id,
-            'manual_operation_cost': 500.0,
-        })
+            'manual_operation_cost': 500.0})
         mat = self.env['agx.packaging.material'].create({
             'name': 'Integration Carton',
             'material_type': 'carton',
             'standard_unit_cost': 2.0,
-            'uom_id': self.env.ref('uom.product_uom_unit').id,
-        })
+            'uom_id': self.env.ref('uom.product_uom_unit').id})
         self.env['agx.batch.packaging.line'].create({
             'batch_id': batch.id,
             'material_id': mat.id,
             'qty': 100,
-            'unit_cost': 2.0,
-        })
+            'unit_cost': 2.0})
         # effective = operation(500) + packaging(200) = 700
         self.assertAlmostEqual(batch.effective_allocable_cost, 700.0, places=0)
 
@@ -169,21 +156,18 @@ class TestE2EWorkflow(TransactionCase):
         """Scrap totals and scrap_pct computed correctly."""
         batch = self.env['agx.batch'].create({
             'batch_date': '2025-12-01',
-            'season_id': self.season.id,
-        })
+            'season_id': self.season.id})
         # Add input to get input_qty
         self.env['agx.batch.input'].create({
             'batch_id': batch.id,
             'product_id': self.raw_product.id,
             'qty': 1000.0,
-            'uom_id': self.env.ref('uom.product_uom_kgm').id,
-        })
+            'uom_id': self.env.ref('uom.product_uom_kgm').id})
         self.env['agx.batch.scrap'].create({
             'batch_id': batch.id,
             'scrap_type': 'natural_loss',
             'scrap_qty': 100.0,
-            'uom_id': self.env.ref('uom.product_uom_kgm').id,
-        })
+            'uom_id': self.env.ref('uom.product_uom_kgm').id})
         batch.invalidate_recordset(['total_scrap_qty', 'scrap_pct', 'input_qty'])
         self.assertAlmostEqual(batch.total_scrap_qty, 100.0, places=0)
         self.assertAlmostEqual(batch.scrap_pct, 10.0, places=1)
@@ -194,8 +178,7 @@ class TestE2EWorkflow(TransactionCase):
         shp = self.env['agx.shipment'].create({
             'customer_id': self.customer.id,
             'season_id': self.season.id,
-            'shipment_date': fields.Date.today(),
-        })
+            'shipment_date': fields.Date.today()})
         # fin_product UoM = Units, try to enter kg (different category)
         uom_kg = self.env.ref('uom.product_uom_kgm')
         with self.assertRaises(ValidationError):
@@ -206,8 +189,7 @@ class TestE2EWorkflow(TransactionCase):
                 'uom_id': uom_kg.id,  # WRONG — kg for a Units product
                 'carton_qty': 80,
                 'net_weight': 1200.0,
-                'gross_weight': 1320.0,
-            })
+                'gross_weight': 1320.0})
 
     # ── Test 06: UoM constraint — allows correct UoM ─────────────
     def test_06_uom_constraint_allows_correct_uom(self):
@@ -215,8 +197,7 @@ class TestE2EWorkflow(TransactionCase):
         shp = self.env['agx.shipment'].create({
             'customer_id': self.customer.id,
             'season_id': self.season.id,
-            'shipment_date': fields.Date.today(),
-        })
+            'shipment_date': fields.Date.today()})
         # fin_product UoM = Units → use Units
         line = self.env['agx.shipment.line'].create({
             'shipment_id': shp.id,
@@ -235,8 +216,7 @@ class TestE2EWorkflow(TransactionCase):
         shp = self.env['agx.shipment'].create({
             'customer_id': self.customer.id,
             'season_id': self.season.id,
-            'shipment_date': fields.Date.today(),
-        })
+            'shipment_date': fields.Date.today()})
         with self.assertRaises(UserError):
             shp.action_reserve()
 
@@ -247,16 +227,14 @@ class TestE2EWorkflow(TransactionCase):
             'customer_id': self.customer.id,
             'season_id': self.season.id,
             'shipment_date': fields.Date.today(),
-            'etd': '2020-01-01',
-        })
+            'etd': '2020-01-01'})
         self.env['agx.shipment.line'].create({
             'shipment_id': shp.id,
             'product_id': self.fin_product.id,
             'product_qty': 80.0,
             'carton_qty': 80,
             'net_weight': 1200.0,
-            'gross_weight': 1320.0,
-        })
+            'gross_weight': 1320.0})
         with self.assertRaises(UserError):
             shp.action_reserve()
 
@@ -267,15 +245,13 @@ class TestE2EWorkflow(TransactionCase):
             'customer_id': self.customer.id,
             'season_id': self.season.id,
             'shipment_date': fields.Date.today(),
-            'bl_number': 'BL-INT-TEST-001',
-        })
+            'bl_number': 'BL-INT-TEST-001'})
         shp1.state = 'reserved'
         shp2 = self.env['agx.shipment'].create({
             'customer_id': self.customer.id,
             'season_id': self.season.id,
             'shipment_date': fields.Date.today(),
-            'bl_number': 'BL-INT-TEST-001',
-        })
+            'bl_number': 'BL-INT-TEST-001'})
         shp2.state = 'reserved'
         with self.assertRaises(UserError):
             shp2._validate_before_ship()
@@ -286,14 +262,12 @@ class TestE2EWorkflow(TransactionCase):
         shp = self.env['agx.shipment'].create({
             'customer_id': self.customer.id,
             'season_id': self.season.id,
-            'shipment_date': fields.Date.today(),
-        })
+            'shipment_date': fields.Date.today()})
         claim = self.env['agx.claim'].create({
             'shipment_id': shp.id,
             'claim_type': 'quality',
             'claimed_qty': 20.0,
-            'claimed_value': 1000.0,
-        })
+            'claimed_value': 1000.0})
         # Verify auto-populated fields
         self.assertEqual(claim.customer_id, self.customer)
         self.assertEqual(claim.season_id, self.season)
@@ -315,15 +289,13 @@ class TestE2EWorkflow(TransactionCase):
         shp = self.env['agx.shipment'].create({
             'customer_id': self.customer.id,
             'season_id': self.season.id,
-            'shipment_date': fields.Date.today(),
-        })
+            'shipment_date': fields.Date.today()})
         claim = self.env['agx.claim'].create({
             'shipment_id': shp.id,
             'claim_type': 'damage',
             'claimed_qty': 5.0,
             'claimed_value': 500.0,
-            'root_cause': 'Customer-side handling issue',
-        })
+            'root_cause': 'Customer-side handling issue'})
         claim.action_review()
         claim.action_reject()
         self.assertEqual(claim.state, 'rejected')
@@ -334,13 +306,11 @@ class TestE2EWorkflow(TransactionCase):
         shp = self.env['agx.shipment'].create({
             'customer_id': self.customer.id,
             'season_id': self.season.id,
-            'shipment_date': fields.Date.today(),
-        })
+            'shipment_date': fields.Date.today()})
         self.assertEqual(shp.claim_count, 0)
         self.env['agx.claim'].create({
             'shipment_id': shp.id,
-            'claim_type': 'quantity',
-        })
+            'claim_type': 'quantity'})
         shp.invalidate_recordset(['claim_count'])
         self.assertEqual(shp.claim_count, 1)
 
@@ -349,10 +319,9 @@ class TestE2EWorkflow(TransactionCase):
         """Season creates analytic account on save."""
         season = self.env['agx.season'].create({
             'name': 'P&L Test Season',
-            'code': 'PL-TST',
             'crop_category_id': self.crop_cat.id,
             'state': 'active',
-            'date_start': '2025-11-01',})
+            'date_start': '2025-11-01'})
         self.assertTrue(
             season.analytic_account_id,
             "Season must auto-create analytic account"
@@ -363,7 +332,6 @@ class TestE2EWorkflow(TransactionCase):
         """Intercompany SO does NOT auto-link — only posts suggestion."""
         ev = self._make_evaluation()
         so = self.env['sale.order'].create({
-            'partner_id': self.farm_partner.id,
         })
         # Simulate intercompany by calling the method directly
         # The SO should NOT be auto-linked
@@ -378,8 +346,7 @@ class TestE2EWorkflow(TransactionCase):
         """Mark Done raises UserError if no output lines."""
         batch = self.env['agx.batch'].create({
             'batch_date': '2025-12-01',
-            'season_id': self.season.id,
-        })
+            'season_id': self.season.id})
         batch.action_start()
         with self.assertRaises(UserError):
             batch.action_done()
@@ -389,8 +356,7 @@ class TestE2EWorkflow(TransactionCase):
         """Scrap type 'other' requires reason text."""
         batch = self.env['agx.batch'].create({
             'batch_date': '2025-12-01',
-            'season_id': self.season.id,
-        })
+            'season_id': self.season.id})
         with self.assertRaises(ValidationError):
             self.env['agx.batch.scrap'].create({
                 'batch_id': batch.id,
@@ -428,8 +394,7 @@ class TestE2EWorkflow(TransactionCase):
             'product_qty': 80.0,
             'carton_qty': 80,
             'net_weight': 1200.0,
-            'gross_weight': 1320.0,
-        })
+            'gross_weight': 1320.0})
         with self.assertRaises(UserError):
             shp._validate_before_reserve()
 
@@ -442,15 +407,13 @@ class TestE2EWorkflow(TransactionCase):
             'shipment_date': fields.Date.today(),
             'etd': '2025-12-20',
             'eta': '2025-12-28',
-            'bl_number': 'BL-VALIDATION-PASS-001',
-        })
+            'bl_number': 'BL-VALIDATION-PASS-001'})
         self.env['agx.shipment.line'].create({
             'shipment_id': shp.id,
             'product_id': self.fin_product.id,
             'product_qty': 80.0,
             'carton_qty': 80,
             'net_weight': 1200.0,
-            'gross_weight': 1320.0,
-        })
+            'gross_weight': 1320.0})
         # Should NOT raise
         shp._validate_before_reserve()
