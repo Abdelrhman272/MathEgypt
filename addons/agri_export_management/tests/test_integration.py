@@ -52,14 +52,14 @@ class TestE2EWorkflow(TransactionCase):
 
         cls.raw_product = env['product.template'].create({
             'name': 'Integration Raw Orange',
-            'type': 'consu', 'detailed_type': 'product',       # STORABLE — required for lot tracking
+            'type': 'consu',       # STORABLE — required for lot tracking
             'tracking': 'lot',
             'purchase_ok': True,
             'uom_id': uom_kg.id}).product_variant_id
 
         cls.fin_product = env['product.template'].create({
             'name': 'Integration Packed Orange',
-            'type': 'consu', 'detailed_type': 'product',       # STORABLE — required for lot tracking
+            'type': 'consu',       # STORABLE — required for lot tracking
             'tracking': 'lot',
             'sale_ok': True,
             'uom_id': uom_unit.id}).product_variant_id

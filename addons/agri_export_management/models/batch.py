@@ -1581,7 +1581,6 @@ class AgxBatchScrap(models.Model):
         help="Estimated cost of this loss = scrap_qty × avg input cost per unit.",
     )
 
-    @api.depends("scrap_qty", "batch_id.actual_raw_material_cost", "batch_id.input_qty")
     @api.constrains("scrap_type", "reason")
     def _check_scrap_reason(self):
         for rec in self:
