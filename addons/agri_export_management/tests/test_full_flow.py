@@ -51,13 +51,13 @@ class TestFullWorkflow(TransactionCase):
         cls.raw_product = env['product.template'].create({
             'name': 'Flow Raw Orange', 'type': 'consu',
             'tracking': 'lot', 'purchase_ok': True, 'sale_ok': False,
-            'uom_id': uom_kg.id, 'uom_po_id': uom_kg.id,
+            'uom_id': uom_kg.id,
         }).product_variant_id
 
         cls.fin_product = env['product.template'].create({
             'name': 'Flow Packed Orange', 'type': 'consu',
             'tracking': 'lot', 'sale_ok': True,
-            'uom_id': uom_unit.id, 'uom_po_id': uom_unit.id,
+            'uom_id': uom_unit.id,
         }).product_variant_id
 
         cls.svc_product = env['product.template'].create({

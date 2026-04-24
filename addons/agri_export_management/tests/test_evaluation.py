@@ -34,7 +34,6 @@ class TestAgxEvaluation(TransactionCase):
             'name': 'Test Raw Product', 'type': 'consu',
             'tracking': 'lot',
             'uom_id': self.env.ref('uom.product_uom_kgm').id,
-            'uom_po_id': self.env.ref('uom.product_uom_kgm').id,
         }).product_variant_id
 
     def _make_eval(self, qty=1000.0):

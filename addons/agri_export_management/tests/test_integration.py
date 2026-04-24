@@ -61,7 +61,6 @@ class TestE2EWorkflow(TransactionCase):
             'tracking': 'lot',
             'purchase_ok': True,
             'uom_id': uom_kg.id,
-            'uom_po_id': uom_kg.id,
         }).product_variant_id
 
         cls.fin_product = env['product.template'].create({
@@ -70,7 +69,6 @@ class TestE2EWorkflow(TransactionCase):
             'tracking': 'lot',
             'sale_ok': True,
             'uom_id': uom_unit.id,
-            'uom_po_id': uom_unit.id,
         }).product_variant_id
 
         cls.svc_product = env['product.template'].create({

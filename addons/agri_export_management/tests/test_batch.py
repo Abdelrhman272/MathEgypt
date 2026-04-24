@@ -20,12 +20,10 @@ class TestAgxBatch(TransactionCase):
         self.raw_product = self.env['product.template'].create({
             'name': 'Batch Raw', 'type': 'consu', 'tracking': 'lot',
             'uom_id': self.env.ref('uom.product_uom_kgm').id,
-            'uom_po_id': self.env.ref('uom.product_uom_kgm').id,
         }).product_variant_id
         self.fin_product = self.env['product.template'].create({
             'name': 'Batch Finished', 'type': 'consu', 'tracking': 'lot',
             'uom_id': self.env.ref('uom.product_uom_unit').id,
-            'uom_po_id': self.env.ref('uom.product_uom_unit').id,
         }).product_variant_id
 
     def _make_batch(self):

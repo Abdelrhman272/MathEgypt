@@ -85,7 +85,6 @@ class TestAgxShipment(TransactionCase):
             'name': 'Test Packed',
             'type': 'consu',
             'uom_id': self.env.ref('uom.product_uom_unit').id,
-            'uom_po_id': self.env.ref('uom.product_uom_unit').id,
         }).product_variant_id
         shp = self._make_shipment()
         line = self.env['agx.shipment.line'].create({

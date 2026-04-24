@@ -31,7 +31,6 @@ class TestPerformance(TransactionCase):
         cls.raw_product = env['product.template'].create({
             'name': 'Perf Raw', 'type': 'consu', 'tracking': 'lot',
             'uom_id': env.ref('uom.product_uom_kgm').id,
-            'uom_po_id': env.ref('uom.product_uom_kgm').id,
         }).product_variant_id
 
     def _create_evaluations(self, count):

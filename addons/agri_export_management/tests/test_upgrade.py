@@ -115,7 +115,6 @@ class TestUpgradeSafety(TransactionCase):
             'product_id': self.env['product.template'].create({
                 'name': 'Cascade Product', 'type': 'consu',
                 'uom_id': self.env.ref('uom.product_uom_unit').id,
-                'uom_po_id': self.env.ref('uom.product_uom_unit').id,
             }).product_variant_id.id,
             'product_qty': 10.0,
         })
