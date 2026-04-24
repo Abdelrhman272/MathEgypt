@@ -90,4 +90,4 @@ class TestAgxShipment(TransactionCase):
             'product_qty': 100.0,
             # no uom_id provided — should default from product
         })
-        self.assertEqual(line.uom_id, product.uom_id)
+        self.assertEqual(line.uom_id.id, product.uom_id.id)
