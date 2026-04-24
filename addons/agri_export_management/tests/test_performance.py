@@ -25,7 +25,9 @@ class TestPerformance(TransactionCase):
         cls.size_40 = env['agx.size'].create({'number': 40, 'name': '40', 'sequence': 40})
         cls.vendor  = env['res.partner'].create({'name': 'Perf Vendor', 'supplier_rank': 1, 'is_agx_farm': True})
         cls.farm    = env['res.partner'].create({'name': 'Perf Farm', 'code': 'PF-001', 'partner_id': cls.vendor.id})
-        cls.season  = env['agx.season'].create({'name': 'Perf Season', 'code': 'PS-25', 'crop_category_id': cls.crop.id, 'state': 'active'})
+        cls.season  = env['agx.season'].create({'name': 'Perf Season', 'code': 'PS-25', 'crop_category_id': cls.crop.id, 'state': 'active',
+            'date_start': '2025-11-01',
+        })
         cls.raw_product = env['product.template'].create({
             'name': 'Perf Raw', 'type': 'consu', 'tracking': 'lot',
             'uom_id': env.ref('uom.product_uom_kgm').id,

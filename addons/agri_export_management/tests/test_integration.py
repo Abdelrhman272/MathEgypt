@@ -48,6 +48,7 @@ class TestE2EWorkflow(TransactionCase):
             'code': 'INT-25',
             'crop_category_id': cls.crop_cat.id,
             'state': 'active',
+            'date_start': '2025-11-01',
         })
 
         # ── Products ──────────────────────────────────────────────
@@ -353,7 +354,7 @@ class TestE2EWorkflow(TransactionCase):
             'code': 'PL-TST',
             'crop_category_id': self.crop_cat.id,
             'state': 'active',
-        })
+            'date_start': '2025-11-01',})
         self.assertTrue(
             season.analytic_account_id,
             "Season must auto-create analytic account"

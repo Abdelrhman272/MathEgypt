@@ -48,7 +48,7 @@ class TestUpgradeSafety(TransactionCase):
         season = self.env['agx.season'].create({
             'name': 'Upgrade Test Season', 'code': 'UPG-25',
             'crop_category_id': crop.id, 'state': 'active',
-        })
+            'date_start': '2025-11-01',})
         # Analytic account should exist
         if season.analytic_account_id:
             # Account name should reference season
@@ -65,7 +65,7 @@ class TestUpgradeSafety(TransactionCase):
         """Deleting a batch cascades to scrap lines."""
         season = self.env['agx.season'].create({
             'name': 'Cascade Season', 'code': 'CS-25', 'state': 'active',
-        })
+            'date_start': '2025-11-01',})
         batch = self.env['agx.batch'].create({
             'batch_date': '2025-12-01', 'season_id': season.id,
         })
@@ -83,7 +83,7 @@ class TestUpgradeSafety(TransactionCase):
         """Deleting a batch cascades to packaging lines."""
         season = self.env['agx.season'].create({
             'name': 'Pkg Cascade Season', 'code': 'PCS-25', 'state': 'active',
-        })
+            'date_start': '2025-11-01',})
         batch = self.env['agx.batch'].create({
             'batch_date': '2025-12-01', 'season_id': season.id,
         })

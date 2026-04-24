@@ -29,7 +29,7 @@ class TestAgxEvaluation(TransactionCase):
         self.season = self.env['agx.season'].create({
             'name': 'Test Season 2025', 'code': 'TST-25',
             'crop_category_id': self.crop.id, 'state': 'active',
-        })
+            'date_start': '2025-11-01',})
         self.raw_product = self.env['product.template'].create({
             'name': 'Test Raw Product', 'type': 'consu',
             'tracking': 'lot',

@@ -40,6 +40,7 @@ class TestFullWorkflow(TransactionCase):
         cls.season = env['agx.season'].create({
             'name': 'Flow Season 2025', 'code': 'FS-25',
             'crop_category_id': cls.crop.id, 'state': 'active',
+            'date_start': '2025-11-01',
         })
         cls.destination = env['res.country'].search([('code', '=', 'NL')], limit=1)
 
@@ -182,7 +183,7 @@ class TestFullWorkflow(TransactionCase):
             'code': 'ATS-25',
             'crop_category_id': self.crop.id,
             'state': 'active',
-        })
+            'date_start': '2025-11-01',})
         self.assertTrue(
             season.analytic_account_id,
             "Season should auto-create analytic account"

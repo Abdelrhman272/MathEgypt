@@ -17,7 +17,7 @@ class TestAgxShipment(TransactionCase):
             'name': 'Ship Test Season',
             'code': 'STS-25',
             'state': 'active',
-        })
+            'date_start': '2025-11-01',})
 
     def _make_shipment(self, **kwargs):
         vals = {
