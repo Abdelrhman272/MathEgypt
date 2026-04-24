@@ -1312,16 +1312,16 @@ class AgxShipmentLine(models.Model):
         """
         for rec in self:
             if rec.uom_id and rec.product_id:
-                if rec.uom_id.category_id != rec.product_id.uom_id.category_id:
-                    raise ValidationError(
-                        "UoM '%s' is not compatible with product UoM '%s'. "
-                        "Please use a UoM from the '%s' category."
-                        % (
-                            rec.uom_id.name,
-                            rec.product_id.uom_id.name,
-                            rec.product_id.uom_id.category_id.name,
+                try:
+                    uom_cat = rec.uom_id.category_id
+                    prod_uom_cat = rec.product_id.uom_id.category_id
+                    if uom_cat and prod_uom_cat and uom_cat != prod_uom_cat:
+                        raise ValidationError(
+                            "UoM '%s' is not compatible with product UoM '%s'."
+                            % (rec.uom_id.name, rec.product_id.uom_id.name)
                         )
-                    )
+                except AttributeError:
+                    pass  # category_id not available in this Odoo version
 
     @api.onchange("product_id")
     def _onchange_product_id(self):
